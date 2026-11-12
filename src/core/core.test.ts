@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { neutralFrame, type Frame } from './commands';
+import type { GameEvent } from './events';
 import { nextFloat, nextInt, nextRange, seedRng, type RngHolder } from './rng';
 import { addItem, createInitialState, type GameState } from './state';
 import { step } from './step';
@@ -7,6 +8,14 @@ import { isBlocked, isTileBlocked, plotOrigin, TILE, WORLD_TILES_H, WORLD_TILES_
 import { TUNING } from '../data/tuning';
 
 const move = (moveX: number, moveY: number): Frame => ({ ...neutralFrame(), moveX, moveY });
+
+// The initial state now holds nodes and mudlets; movement tests need an empty plot.
+function quiet(seed: number): GameState {
+  const s = createInitialState(seed);
+  s.nodes = [];
+  s.creatures = [];
+  return s;
+}
 
 function run(state: GameState, frame: Frame, n: number, each?: () => void): void {
   for (let i = 0; i < n; i++) {
@@ -88,7 +97,7 @@ describe('world', () => {
   });
 
   it('blocks water, the locked plot and solid structures, not beds or the road', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     expect(isTileBlocked(s, 0, 0)).toBe(true);
     expect(isTileBlocked(s, 23, 8)).toBe(true); // east plot, locked
     expect(isTileBlocked(s, 3 + 2, 3 + 1)).toBe(true); // hut
@@ -105,7 +114,7 @@ describe('world', () => {
 
 describe('player movement', () => {
   it('60 ticks of moveX 1 move x by 90', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     run(s, move(1, 0), 60);
     expect(s.player.x).toBeCloseTo(178, 0);
     expect(Math.abs(s.player.x - 178)).toBeLessThanOrEqual(1);
@@ -115,14 +124,14 @@ describe('player movement', () => {
   });
 
   it('a down-right diagonal covers 90 px of distance in 60 ticks', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     run(s, move(1, 1), 60);
     const d = Math.hypot(s.player.x - 88, s.player.y - 120);
     expect(Math.abs(d - 90)).toBeLessThanOrEqual(1);
   });
 
   it('faces the dominant axis and stops moving on a neutral frame', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     run(s, move(-0.3, -1), 1);
     expect(s.player.facing).toBe('up');
     run(s, move(-1, 0.2), 1);
@@ -133,19 +142,19 @@ describe('player movement', () => {
   });
 
   it('cannot enter the hut: walking up stops flush under it', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     const hut = { x: (3 + 1) * TILE, y: (3 + 1) * TILE, w: 3 * TILE, h: 2 * TILE };
     run(s, move(0, -1), 600, () => expect(feetOverlap(s, hut.x, hut.y, hut.w, hut.h)).toBe(false));
     expect(s.player.y).toBe(hut.y + hut.h + TUNING.player.hitboxH / 2);
   });
 
   it('cannot enter deep water on the west or north edge', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     const west = { x: 0, y: 0, w: 3 * TILE, h: 20 * TILE };
     run(s, move(-1, 0), 600, () => expect(feetOverlap(s, west.x, west.y, west.w, west.h)).toBe(false));
     expect(s.player.x).toBe(3 * TILE + TUNING.player.hitboxW / 2);
 
-    const n = createInitialState(1);
+    const n = quiet(1);
     n.player.x = (3 + 15) * TILE + 8;
     const north = { x: 0, y: 0, w: 46 * TILE, h: 3 * TILE };
     run(n, move(0, -1), 600, () => expect(feetOverlap(n, north.x, north.y, north.w, north.h)).toBe(false));
@@ -153,7 +162,7 @@ describe('player movement', () => {
   });
 
   it('cannot enter the locked east plot', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     s.player.y = (3 + 8) * TILE + 8;
     const east = { x: 23 * TILE, y: 3 * TILE, w: 20 * TILE, h: 14 * TILE };
     run(s, move(1, 0), 600, () => expect(feetOverlap(s, east.x, east.y, east.w, east.h)).toBe(false));
@@ -161,7 +170,7 @@ describe('player movement', () => {
   });
 
   it('slides along a wall on a diagonal', () => {
-    const s = createInitialState(1);
+    const s = quiet(1);
     run(s, move(-1, -1), 120);
     // Blocked west by water, still moved up until the hut... x is flush with the water edge.
     expect(s.player.x).toBe(3 * TILE + TUNING.player.hitboxW / 2);
@@ -180,11 +189,14 @@ describe('determinism', () => {
     });
     const play = (): string => {
       const s = createInitialState(42);
-      for (let i = 0; i < 600; i++) step(s, script(i));
-      return JSON.stringify(s);
+      const events: GameEvent[] = [];
+      for (let i = 0; i < 600; i++) events.push(...step(s, script(i)));
+      return JSON.stringify({ s, events });
     };
     const a = play();
     expect(play()).toBe(a);
-    expect(JSON.parse(a).tick).toBe(600);
+    const out = JSON.parse(a) as { s: GameState; events: GameEvent[] };
+    expect(out.s.tick).toBe(600);
+    expect(out.events.filter((e) => e.type === 'swing').length).toBeGreaterThan(0);
   });
 });

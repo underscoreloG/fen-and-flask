@@ -94,7 +94,24 @@ export function isTileBlocked(state: GameState, wtx: number, wty: number): boole
   return kind === 'deepwater' || kind === 'locked' || isSolidStructureTile(wtx, wty);
 }
 
-// Does a w x h box centered on (cx, cy) overlap any blocked tile? Edges that only touch a tile
+const NODE_W = TUNING.node.hitboxW;
+const NODE_H = TUNING.node.hitboxH;
+
+// Strict overlap of two centered boxes: touching edges do not count.
+export function boxesOverlap(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+): boolean {
+  return Math.abs(ax - bx) < (aw + bw) / 2 && Math.abs(ay - by) < (ah + bh) / 2;
+}
+
+// Does a w x h box centered on (cx, cy) overlap any blocked tile or node? Edges that only touch
 // do not count, so an entity can stand flush against a wall.
 export function isBlocked(state: GameState, cx: number, cy: number, w: number, h: number): boolean {
   const left = cx - w / 2;
@@ -108,5 +125,81 @@ export function isBlocked(state: GameState, cx: number, cy: number, w: number, h
       if (isTileBlocked(state, tx, ty)) return true;
     }
   }
+  for (const n of state.nodes) {
+    if (boxesOverlap(cx, cy, w, h, n.x, n.y, NODE_W, NODE_H)) return true;
+  }
   return false;
+}
+
+export interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface Mover {
+  x: number;
+  y: number;
+}
+
+// Axis-separated move of a w x h box: blocked on one axis, it still slides along the other.
+// When the full step is blocked it stops flush against what is in the way (a tile edge, a node
+// box or the `bounds` edge). `bounds`, if given, must contain the whole box.
+export function moveAxis(
+  state: GameState,
+  m: Mover,
+  d: number,
+  axis: 'x' | 'y',
+  w: number,
+  h: number,
+  bounds: Rect | null = null,
+): void {
+  if (d === 0) return;
+  const half = axis === 'x' ? w / 2 : h / 2;
+  const from = m[axis];
+  const to = from + d;
+  const at = (v: number): [number, number] => (axis === 'x' ? [v, m.y] : [m.x, v]);
+  const fits = (v: number): boolean => {
+    const [cx, cy] = at(v);
+    if (bounds && (cx - w / 2 < bounds.x0 || cx + w / 2 > bounds.x1 || cy - h / 2 < bounds.y0 || cy + h / 2 > bounds.y1)) {
+      return false;
+    }
+    return !isBlocked(state, cx, cy, w, h);
+  };
+  if (fits(to)) {
+    m[axis] = to;
+    return;
+  }
+  const candidates = [
+    d > 0 ? Math.floor((to + half) / TILE) * TILE - half : (Math.floor((to - half) / TILE) + 1) * TILE + half,
+  ];
+  const [tx, ty] = at(to);
+  for (const n of state.nodes) {
+    if (!boxesOverlap(tx, ty, w, h, n.x, n.y, NODE_W, NODE_H)) continue;
+    const c = axis === 'x' ? n.x : n.y;
+    const nh = (axis === 'x' ? NODE_W : NODE_H) / 2;
+    candidates.push(d > 0 ? c - nh - half : c + nh + half);
+  }
+  if (bounds) {
+    candidates.push(d > 0 ? (axis === 'x' ? bounds.x1 : bounds.y1) - half : (axis === 'x' ? bounds.x0 : bounds.y0) + half);
+  }
+  // The furthest stop that still lies between from and to and fits.
+  let best = from;
+  for (const c of candidates) {
+    const ahead = d > 0 ? c > best && c <= to : c < best && c >= to;
+    if (ahead && fits(c)) best = c;
+  }
+  m[axis] = best;
+}
+
+// The world tile under a world px point.
+export function tileAt(px: number): number {
+  return Math.floor(px / TILE);
+}
+
+// A plot's area in world px, rows [0, rows) only.
+export function plotRect(gx: number, gy: number, rows: number): Rect {
+  const o = plotOrigin(gx, gy);
+  return { x0: o.x * TILE, y0: o.y * TILE, x1: (o.x + W.plotW) * TILE, y1: (o.y + rows) * TILE };
 }

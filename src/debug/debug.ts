@@ -53,6 +53,7 @@ export function installDebug(session: Session, target: Window): DebugApi {
       session.latch = deliver(f, session.latch, n, (tf) => {
         events.push(...step(session.state, tf));
       });
+      session.events.push(...events);
       return events;
     },
     cmd(command) {

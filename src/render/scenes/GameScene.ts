@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
 import type { StructureKind } from '../../data/content';
+import type { GameEvent } from '../../core/events';
+import { creatureDef } from '../../core/creatures';
+import type { CreatureState, NodeState, PickupState } from '../../core/state';
 import { PALETTE } from '../../data/palette';
-import { TUNING } from '../../data/tuning';
+import { ticks, TUNING } from '../../data/tuning';
 import { plotAtTile, plotOrigin, TILE, WORLD_H, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W, WORLD_W } from '../../core/world';
 import { createDeviceReader, type DeviceReader } from '../../input/devices';
+import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
 import { pump, type Session } from '../../input/session';
 
@@ -31,6 +35,16 @@ function tileHash(x: number, y: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+// GameScene re-emits each frame's sim events on game.events for the UI scene.
+export const SIM_EVENTS = 'sim-events';
+
+const LAND_TICKS = ticks(TUNING.pickup.landTime);
+
+interface View {
+  img: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image;
+}
+
 const pick = (frames: readonly string[], x: number, y: number): string => frames[tileHash(x, y) % frames.length]!;
 
 export class GameScene extends Phaser.Scene {
@@ -39,7 +53,12 @@ export class GameScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Image;
   private waterTiles: Phaser.GameObjects.Image[] = [];
-  private cauldrons: Phaser.GameObjects.Image[] = [];
+  private structures: { id: string; kind: StructureKind; img: Phaser.GameObjects.Image }[] = [];
+  private nodeViews = new Map<number, View>();
+  private creatureViews = new Map<number, View>();
+  private pickupViews = new Map<number, View>();
+  private fx!: Fx;
+  private swingUntil = -Infinity;
   private fogs: { gx: number; gy: number; rect: Phaser.GameObjects.Rectangle }[] = [];
 
   constructor(session: Session) {
@@ -55,7 +74,9 @@ export class GameScene extends Phaser.Scene {
     const r = TUNING.render;
     this.playerShadow = this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(r.shadowAlpha).setDepth(DEPTH.shadow);
     this.player = this.add.image(0, 0, ATLAS, 'player_down_0').setOrigin(0.5, 1);
+    this.fx = new Fx(this, { viewOf: (id) => (this.nodeViews.get(id) ?? this.creatureViews.get(id))?.img });
     this.syncPlayer();
+    this.syncEntities();
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
@@ -71,8 +92,21 @@ export class GameScene extends Phaser.Scene {
       const { keys, pad } = this.reader.read();
       pump(this.session, keys, pad, delta);
     }
+    const events = this.session.events;
+    this.session.events = [];
+    this.onEvents(events);
     this.syncPlayer();
+    this.syncEntities();
     this.syncWorld();
+    this.fx.update(delta);
+  }
+
+  // Fx first, while the views of things that just broke still exist; then the UI gets them.
+  private onEvents(events: GameEvent[]): void {
+    if (events.length === 0) return;
+    for (const e of events) if (e.type === 'swing') this.swingUntil = this.time.now + TUNING.fx.swingPoseMs;
+    this.fx.play(events);
+    this.game.events.emit(SIM_EVENTS, events);
   }
 
   private isLand(tx: number, ty: number): boolean {
@@ -119,12 +153,12 @@ export class GameScene extends Phaser.Scene {
       const cx = s.x + s.w / 2;
       const bottom = s.y + s.h;
       const img = this.add.image(cx, bottom, ATLAS, STRUCTURE_FRAME[s.def.kind]).setOrigin(0.5, 1);
+      this.structures.push({ id: s.def.id, kind: s.def.kind, img });
       if (s.def.kind === 'bed') {
         img.setDepth(DEPTH.flat);
         continue;
       }
       img.setDepth(bottom);
-      if (s.def.kind === 'cauldron') this.cauldrons.push(img);
       const shadow = s.w > TILE ? 'shadow_l' : 'shadow_m';
       this.add.image(cx, bottom - 1, ATLAS, shadow).setOrigin(0.5, 0.5).setAlpha(alpha).setDepth(DEPTH.shadow);
     }
@@ -145,25 +179,108 @@ export class GameScene extends Phaser.Scene {
   private syncPlayer(): void {
     const state = this.session.state;
     const p = state.player;
+    const now = this.time.now;
     const feetBottom = p.y + TUNING.player.hitboxH / 2;
     const dir = p.facing === 'left' || p.facing === 'right' ? 'side' : p.facing;
     // Walk cycle: stand, stride, stand, stride; front and back mirror every other stride
     // so the lifted foot alternates.
     const phase = p.moving ? Math.floor(state.tick / TUNING.render.walkFrameTicks) % 4 : 0;
-    const frame = `player_${dir}_${phase % 2}`;
-    const flip = dir === 'side' ? p.facing === 'left' : phase === 3;
+    const swinging = now < this.swingUntil;
+    const frame = swinging ? `player_${dir}_swing` : `player_${dir}_${phase % 2}`;
+    const flip = dir === 'side' ? p.facing === 'left' : !swinging && phase === 3;
     this.player.setFrame(frame).setFlipX(flip).setPosition(p.x, feetBottom).setDepth(feetBottom);
     this.playerShadow.setPosition(p.x, feetBottom - 1);
+    // Hurt: blink in heart red for a moment.
+    const fx = TUNING.fx;
+    const since = now - this.fx.hurtAt;
+    if (since < fx.hurtFlashMs && Math.floor(since / fx.hurtBlinkMs) % 2 === 0) this.player.setTintFill(PALETTE.heart);
+    else this.player.clearTint();
+  }
+
+  // Creates, moves and removes the sprites of nodes, creatures and pickups to match the state.
+  private syncEntities(): void {
+    const state = this.session.state;
+    const { swingTarget } = state.player;
+    const now = this.time.now;
+    const r = TUNING.render;
+    const nodeFeet = TUNING.node.hitboxH / 2;
+
+    this.syncViews(this.nodeViews, state.nodes, 'shadow_s', (n: NodeState, v) => {
+      const bottom = n.y + nodeFeet;
+      v.img.setFrame(`node_${n.type}${swingTarget === n.id ? '_hl' : ''}`).setPosition(n.x, bottom).setDepth(bottom);
+      v.shadow.setPosition(n.x, bottom - 1);
+    });
+
+    this.syncViews(this.creatureViews, state.creatures, 'shadow_s', (c: CreatureState, v) => {
+      const bottom = c.y + creatureDef(c.type).hitboxH / 2;
+      const hopping = c.mode !== 'idle' && c.stun === 0;
+      const f = hopping ? Math.floor((now + c.id * r.hopFrameMs) / r.hopFrameMs) % 2 : 0;
+      const faceLeft = c.mode === 'chase' ? state.player.x < c.x : c.dirX < 0;
+      v.img
+        .setFrame(`mudlet_${f}${swingTarget === c.id ? '_hl' : ''}`)
+        .setFlipX(faceLeft)
+        .setPosition(c.x, bottom - f * r.hopLiftPx)
+        .setDepth(bottom);
+      v.shadow.setPosition(c.x, bottom - 1);
+    });
+
+    this.syncViews(this.pickupViews, state.pickups, 'shadow_xs', (k: PickupState, v) => {
+      let x = k.x;
+      let y = k.y;
+      let lift: number;
+      if (k.landing > 0) {
+        // Arc out from where it dropped.
+        const t = 1 - k.landing / LAND_TICKS;
+        x = k.fromX + (k.x - k.fromX) * t;
+        y = k.fromY + (k.y - k.fromY) * t;
+        lift = r.pickupArcPx * 4 * t * (1 - t);
+      } else {
+        lift = Math.round(r.pickupBobPx * (1 + Math.sin((now + k.id * r.pickupBobMs) / r.pickupBobMs)));
+      }
+      v.img.setFrame(`icon_${k.item}`).setPosition(x, y - lift).setDepth(y);
+      v.shadow.setPosition(x, y);
+    });
+  }
+
+  private syncViews<T extends { id: number }>(
+    views: Map<number, View>,
+    items: readonly T[],
+    shadowFrame: string,
+    place: (item: T, v: View) => void,
+  ): void {
+    const alive = new Set<number>();
+    for (const it of items) {
+      alive.add(it.id);
+      let v = views.get(it.id);
+      if (!v) {
+        v = {
+          img: this.add.image(0, 0, ATLAS, '__BASE').setOrigin(0.5, 1),
+          shadow: this.add.image(0, 0, ATLAS, shadowFrame).setAlpha(TUNING.render.shadowAlpha).setDepth(DEPTH.shadow),
+        };
+        views.set(it.id, v);
+      }
+      place(it, v);
+    }
+    for (const [id, v] of views) {
+      if (alive.has(id)) continue;
+      v.img.destroy();
+      v.shadow.destroy();
+      views.delete(id);
+    }
   }
 
   private syncWorld(): void {
     const r = TUNING.render;
+    const target = this.session.state.player.interactTarget;
     const waterFrame = `water_${Math.floor(this.time.now / r.waterFrameMs) % 2}`;
     if (this.waterTiles[0]?.frame.name !== waterFrame) {
       for (const t of this.waterTiles) t.setFrame(waterFrame);
     }
     const cauldronFrame = `cauldron_${Math.floor(this.time.now / r.cauldronFrameMs) % 2}`;
-    for (const c of this.cauldrons) c.setFrame(cauldronFrame);
+    for (const s of this.structures) {
+      const base = s.kind === 'cauldron' ? cauldronFrame : STRUCTURE_FRAME[s.kind];
+      s.img.setFrame(target === s.id ? `${base}_hl` : base);
+    }
     for (const f of this.fogs) {
       const owned = this.session.state.plots.find((p) => p.gx === f.gx && p.gy === f.gy)?.owned ?? false;
       f.rect.setVisible(!owned);
