@@ -81,7 +81,7 @@ Faint (0 hearts): fade out, then the normal morning reset runs and the player wa
 
 Each morning every owned plot is refilled to its target counts. No daytime respawn.
 
-Pickups: scatter 8-14 px from the source, `pickup.magnetRadius` 28 px, fly at 160 px/s, collected within 6 px.
+Pickups: `pickup.landTime` 0.3 s (18 ticks): a fresh drop arcs out and cannot be magnetized until it lands. Scatter 8-14 px from the source, `pickup.magnetRadius` 28 px, fly at 160 px/s, collected within 6 px.
 
 ## Creature: mudlet
 

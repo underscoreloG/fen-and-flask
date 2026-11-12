@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-12
-Next action: WP01 running in worktree ../fen-and-flask-wt/wp01. On report: verify, merge, browser gate, dispatch WP02. WP05 brief must say: main.ts has noAudio: true, turn audio on.
+Next action: WP02 running in worktree ../fen-and-flask-wt/wp02. On report: verify, merge, browser gate, dispatch WP03. WP05 brief must say: main.ts has noAudio: true, turn audio on; sim events are re-emitted on game.events as SIM_EVENTS (GameScene.ts). Known art nit: cauldron outline open at the bottom.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -23,8 +23,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP | Status | Dispatch | Model | Agent/session id | Branch | Notes |
 |---|---|---|---|---|---|---|
 | WP00 Foundation | merged | subagent | opus high | | wp/00-foundation | verify green (35 tests), browser: x 88 -> 178, no console error. CCRs accepted: clearLatches(latch), input/session.ts holds the loop |
-| WP01 Gathering and combat | running | subagent | opus high | | | |
-| WP02 Day, sleep, garden, save | todo | subagent | opus high | | | |
+| WP01 Gathering and combat | merged | subagent | opus high | | wp/01-gathering | verify green (60 tests); browser: 19 nodes, 2 mudlets, swing breaks a reedclump and the reed lands in inventory, no console error. CCR accepted: pickup.landTime 0.3 s |
+| WP02 Day, sleep, garden, save | running | subagent | opus high | | | |
 | WP03 Stations, notebook | todo | subagent | opus high | | | |
 | WP04 Stall, land, goal, bot | todo | subagent | opus high | | | |
 | WP05 Audio, pause, Pages | todo | subagent | opus high | | | needs sound list approved by user |
