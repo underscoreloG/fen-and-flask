@@ -2,23 +2,24 @@
 // 1 px clear margin; the index adds the ink outline and the bone target outline (`_hl`).
 // Light comes from the top-left: highlight up there, the darkest shade at the bottom right.
 
-// Round mint mound: pointed leaf tips on the rim, mint on top, grass mid, moss underneath.
+// Round mint mound: two leaf tips on top, lit mint leaves top-left with grass veins, grass
+// toward the bottom right, moss underneath.
 const MINTBUSH = [
   '................',
-  '.......n........',
-  '....n.nnn.n.....',
-  '...nnnnGnnnn.n..',
-  '..nGnnnnngnnnn..',
-  '..nnGnngnnnGnn..',
-  '.nnnnnggnnnnngn.',
-  '.nGnngnnnggnnnn.',
-  '.nnggnnGngnngnn.',
-  '.gnngggnnggnggg.',
-  '.gggmgggggmggmg.',
-  '..gmmggmgmmgmmm.',
-  '..mmmgmmmmmmmm..',
-  '...mmmmmmmmmmm..',
-  '....mm.mmm.mm...',
+  '................',
+  '......n..n......',
+  '....nnnn.nnn....',
+  '...nnnnnnnnng...',
+  '..nnngnnnnnngg..',
+  '..nnnngnnngngg..',
+  '.nnnnnnggnnggng.',
+  '.nnngnnnnnggngg.',
+  '.gnnnggnnggnggg.',
+  '.ggnnnggngggggm.',
+  '.gggnggggggggmm.',
+  '..mggggggggmgm..',
+  '..mmmggmmmmmmm..',
+  '...mmmmmmmmmm...',
   '................',
 ];
 
