@@ -3,9 +3,13 @@
 import type { CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
 import type { Facing } from './state';
 
+// What the core asks the UI to open; later WPs add members (stations, stall, buy plot).
+export type UiRequest = { ui: 'sleepConfirm' } | { ui: 'callItADayConfirm' } | { ui: 'gardenPicker'; bed: number };
+
 export type GameEvent =
-  // Every swing that actually plays; targetId is null for a swing at the air.
-  | { type: 'swing'; x: number; y: number; facing: Facing; targetId: number | null }
+  // Every swing that actually plays; targetId is null for a swing at the air, a bed's
+  // structure id for a harvest.
+  | { type: 'swing'; x: number; y: number; facing: Facing; targetId: number | string | null }
   // Every hit on a node, the breaking one included; hp is what is left.
   | { type: 'nodeHit'; id: number; nodeType: NodeId; x: number; y: number; hp: number }
   | { type: 'nodeBroken'; id: number; nodeType: NodeId; x: number; y: number }
@@ -17,4 +21,9 @@ export type GameEvent =
   | { type: 'playerHurt'; x: number; y: number; hearts: number; fromX: number; fromY: number }
   // x, y is where the player fell; the player is already at the hut door.
   | { type: 'playerFainted'; x: number; y: number }
-  | { type: 'interact'; kind: StructureKind; structureId: string };
+  | { type: 'interact'; kind: StructureKind; structureId: string }
+  | ({ type: 'uiRequest' } & UiRequest)
+  // Once per day, whatever switched it (timer, CallItADay, debug).
+  | { type: 'eveningStarted'; day: number }
+  // After the morning reset; day is the new day.
+  | { type: 'morning'; day: number };

@@ -147,6 +147,8 @@ export const ICON_SPRITES: Record<string, readonly string[]> = {
   ...Object.fromEntries(Object.entries(ITEM_ICONS).map(([id, rows]) => [`icon_${id}`, rows])),
   heart: ['.kk..kk.', 'khbkkhhk', 'khbhhhhk', 'khhhhhhk', '.khhhhk.', '..khhk..', '...kk...', '........'],
   heart_empty: ['.kk..kk.', 'kLLkkLLk', 'kLPPPPLk', 'kLPPPPLk', '.kLPPLk.', '..kLLk..', '...kk...', '........'],
+  // The HUD draws the hand on top, from the center pixel (4,4).
+  clock_dial: ['..kkkk..', '.kbbbbk.', 'kbbsbbbk', 'kbbbbbbk', 'ksbbkbsk', 'kbbbbbbk', '.kbbsbk.', '..kkkk..'],
   coin: ['..kkkk..', '.kEE$$k.', 'kE$OO$$k', 'kE$O$$Ok', 'k$$O$$Ok', 'k$$OO$Ok', '.k$OOOk.', '..kkkk..'],
 };
 

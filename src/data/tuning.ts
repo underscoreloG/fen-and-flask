@@ -73,6 +73,8 @@ export const TUNING = {
     length: 240,
     clockStartHour: 6,
     clockEndHour: 18,
+    // The HUD clock moves in steps of this many minutes.
+    clockStepMinutes: 10,
   },
   mortar: {
     secondsPerUnit: 1.5,
@@ -176,6 +178,25 @@ export const TUNING = {
     popScale: 1.5,
     popMs: 160,
     faintFadeMs: 900,
+    // Sleep: fade to night, hold, fade back (1.5 s in all).
+    sleepFadeMs: 500,
+    sleepHoldMs: 500,
+    eveningTintAlpha: 0.14,
+  },
+  // Shared panel box (specs/design.md Screens): at most 220 px wide.
+  panel: {
+    maxW: 220,
+    padX: 6,
+    padY: 5,
+    rowH: 10,
+    titleGap: 4,
+    iconGap: 3,
+    countGap: 8,
+    dimAlpha: 0.4,
+    // Title screen.
+    titleTextY: 80,
+    titleScale: 2,
+    titleMenuY: 160,
   },
   hud: {
     heartGap: 1,
@@ -191,5 +212,7 @@ export const TUNING = {
     hopArcPx: 24,
     hopFromLiftPx: 10,
     pendingAlpha: 0.35,
+    clockGap: 2,
+    clockHandPx: 3,
   },
 } as const;

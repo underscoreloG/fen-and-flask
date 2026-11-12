@@ -55,6 +55,13 @@ export const WORLD_STRUCTURES: readonly WorldStructure[] = PLOTS.flatMap((plot) 
   }),
 );
 
+// The structure the player is targeting for interact (as of the last updateTargets). Commands
+// that act on a structure are only valid while it is this one.
+export function targetStructure(state: GameState): WorldStructure | undefined {
+  const id = state.player.interactTarget;
+  return id === null ? undefined : WORLD_STRUCTURES.find((s) => s.def.id === id);
+}
+
 // Solid structure tiles never move, so they are baked once into a world-tile mask.
 const SOLID = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
 for (const s of WORLD_STRUCTURES) {

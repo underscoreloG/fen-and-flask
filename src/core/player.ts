@@ -1,7 +1,9 @@
 import { ticks, TUNING } from '../data/tuning';
+import { morningReset } from './clock';
 import type { Frame } from './commands';
 import { creatureDef, hitCreature, touchingCreature } from './creatures';
 import type { GameEvent } from './events';
+import { bedIndex, harvest, interactBed, readyBeds, type ReadyBed } from './garden';
 import { hitNode } from './nodes';
 import type { CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
 import { moveAxis, WORLD_STRUCTURES, type WorldStructure } from './world';
@@ -91,17 +93,23 @@ function nearestInReach<T>(
   return best;
 }
 
-type SwingTarget = { kind: 'creature'; ent: CreatureState; assist: boolean } | { kind: 'node'; ent: NodeState; assist: boolean };
+type SwingTarget =
+  | { kind: 'creature'; ent: CreatureState; assist: boolean }
+  | { kind: 'node'; ent: NodeState; assist: boolean }
+  | { kind: 'bed'; ent: ReadyBed; assist: boolean };
 
-// Priority: nearest creature in reach, else nearest node in reach; then the same in the assist
-// radius around the feet.
+// Priority: nearest creature in reach, else nearest node, else a ready bed; then the same in
+// the assist radius around the feet.
 function findSwingTarget(state: GameState): SwingTarget | null {
   const p = state.player;
+  const beds = readyBeds(state);
   for (const assist of [false, true]) {
     const creature = nearestInReach(p, TUNING.swing, state.creatures, (c) => c, assist);
     if (creature) return { kind: 'creature', ent: creature, assist };
     const node = nearestInReach(p, TUNING.swing, state.nodes, (n) => n, assist);
     if (node) return { kind: 'node', ent: node, assist };
+    const bed = nearestInReach(p, TUNING.swing, beds, (b) => b, assist);
+    if (bed) return { kind: 'bed', ent: bed, assist };
   }
   return null;
 }
@@ -132,13 +140,34 @@ export function swing(state: GameState, events: GameEvent[]): void {
   events.push({ type: 'swing', x: p.x, y: p.y, facing: p.facing, targetId: t ? t.ent.id : null });
   if (t?.kind === 'creature') hitCreature(state, t.ent, events);
   else if (t?.kind === 'node') hitNode(state, t.ent, events);
+  else if (t?.kind === 'bed') harvest(state, t.ent.index, events);
 }
 
 export function interact(state: GameState, events: GameEvent[]): void {
   const found = findInteractTarget(state);
   if (!found) return;
-  if (found.assist) turnToward(state.player, found.s.interactX, found.s.interactY);
-  events.push({ type: 'interact', kind: found.s.def.kind, structureId: found.s.def.id });
+  let s = found.s;
+  if (found.assist) {
+    turnToward(state.player, s.interactX, s.interactY);
+    // After the turn the reach circle may favour a neighbour (beds are one tile apart); route to
+    // what updateTargets will report, so a command sent back from the panel passes the target check.
+    s = findInteractTarget(state)?.s ?? s;
+  }
+  events.push({ type: 'interact', kind: s.def.kind, structureId: s.def.id });
+  switch (s.def.kind) {
+    case 'hut':
+      events.push({ type: 'uiRequest', ui: 'sleepConfirm' });
+      break;
+    case 'stall':
+      // The evening stall is WP04.
+      if (state.phase === 'day') events.push({ type: 'uiRequest', ui: 'callItADayConfirm' });
+      break;
+    case 'bed':
+      interactBed(state, bedIndex(s.def.id), events);
+      break;
+    default:
+      break;
+  }
 }
 
 // Contact with a mudlet: one heart, knockback away from it, then a spell of invulnerability.
@@ -181,7 +210,8 @@ function faint(state: GameState, events: GameEvent[]): void {
   p.knockTicks = 0;
   p.knockX = 0;
   p.knockY = 0;
-  // WP02: morning reset
+  // After the move, so the respawn distance rule is measured from where the player wakes.
+  morningReset(state, events);
 }
 
 // For the renderer: what a swing or an interact would hit right now. Never turns the player.

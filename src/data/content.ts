@@ -137,6 +137,10 @@ export const CROPS: readonly CropDef[] = [
   { item: 'emberroot', nights: 2, yield: 2 },
 ];
 
+// --- Save --------------------------------------------------------------
+
+export const SAVE_KEY = 'fenflask.save.v1';
+
 // --- Stations ----------------------------------------------------------
 
 export interface GrindRecipe {
