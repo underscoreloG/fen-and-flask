@@ -79,7 +79,9 @@ src/
     content.ts         items, nodes, creatures, recipes, plot layouts
     tuning.ts          every tunable number
     palette.ts         color bible tokens
-  input/input.ts       keyboard + gamepad -> input part of the frame
+  input/input.ts       pure: buildFrame, buildUiIntents, latches, clearLatches(latch)
+  input/devices.ts     DOM keyboard (event.key) and gamepad readers
+  input/session.ts     Session { state, latch, uiLatch, intents, acc, options, botOn }, pump(): the 60 Hz loop; pause the sim here
   render/
     sprites/           pixel-array sprite sources + texture generator
     font.ts            code-defined bitmap font
@@ -97,7 +99,7 @@ Per frame: `input` builds a `Frame { moveX, moveY, swing, interact, commands[] }
 Input delivery rules (a render frame runs 0 to 5 ticks, so nothing may be lost or doubled):
 - Edge presses (`swing`, `interact`) and `commands` are latched by the input layer until a tick consumes them, and they are applied on that one tick only.
 - A command issued by a panel while the sim is paused is queued and delivered on the first tick after the panel closes. Confirm and Start close their panel. Open closes the stall's setup view; the stall's open view is shown on `stallOpened` and does not set the pause switch. The stall setup sends its `SetPrice` list in the same frame as `OpenStall`. While the stall is open the sim runs, so `SetPrice` and `CloseStall` are delivered live.
-- While a panel is open, and on the render frame in which one opens or closes, keys feed only the UI intents: the input layer clears any latched `swing` / `interact` at those moments (it exports `clearLatches()` for this), so the C that confirmed a panel never reaches the sim as an interact, and the C that opened a panel is not also read as its confirm.
+- While a panel is open, and on the render frame in which one opens or closes, keys feed only the UI intents: the input layer clears any latched `swing` / `interact` at those moments (it exports `clearLatches(latch)` for this; call as `session.latch = clearLatches(session.latch)`), so the C that confirmed a panel never reaches the sim as an interact, and the C that opened a panel is not also read as its confirm.
 - Panels do not read `Frame`: they read the UI intents (up, down, left, right with accelerating repeat, confirm, back, notebook, pause, mute) that `src/input` also exports.
 
 Hard boundary rules, checked by `scripts/check-boundaries.mjs`:

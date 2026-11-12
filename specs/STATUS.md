@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-12
-Next action: WP00 running in worktree ../fen-and-flask-wt/wp00; recheck reviewer running on the review fixes. On WP00 report: verify, merge to main, browser gate, then dispatch WP01.
+Next action: WP01 running in worktree ../fen-and-flask-wt/wp01. On report: verify, merge, browser gate, dispatch WP02. WP05 brief must say: main.ts has noAudio: true, turn audio on.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -22,8 +22,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 ## Work packages
 | WP | Status | Dispatch | Model | Agent/session id | Branch | Notes |
 |---|---|---|---|---|---|---|
-| WP00 Foundation | running | subagent | opus high | | | |
-| WP01 Gathering and combat | todo | subagent | opus high | | | |
+| WP00 Foundation | merged | subagent | opus high | | wp/00-foundation | verify green (35 tests), browser: x 88 -> 178, no console error. CCRs accepted: clearLatches(latch), input/session.ts holds the loop |
+| WP01 Gathering and combat | running | subagent | opus high | | | |
 | WP02 Day, sleep, garden, save | todo | subagent | opus high | | | |
 | WP03 Stations, notebook | todo | subagent | opus high | | | |
 | WP04 Stall, land, goal, bot | todo | subagent | opus high | | | |
