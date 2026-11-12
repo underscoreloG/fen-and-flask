@@ -1,5 +1,6 @@
 // The running game shared by the scenes and the debug surface: the state, the input latches
 // and the fixed-step accumulator. No Phaser here.
+import type { GameEvent } from '../core/events';
 import { step } from '../core/step';
 import { createInitialState, type GameState } from '../core/state';
 import { TUNING } from '../data/tuning';
@@ -34,6 +35,8 @@ export interface Session {
   acc: number;
   options: SessionOptions;
   botOn: boolean;
+  // Events of the ticks run since the renderer last drained them (pump and __game.step).
+  events: GameEvent[];
 }
 
 const MS_PER_TICK = 1000 / TUNING.sim.tickRate;
@@ -47,6 +50,7 @@ export function createSession(options: SessionOptions): Session {
     acc: 0,
     options,
     botOn: options.autoplay,
+    events: [],
   };
 }
 
@@ -74,6 +78,6 @@ export function pump(session: Session, keys: KeyState, pad: PadState | null, dtM
   session.intents = ui.intents;
   const n = ticksDue(session, dtMs);
   session.latch = deliver(built.frame, session.latch, n, (f) => {
-    step(session.state, f);
+    session.events.push(...step(session.state, f));
   });
 }

@@ -1,13 +1,27 @@
-import { TUNING } from '../data/tuning';
+import { ticks, TUNING } from '../data/tuning';
 import type { Frame } from './commands';
-import type { Facing, GameState, PlayerState } from './state';
-import { TILE, isBlocked } from './world';
+import { creatureDef, hitCreature, touchingCreature } from './creatures';
+import type { GameEvent } from './events';
+import { hitNode } from './nodes';
+import type { CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
+import { moveAxis, WORLD_STRUCTURES, type WorldStructure } from './world';
 
 const P = TUNING.player;
 const STEP = P.speed / TUNING.sim.tickRate;
+const HURT = TUNING.hurt;
 
 export function updatePlayer(state: GameState, frame: Frame): void {
   const p = state.player;
+  if (p.swingCooldown > 0) p.swingCooldown -= 1;
+  if (p.invulnerable > 0) p.invulnerable -= 1;
+  if (p.knockTicks > 0) {
+    // Knockback overrides the stick until it ends.
+    p.knockTicks -= 1;
+    p.moving = false;
+    moveAxis(state, p, p.knockX, 'x', P.hitboxW, P.hitboxH);
+    moveAxis(state, p, p.knockY, 'y', P.hitboxW, P.hitboxH);
+    return;
+  }
   let mx = clampUnit(frame.moveX);
   let my = clampUnit(frame.moveY);
   const len = Math.hypot(mx, my);
@@ -19,8 +33,8 @@ export function updatePlayer(state: GameState, frame: Frame): void {
   p.moving = len > 0;
   if (!p.moving) return;
   p.facing = faceToward(p.facing, mx, my);
-  moveAxis(state, p, mx * STEP, 'x');
-  moveAxis(state, p, my * STEP, 'y');
+  moveAxis(state, p, mx * STEP, 'x', P.hitboxW, P.hitboxH);
+  moveAxis(state, p, my * STEP, 'y', P.hitboxW, P.hitboxH);
 }
 
 function clampUnit(v: number): number {
@@ -38,22 +52,141 @@ function faceToward(current: Facing, mx: number, my: number): Facing {
   return current === h || current === v ? current : h;
 }
 
-// Axis-separated move: blocked on one axis, the player still slides along the other.
-// When the full step is blocked, snap flush to the blocking tile edge (solids are tile-aligned).
-function moveAxis(state: GameState, p: PlayerState, d: number, axis: 'x' | 'y'): void {
-  if (d === 0) return;
-  const w = P.hitboxW;
-  const h = P.hitboxH;
-  const half = axis === 'x' ? w / 2 : h / 2;
-  const from = p[axis];
-  const to = from + d;
-  const fits = (v: number): boolean =>
-    axis === 'x' ? !isBlocked(state, v, p.y, w, h) : !isBlocked(state, p.x, v, w, h);
-  if (fits(to)) {
-    p[axis] = to;
-    return;
+const FACING_VEC: Record<Facing, { x: number; y: number }> = {
+  down: { x: 0, y: 1 },
+  up: { x: 0, y: -1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+};
+
+interface Reach {
+  reachRadius: number;
+  reachOffset: number;
+  assistRadius: number;
+}
+
+// Nearest of `items` to the reach circle center within the circle, else nearest to the feet
+// within the assist radius. `assist` tells the caller to turn the player on a press.
+function nearestInReach<T>(
+  p: PlayerState,
+  r: Reach,
+  items: readonly T[],
+  pos: (t: T) => { x: number; y: number },
+  assist: boolean,
+): T | null {
+  const f = FACING_VEC[p.facing];
+  const cx = assist ? p.x : p.x + f.x * r.reachOffset;
+  const cy = assist ? p.y : p.y + f.y * r.reachOffset;
+  const radius = assist ? r.assistRadius : r.reachRadius;
+  let best: T | null = null;
+  let bestD = Infinity;
+  for (const t of items) {
+    const q = pos(t);
+    const d = Math.hypot(q.x - cx, q.y - cy);
+    if (d <= radius && d < bestD) {
+      best = t;
+      bestD = d;
+    }
   }
-  const flush = d > 0 ? Math.floor((to + half) / TILE) * TILE - half : (Math.floor((to - half) / TILE) + 1) * TILE + half;
-  const progresses = d > 0 ? flush > from : flush < from;
-  if (progresses && fits(flush)) p[axis] = flush;
+  return best;
+}
+
+type SwingTarget = { kind: 'creature'; ent: CreatureState; assist: boolean } | { kind: 'node'; ent: NodeState; assist: boolean };
+
+// Priority: nearest creature in reach, else nearest node in reach; then the same in the assist
+// radius around the feet.
+function findSwingTarget(state: GameState): SwingTarget | null {
+  const p = state.player;
+  for (const assist of [false, true]) {
+    const creature = nearestInReach(p, TUNING.swing, state.creatures, (c) => c, assist);
+    if (creature) return { kind: 'creature', ent: creature, assist };
+    const node = nearestInReach(p, TUNING.swing, state.nodes, (n) => n, assist);
+    if (node) return { kind: 'node', ent: node, assist };
+  }
+  return null;
+}
+
+function findInteractTarget(state: GameState): { s: WorldStructure; assist: boolean } | null {
+  const p = state.player;
+  const usable = WORLD_STRUCTURES.filter((s) => state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned));
+  for (const assist of [false, true]) {
+    const s = nearestInReach(p, TUNING.interact, usable, (w) => ({ x: w.interactX, y: w.interactY }), assist);
+    if (s) return { s, assist };
+  }
+  return null;
+}
+
+// Turns the player toward an assist target; only ever called on a press.
+function turnToward(p: PlayerState, x: number, y: number): void {
+  const dx = x - p.x;
+  const dy = y - p.y;
+  if (dx !== 0 || dy !== 0) p.facing = faceToward(p.facing, dx, dy);
+}
+
+export function swing(state: GameState, events: GameEvent[]): void {
+  const p = state.player;
+  if (p.swingCooldown > 0) return;
+  p.swingCooldown = ticks(TUNING.swing.cooldown);
+  const t = findSwingTarget(state);
+  if (t?.assist) turnToward(p, t.ent.x, t.ent.y);
+  events.push({ type: 'swing', x: p.x, y: p.y, facing: p.facing, targetId: t ? t.ent.id : null });
+  if (t?.kind === 'creature') hitCreature(state, t.ent, events);
+  else if (t?.kind === 'node') hitNode(state, t.ent, events);
+}
+
+export function interact(state: GameState, events: GameEvent[]): void {
+  const found = findInteractTarget(state);
+  if (!found) return;
+  if (found.assist) turnToward(state.player, found.s.interactX, found.s.interactY);
+  events.push({ type: 'interact', kind: found.s.def.kind, structureId: found.s.def.id });
+}
+
+// Contact with a mudlet: one heart, knockback away from it, then a spell of invulnerability.
+export function updateHurt(state: GameState, events: GameEvent[]): void {
+  const p = state.player;
+  if (p.invulnerable > 0) return;
+  const c = touchingCreature(state);
+  if (!c) return;
+  p.hearts = Math.max(0, p.hearts - creatureDef(c.type).contactDamage);
+  events.push({ type: 'playerHurt', x: p.x, y: p.y, hearts: p.hearts, fromX: c.x, fromY: c.y });
+  let ux = p.x - c.x;
+  let uy = p.y - c.y;
+  const len = Math.hypot(ux, uy);
+  if (len > 0) {
+    ux /= len;
+    uy /= len;
+  } else {
+    // Exactly on top: step back against the facing.
+    ux = -FACING_VEC[p.facing].x;
+    uy = -FACING_VEC[p.facing].y;
+  }
+  const kt = ticks(HURT.knockbackTime);
+  p.knockTicks = kt;
+  p.knockX = (ux * HURT.knockback) / kt;
+  p.knockY = (uy * HURT.knockback) / kt;
+  p.invulnerable = ticks(HURT.invulnerable);
+  if (p.hearts <= 0) faint(state, events);
+}
+
+const HUT_DOOR = WORLD_STRUCTURES.find((s) => s.def.kind === 'hut')!;
+
+function faint(state: GameState, events: GameEvent[]): void {
+  const p = state.player;
+  events.push({ type: 'playerFainted', x: p.x, y: p.y });
+  p.hearts = P.hearts;
+  p.x = HUT_DOOR.interactX;
+  p.y = HUT_DOOR.interactY;
+  p.facing = 'down';
+  p.moving = false;
+  p.knockTicks = 0;
+  p.knockX = 0;
+  p.knockY = 0;
+  // WP02: morning reset
+}
+
+// For the renderer: what a swing or an interact would hit right now. Never turns the player.
+export function updateTargets(state: GameState): void {
+  const p = state.player;
+  p.swingTarget = findSwingTarget(state)?.ent.id ?? null;
+  p.interactTarget = findInteractTarget(state)?.s.def.id ?? null;
 }
