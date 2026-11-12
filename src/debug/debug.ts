@@ -37,10 +37,13 @@ export interface DebugApi {
   give(itemId: ItemId, n: number): void;
   setPhase(p: Phase): void;
   bot(on: boolean): void;
+  frames(n?: number): void;
   readonly version: string;
 }
 
-export function installDebug(session: Session, target: Window): DebugApi {
+// runFrames drives n render frames by hand: a hidden browser pane throttles requestAnimationFrame,
+// so UI flows (panels, fades, key presses) cannot be checked through the live loop there.
+export function installDebug(session: Session, target: Window, runFrames: (n: number) => void = () => {}): DebugApi {
   const api: DebugApi = {
     get state() {
       return session.state;
@@ -71,6 +74,9 @@ export function installDebug(session: Session, target: Window): DebugApi {
     // Stub until WP04 (bot).
     bot(on) {
       session.botOn = on;
+    },
+    frames(n = 1) {
+      runFrames(n);
     },
     version: APP_VERSION,
   };

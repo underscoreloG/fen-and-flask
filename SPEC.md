@@ -120,7 +120,7 @@ Rule 1 is checked by script (imports and forbidden globals). Rules 2-4 are check
 - Tests live next to code as `*.test.ts`. Core logic is tested headless; never test through Phaser.
 - Version comes from `package.json`, injected with Vite `define`, shown on the title and pause screens.
 
-Debug surface (active in dev or with `?debug=1`): `window.__game = { state, step(n), cmd(command), give(itemId, n), setPhase(p), bot(on), version }`.
+Debug surface (active in dev or with `?debug=1`): `window.__game = { state, step(n), cmd(command), give(itemId, n), setPhase(p), bot(on), frames(n), version }` (`frames(n)` runs n render frames by hand, for hidden or throttled tabs).
 
 | Query param | Effect |
 |---|---|

@@ -50,4 +50,12 @@ const game = new Phaser.Game({
 
 window.addEventListener('resize', () => game.scale.setZoom(fitZoom()));
 
-if (params.debug) installDebug(session, window);
+let debugTime = 0;
+if (params.debug) {
+  installDebug(session, window, (n) => {
+    for (let i = 0; i < n; i++) {
+      debugTime = Math.max(debugTime, performance.now()) + 1000 / 60;
+      game.loop.step(debugTime);
+    }
+  });
+}
