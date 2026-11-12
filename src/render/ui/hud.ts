@@ -1,11 +1,13 @@
-// HUD (specs/design.md clutter budget): hearts and coins top-left, the item bar bottom-center,
-// the interact hint above it. Collected pickups hop from the player into their slot, and the
+// HUD (specs/design.md clutter budget): hearts and coins top-left, clock and day top-right, the
+// item bar bottom-center, the interact hint above it. Collected pickups hop from the player into their slot, and the
 // count only ticks up when they land.
 import Phaser from 'phaser';
 import { ITEM_IDS, type ItemId } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
+import { clockHour, clockLabel } from '../../core/clock';
 import type { GameEvent } from '../../core/events';
+import { bedIndex, isReady } from '../../core/garden';
 import { WORLD_STRUCTURES } from '../../core/world';
 import type { Session } from '../../input/session';
 import { addText } from '../font';
@@ -20,6 +22,11 @@ const CHAR_H = R.fontCellH;
 const INTERACT_KEY = { keyboard: 'C', gamepad: 'A' } as const;
 
 const HINTS: Readonly<Record<string, string>> = Object.fromEntries(WORLD_STRUCTURES.map((s) => [s.def.id, s.def.hint]));
+const READY_HINTS: Readonly<Record<string, string | undefined>> = Object.fromEntries(
+  WORLD_STRUCTURES.map((s) => [s.def.id, s.def.hintReady]),
+);
+// The dial is a 12-hour face with 12 at the top.
+const DIAL_HOURS = 12;
 
 interface Slot {
   icon: Phaser.GameObjects.Image;
@@ -40,6 +47,10 @@ export class Hud {
   private readonly hintKeyText: Phaser.GameObjects.BitmapText;
   private readonly hintShadow: Phaser.GameObjects.BitmapText;
   private readonly hintText: Phaser.GameObjects.BitmapText;
+  private readonly dial: Phaser.GameObjects.Image;
+  private readonly hand: Phaser.GameObjects.Graphics;
+  private readonly dayText: Phaser.GameObjects.BitmapText;
+  private readonly timeText: Phaser.GameObjects.BitmapText;
   private shownHearts: number;
   private barTop: number = R.viewH;
 
@@ -59,6 +70,12 @@ export class Hud {
     this.hintKeyText = addText(scene, 0, 0, '', 'ink');
     this.hintShadow = addText(scene, 0, 0, '', 'ink');
     this.hintText = addText(scene, 0, 0, '', 'bone');
+    // Clock top-right: dial, "DAY N", and the time (or EVENING) under it.
+    const dialX = R.viewW - m - ICON;
+    this.dial = scene.add.image(dialX, m, ATLAS, 'clock_dial').setOrigin(0, 0);
+    this.hand = scene.add.graphics();
+    this.dayText = addText(scene, dialX - H.clockGap, m, '', 'bone').setOrigin(1, 0);
+    this.timeText = addText(scene, R.viewW - m, m + ICON + H.clockGap, '', 'bone').setOrigin(1, 0);
   }
 
   onEvents(events: readonly GameEvent[], worldView: Phaser.Geom.Rectangle): void {
@@ -78,6 +95,32 @@ export class Hud {
     this.coinText.setText(String(state.coins));
     this.layoutBar();
     this.layoutHint();
+    this.layoutClock();
+  }
+
+  private layoutClock(): void {
+    const s = this.session.state;
+    const evening = s.phase === 'evening';
+    this.dayText.setText(`DAY ${s.day}`);
+    this.timeText.setText(evening ? 'EVENING' : clockLabel(s.clock.t)).setTintFill(PALETTE[evening ? 'emberhot' : 'bone']);
+    // Hour hand drawn pixel by pixel from the dial's center pixel.
+    const a = (clockHour(s.clock.t) / DIAL_HOURS) * Math.PI * 2 - Math.PI / 2;
+    const cx = this.dial.x + ICON / 2;
+    const cy = this.dial.y + ICON / 2;
+    this.hand.clear().fillStyle(PALETTE.ink, 1);
+    for (let i = 1; i <= H.clockHandPx; i++) {
+      this.hand.fillRect(cx + Math.round(Math.cos(a) * i), cy + Math.round(Math.sin(a) * i), 1, 1);
+    }
+  }
+
+  // Beds: PLANT when empty, HARVEST when ready, nothing while growing.
+  private hintFor(id: string): string | undefined {
+    const i = bedIndex(id);
+    if (i < 0) return HINTS[id];
+    const bed = this.session.state.garden[i];
+    if (!bed) return undefined;
+    if (bed.crop === null) return HINTS[id];
+    return isReady(bed) ? READY_HINTS[id] : undefined;
   }
 
   // Only items you own, in the item table order, centered at the bottom.
@@ -116,7 +159,7 @@ export class Hud {
 
   private layoutHint(): void {
     const id = this.session.state.player.interactTarget;
-    const hint = id ? HINTS[id] : undefined;
+    const hint = id ? this.hintFor(id) : undefined;
     const visible = hint !== undefined;
     this.hintKey.clear();
     for (const t of [this.hintKeyText, this.hintShadow, this.hintText]) t.setVisible(visible);

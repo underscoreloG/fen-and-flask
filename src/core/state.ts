@@ -3,13 +3,14 @@ import { ITEM_IDS, PLOTS, PLOT_LAYOUTS, type CreatureId, type ItemId, type NodeI
 import { TUNING } from '../data/tuning';
 import { APP_VERSION } from '../data/version';
 import { refillCreatures } from './creatures';
+import { createGarden } from './garden';
 import { refillPlot } from './nodes';
 import { seedRng } from './rng';
 import { plotTileCenter } from './world';
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
-export type Phase = 'day';
+export type Phase = 'day' | 'evening';
 
 export interface PlayerState {
   // Center of the feet, in world px.
@@ -25,8 +26,9 @@ export interface PlayerState {
   // Knockback displacement per tick while knockTicks > 0.
   knockX: number;
   knockY: number;
-  // Recomputed every tick for the renderer: a node or creature id, a structure id.
-  swingTarget: number | null;
+  // Recomputed every tick for the renderer: a node or creature id (number) or a ready bed's
+  // structure id (string); a structure id.
+  swingTarget: number | string | null;
   interactTarget: string | null;
 }
 
@@ -80,6 +82,12 @@ export interface PickupState {
   landing: number;
 }
 
+export interface BedState {
+  crop: ItemId | null;
+  // Nights until ready; 0 with a crop means ready to harvest.
+  nightsLeft: number;
+}
+
 export interface GameState {
   version: string;
   seed: number;
@@ -87,6 +95,8 @@ export interface GameState {
   tick: number;
   day: number;
   phase: Phase;
+  // Ticks into the day; frozen in the evening.
+  clock: { t: number };
   player: PlayerState;
   inventory: Record<ItemId, number>;
   coins: number;
@@ -96,6 +106,7 @@ export interface GameState {
   nodes: NodeState[];
   creatures: CreatureState[];
   pickups: PickupState[];
+  garden: BedState[];
 }
 
 export function createInitialState(seed: number): GameState {
@@ -110,6 +121,7 @@ export function createInitialState(seed: number): GameState {
     tick: 0,
     day: 1,
     phase: 'day',
+    clock: { t: 0 },
     player: {
       x: pos.x,
       y: pos.y,
@@ -131,6 +143,7 @@ export function createInitialState(seed: number): GameState {
     nodes: [],
     creatures: [],
     pickups: [],
+    garden: createGarden(),
   };
   // Nodes first: mudlets then keep clear of them.
   state.plots.forEach((p, i) => {

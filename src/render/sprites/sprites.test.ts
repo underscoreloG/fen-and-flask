@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ITEM_IDS, NODES } from '../../data/content';
+import { CROPS, ITEM_IDS, NODES } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { CLEAR, LEGEND } from './format';
 import { FONT_CHARS, GLYPHS } from './glyphs';
@@ -49,6 +49,17 @@ describe('sprites', () => {
     for (const k of ['hut', 'bed_empty', 'mortar', 'cauldron_0', 'cauldron_1', 'stall', 'signpost']) {
       expect(size(`${k}_hl`)).toEqual(size(k));
     }
+  });
+
+  it('has the WP02 bed sprout and ready states per crop, with target outlines, and the clock dial', () => {
+    const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
+    for (const c of CROPS) {
+      for (const st of ['sprout', 'ready']) {
+        expect(size(`bed_${st}_${c.item}`)).toEqual([16, 16]);
+        expect(size(`bed_${st}_${c.item}_hl`)).toEqual([16, 16]);
+      }
+    }
+    expect(size('clock_dial')).toEqual([8, 8]);
   });
 
   it('node and mudlet outlines are complete (their art keeps a 1 px clear margin)', () => {

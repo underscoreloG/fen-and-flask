@@ -6,7 +6,8 @@ import type { CreatureState, NodeState, PickupState } from '../../core/state';
 import { PALETTE } from '../../data/palette';
 import { ticks, TUNING } from '../../data/tuning';
 import { plotAtTile, plotOrigin, TILE, WORLD_H, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W, WORLD_W } from '../../core/world';
-import { createDeviceReader, type DeviceReader } from '../../input/devices';
+import { bedIndex, isReady } from '../../core/garden';
+import type { DeviceReader } from '../../input/devices';
 import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
 import { pump, type Session } from '../../input/session';
@@ -49,7 +50,8 @@ const pick = (frames: readonly string[], x: number, y: number): string => frames
 
 export class GameScene extends Phaser.Scene {
   private readonly session: Session;
-  private reader: DeviceReader | null = null;
+  // Shared with the title screen, so a key held across the switch is not read as a new press.
+  private readonly reader: DeviceReader;
   private player!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Image;
   private waterTiles: Phaser.GameObjects.Image[] = [];
@@ -61,9 +63,10 @@ export class GameScene extends Phaser.Scene {
   private swingUntil = -Infinity;
   private fogs: { gx: number; gy: number; rect: Phaser.GameObjects.Rectangle }[] = [];
 
-  constructor(session: Session) {
+  constructor(session: Session, reader: DeviceReader) {
     super('game');
     this.session = session;
+    this.reader = reader;
   }
 
   create(): void {
@@ -82,16 +85,12 @@ export class GameScene extends Phaser.Scene {
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
     cam.startFollow(this.player, true, r.cameraLerp, r.cameraLerp);
 
-    this.reader = createDeviceReader(window);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.reader?.dispose());
     this.scene.launch('ui');
   }
 
   update(_time: number, delta: number): void {
-    if (this.reader) {
-      const { keys, pad } = this.reader.read();
-      pump(this.session, keys, pad, delta);
-    }
+    const { keys, pad } = this.reader.read();
+    pump(this.session, keys, pad, delta);
     const events = this.session.events;
     this.session.events = [];
     this.onEvents(events);
@@ -269,17 +268,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private bedFrame(id: string): string {
+    const bed = this.session.state.garden[bedIndex(id)];
+    if (!bed || bed.crop === null) return STRUCTURE_FRAME.bed;
+    return `bed_${isReady(bed) ? 'ready' : 'sprout'}_${bed.crop}`;
+  }
+
   private syncWorld(): void {
     const r = TUNING.render;
-    const target = this.session.state.player.interactTarget;
+    const { interactTarget, swingTarget } = this.session.state.player;
     const waterFrame = `water_${Math.floor(this.time.now / r.waterFrameMs) % 2}`;
     if (this.waterTiles[0]?.frame.name !== waterFrame) {
       for (const t of this.waterTiles) t.setFrame(waterFrame);
     }
     const cauldronFrame = `cauldron_${Math.floor(this.time.now / r.cauldronFrameMs) % 2}`;
     for (const s of this.structures) {
-      const base = s.kind === 'cauldron' ? cauldronFrame : STRUCTURE_FRAME[s.kind];
-      s.img.setFrame(target === s.id ? `${base}_hl` : base);
+      const base = s.kind === 'cauldron' ? cauldronFrame : s.kind === 'bed' ? this.bedFrame(s.id) : STRUCTURE_FRAME[s.kind];
+      // A ready bed can also be the swing target.
+      s.img.setFrame(interactTarget === s.id || swingTarget === s.id ? `${base}_hl` : base);
     }
     for (const f of this.fogs) {
       const owned = this.session.state.plots.find((p) => p.gx === f.gx && p.gy === f.gy)?.owned ?? false;

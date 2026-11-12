@@ -4,7 +4,9 @@ import { TUNING } from './data/tuning';
 import { installDebug, readParams } from './debug/debug';
 import { BootScene } from './render/scenes/BootScene';
 import { GameScene } from './render/scenes/GameScene';
+import { TitleScene } from './render/scenes/TitleScene';
 import { UIScene } from './render/scenes/UIScene';
+import { createDeviceReader } from './input/devices';
 import { createSession } from './input/session';
 
 const { viewW, viewH } = TUNING.render;
@@ -21,6 +23,10 @@ const session = createSession({
 });
 
 document.body.style.background = hex('ink');
+
+// One keyboard and pad reader for the page: title and world share it, so a key held across the
+// scene switch keeps its held state.
+const reader = createDeviceReader(window);
 
 // Largest integer zoom that fits the window, so pixels stay square and crisp.
 function fitZoom(): number {
@@ -39,7 +45,7 @@ const game = new Phaser.Game({
   // Sound arrives in WP05; until then no AudioContext (and no autoplay notice).
   audio: { noAudio: true },
   scale: { mode: Phaser.Scale.NONE, zoom: fitZoom() },
-  scene: [new BootScene(), new GameScene(session), new UIScene(session)],
+  scene: [new BootScene(params.skipTitle), new TitleScene(session, reader), new GameScene(session, reader), new UIScene(session)],
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(fitZoom()));

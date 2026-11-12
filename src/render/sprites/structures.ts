@@ -220,7 +220,38 @@ const BED_EMPTY = [
   '................',
 ];
 
+// Crops on the bed: a few small shoots after planting, a full crop once ready.
+const onBed = (spots: readonly (readonly [number, number])[], art: readonly string[]): string[] => {
+  const g = BED_EMPTY.map((r) => [...r]);
+  for (const [x, y] of spots) stamp(g, x, y, art);
+  return toRows(g);
+};
+
+const SPROUT_SPOTS = [
+  [3, 4],
+  [9, 3],
+  [5, 8],
+  [10, 8],
+] as const;
+
+const CROP_SPOTS = [
+  [2, 1],
+  [8, 1],
+  [4, 6],
+  [9, 6],
+] as const;
+
+const BED_CROP_SPRITES: Record<string, readonly string[]> = {
+  bed_sprout_mint: onBed(SPROUT_SPOTS, ['n.n', '.g.']),
+  bed_sprout_glowcap: onBed(SPROUT_SPOTS, ['.c.', '.b.']),
+  bed_sprout_emberroot: onBed(SPROUT_SPOTS, ['G.G', '.e.']),
+  bed_ready_mint: onBed(CROP_SPOTS, ['.nGn.', 'nnGnn', 'gnGng', '.ggg.']),
+  bed_ready_glowcap: onBed(CROP_SPOTS, ['.ccc.', 'cWbcc', 'WWWWW', '..b..', '..b..']),
+  bed_ready_emberroot: onBed(CROP_SPOTS, ['g.G.g', '.gGg.', 'eEEee', '.eee.']),
+};
+
 export const STRUCTURE_SPRITES: Record<string, readonly string[]> = {
+  ...BED_CROP_SPRITES,
   hut: buildHut(),
   stall: buildStall(),
   mortar: MORTAR,

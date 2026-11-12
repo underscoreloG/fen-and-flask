@@ -210,7 +210,10 @@ describe('interact', () => {
     s.player.y = door.y;
     s.player.facing = 'up';
     const ev = step(s, { ...neutralFrame(), interact: true });
-    expect(ev).toEqual([{ type: 'interact', kind: 'hut', structureId: 'hut' }]);
+    expect(ev).toEqual([
+      { type: 'interact', kind: 'hut', structureId: 'hut' },
+      { type: 'uiRequest', ui: 'sleepConfirm' },
+    ]);
     expect(s.player.interactTarget).toBe('hut');
   });
 

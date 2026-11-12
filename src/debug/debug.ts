@@ -1,4 +1,5 @@
 // Debug surface (SPEC section 5): query params and window.__game.
+import { setPhase } from '../core/clock';
 import { neutralFrame, type Command, type Frame } from '../core/commands';
 import type { GameEvent } from '../core/events';
 import { addItem, type GameState, type Phase } from '../core/state';
@@ -63,8 +64,11 @@ export function installDebug(session: Session, target: Window): DebugApi {
       if (!ITEM_IDS.includes(itemId)) throw new Error(`unknown item ${String(itemId)}`);
       addItem(session.state, itemId, n);
     },
-    // Stubs until WP02 (clock) and WP04 (bot).
-    setPhase() {},
+    // Applied at once; its events (eveningStarted) reach the renderer with the next drain.
+    setPhase(p) {
+      session.events.push(...setPhase(session.state, p));
+    },
+    // Stub until WP04 (bot).
     bot(on) {
       session.botOn = on;
     },
