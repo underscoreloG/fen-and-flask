@@ -35,9 +35,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | Plan reviewer + recheck | Phase 3 | opus | max |
 
 ## Open
-- Spec approval by the user.
-- Sound source list to prepare and get approved before WP05.
 - Plan review 2026-11-12: 4 blockers, 15 rework, 5 nits, all fixed (specs/REVIEW-2026-11-12.md). Recheck dispatched in parallel with WP00 (deviation from the skill order, to save about 30 minutes; findings go to the running worker by message).
 - Sounds: 16 CC0 files in public/audio (user approved the download 2026-11-12). Loudness uneven: WP05 must set base volumes (quiet: squish, bell, coin; loud: refuse, hurt, hit_wood).
 - Workers do no browser checks; the brain runs them after each merge. Preview entry fen-and-flask (port 5345) is in ../.claude/launch.json and serves the main checkout.
 - Git identity is repo-local (GitHub noreply address, as in sibling repos).
+- Recheck 2026-11-12: no blocker, 10 rework items, all applied (latch clearing around panels, stall open view not pausing, sprite and test file creation allowed, WP04 idle-test rule, event payloads, clock formula in ticks, WP05 base volumes, browser lines are the brain's, faint moves the player before the reset). WP00 worker told about clearLatches by message.

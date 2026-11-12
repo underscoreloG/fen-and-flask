@@ -21,7 +21,7 @@ Owns: root config (`package.json`, `package-lock.json`, `tsconfig.json`, `vite.c
 - `src/core/world.ts`: world size, `plotOrigin(gx, gy)` in world tiles, `plotTileCenter(gx, gy, tx, ty)` in px, `tileKind(state, wtx, wty)` -> `'deepwater' | 'grass' | 'road' | 'locked'`, `isBlocked(state, x, y, w, h)` for a feet box against deep water, locked plots and solid structures.
 - `src/core/player.ts`: movement at `player.speed`, diagonal normalized, axis-separated collision (slide along walls), facing = last non-zero dominant axis (`'down' | 'up' | 'left' | 'right'`).
 - `src/core/step.ts`: `step(state, frame): GameEvent[]`, one 1/60 s tick, increments `state.tick`.
-- `src/input/input.ts`: a pure `buildFrame(keys, pad, prev)` (unit tested) and a thin Phaser-facing reader. Keyboard and gamepad per the controls table in design.md. `swing` and `interact` are edge-triggered and latched per SPEC section 4 (input delivery rules): a press is held until one tick consumes it, then cleared; the same for queued `commands`. Tracks the last device used.
+- `src/input/input.ts`: a pure `buildFrame(keys, pad, prev)` (unit tested) and a thin Phaser-facing reader. Keyboard and gamepad per the controls table in design.md. `swing` and `interact` are edge-triggered and latched per SPEC section 4 (input delivery rules): a press is held until one tick consumes it, then cleared; the same for queued `commands`. It exports `clearLatches()`, which drops any pending `swing` / `interact` press (panels call it when they open and close, SPEC section 4). Tracks the last device used.
 - `src/input/input.ts` also exports a pure `buildUiIntents(keys, pad, prev, dtMs)` (unit tested): `{ up, down, left, right, confirm, back, notebook, pause, mute }`, edge-triggered, where the four directions auto-repeat while held (first repeat after 350 ms, then every 120 ms, every 40 ms after 1.5 s held). Later WPs' panels read these, not `Frame`.
 - `src/render/sprites/`: the string-array sprite format from design.md, a generator that turns every sprite into a Phaser texture in BootScene, and sprites for: player (all poses), tiles, hut, mortar, cauldron (2 frames), stall, signpost, soil bed (empty), shadow.
 - `src/render/font.ts`: the bitmap font from design.md and a helper to add text in a palette token color.
@@ -47,11 +47,11 @@ Owns: root config (`package.json`, `package-lock.json`, `tsconfig.json`, `vite.c
 - [ ] Vitest: the player cannot enter the hut tiles, deep water, or the locked east plot (walk into each for 600 ticks, assert the feet box never overlaps them).
 - [ ] Vitest: determinism: the same 600 scripted frames from the same seed give byte-identical `JSON.stringify(state)` twice.
 - [ ] Vitest: `buildFrame`: arrows, gamepad stick below 0.25 gives 0, d-pad, X/C and buttons 2/0 edge-trigger once per press, last-device tracking.
-- [ ] Vitest: a press made during a render frame that runs 0 ticks is still delivered to the next tick, exactly once; a held key does not re-trigger.
+- [ ] Vitest: a press made during a render frame that runs 0 ticks is still delivered to the next tick, exactly once; a held key does not re-trigger; a press followed by `clearLatches()` is never delivered.
 - [ ] Vitest: `buildUiIntents`: confirm/back/notebook/pause/mute fire once per press on keyboard and pad; a direction held for 1 s fires 1 + 6 times (350 ms, then every 120 ms).
 - [ ] Vitest: the palette has exactly the 25 tokens and hex values of specs/design.md.
 - [ ] Vitest: `tuning` and `content` hold the values of specs/content.md (spot-check at least: day length 240, plot price 150, the 4 potion base values, node targets per plot).
-- [ ] Browser, if the preview tools are available to you (`preview_start` name `fen-and-flask`, then `http://localhost:5345/?debug=1&skipTitle=1&nosave=1&seed=1`): no console error; `__game.state.player.x === 88`; after `__game.step(60, {moveX:1, moveY:0, swing:false, interact:false, commands:[]})`, x is 178 (+-1). If you cannot run it, say "not run" in the report; never claim it.
+- [ ] Browser (run by the brain after merge, you report "not run") at `http://localhost:5345/?debug=1&skipTitle=1&nosave=1&seed=1`: no console error; `__game.state.player.x === 88`; after `__game.step(60, {moveX:1, moveY:0, swing:false, interact:false, commands:[]})`, x is 178 (+-1).
 
 ## Allowed deferrals
 

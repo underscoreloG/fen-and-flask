@@ -10,7 +10,7 @@ Owns: `src/core/stations.ts` and tests, `src/render/ui/{stationPanel,notebook}.t
 - `src/core/stations.ts`: `state.stations = { mortar: Job | null, cauldron: Job | null }`, `Job = { recipe, remaining, progress }`.
 - Commands: `{ type: 'StartGrind', input, qty }` and `{ type: 'StartBrew', potion, qty }`, each valid only when that station is the player's interact target and has no job.
 - Interact routing: mortar -> `uiRequest { ui: 'station', station: 'mortar' }`, cauldron likewise.
-- Events: `jobStarted`, `jobUnitDone` (one per unit produced, with station and item), `jobFinished`.
+- Events: `jobStarted { station, item, qty }`, `jobUnitDone { station, item }` (one per unit produced), `jobFinished { station }`.
 - `morningReset` hook: any running job finishes at once and its remaining outputs spawn as pickups.
 - `src/render/ui/stationPanel.ts`: recipe rows (icon, name, ingredients with owned counts), quantity with left/right, Start; rows the player cannot afford are dimmed and cannot start; a busy station shows its job and no Start.
 - `src/render/ui/notebook.ts` (V / Y): page 1 = grind and brew recipes with base ingredients; page 2 = a placeholder line "PRICES: AFTER YOUR FIRST SALE" that WP04 replaces. Left/right changes page.
@@ -29,13 +29,13 @@ All values by name from specs/content.md.
 
 - [ ] `npm run verify` -> exit 0.
 - [ ] Tests that let time pass first clear `state.creatures` (WP02 rule). Job timers are integer ticks: 90 per ground unit, 360 per potion.
-- [ ] Vitest: `StartGrind mint x3` at the mortar: mint -3 at once; one mintpaste pickup after 90, 180 and 270 ticks; the station is free after the third.
-- [ ] Vitest: `StartBrew tonic x2`: mintpaste -2, reed -2, bogwood -1 at once; potions at 360 and 720 ticks.
+- [ ] Vitest: `StartGrind mint x3` at the mortar: mint -3 at once; `jobUnitDone` and a mintpaste `pickupSpawned` fire at ticks 90, 180 and 270 (assert the events, not the inventory: the output tile is inside the player magnet radius); the station is free after the third.
+- [ ] Vitest: `StartBrew tonic x2`: mintpaste -2, reed -2, bogwood -1 at once; `jobUnitDone` for tonic at ticks 360 and 720.
 - [ ] Vitest: brew qty 6 is rejected; brew without bogwood is rejected; brew with ingredients for 1 but qty 2 is rejected; a second job on a busy station is rejected; a station command sent while the player targets something else is rejected. State unchanged in every case.
 - [ ] Vitest: a job with 2 units left when the player sleeps leaves 2 extra pickups right after the reset and a free station.
 - [ ] Vitest: every grind and brew recipe of content.md can be run end to end and yields the right item.
 - [ ] Vitest: the determinism test passes with jobs running.
-- [ ] Browser, if available (`?debug=1&skipTitle=1&nosave=1&seed=1`): no console error on opening both panels and the notebook. Otherwise report "not run".
+- [ ] Browser (run by the brain after merge, you report "not run") (`?debug=1&skipTitle=1&nosave=1&seed=1`): no console error on opening both panels and the notebook.
 
 ## Allowed deferrals
 

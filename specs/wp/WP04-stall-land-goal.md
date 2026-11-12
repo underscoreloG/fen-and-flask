@@ -38,6 +38,7 @@ All values by name from specs/content.md.
 - [ ] `npm run verify` -> exit 0.
 - [ ] Vitest, with `personal` forced to 1, demand 1, no trend, glowdraught (value 24): price 19 -> delighted, sold; 20 -> happy; 26 -> happy; 27 -> grumbling, sold; 31 -> grumbling; 32 -> refuses, not sold.
 - [ ] Float results are asserted with `toBeCloseTo`, never `toBe`.
+- [ ] Non-bot tests that let time pass first clear `state.creatures`, or reach evening with `CallItADay` (an idle player next to live mudlets faints, and a faint resets the day). The health, performance and bot-determinism tests keep live mudlets.
 - [ ] Vitest: a sale lowers that potion's demand by 0.04; a grumbling sale by 0.09 in total; demand never goes below 0.6; one night adds 0.15, capped at 1.0.
 - [ ] Vitest: with 2 mudlets placed next to the counter, a full open stall (6 customers) costs the player no heart and never moves them off tile (9,10).
 - [ ] Vitest: on day 1 `trend` is null and no `trendAnnounced` is emitted that evening; from day 2 on, exactly one per evening.
@@ -50,7 +51,7 @@ All values by name from specs/content.md.
 - [ ] Vitest: history keeps only the last 3 entries per potion.
 - [ ] Vitest health test, seeds 1, 2 and 3, bot only, core only: coins earned on evening 1 are between 40 and 130; `state.day <= 4` at the tick `plotBought` fires; `state.day <= 6` at the tick `goalReached` fires. Print the three metrics per seed in the test output.
 - [ ] Vitest: 1000 ticks of the bot on a day-3 state with both plots run in under 100 ms (SPEC budget), and the determinism test passes with the bot driving.
-- [ ] Browser, if available: `?debug=1&skipTitle=1&nosave=1&seed=1&autoplay=1&speed=16` reaches `__game.state.flags.m1Goal === true` with no console error. Otherwise report "not run".
+- [ ] Browser (run by the brain after merge, you report "not run"): `?debug=1&skipTitle=1&nosave=1&seed=1&autoplay=1&speed=16` reaches `__game.state.flags.m1Goal === true` with no console error.
 
 If the health test cannot pass with the numbers of content.md and a competent bot, do not bend the test: report the measured metrics and propose the smallest change to `tuning.ts` values as a CCR.
 

@@ -9,7 +9,7 @@ Owns: `src/core/{clock,garden}.ts` and tests, `src/save/**`, `src/render/ui/{gar
 
 - `src/core/clock.ts`: `state.clock = { t }` with `state.phase: 'day' | 'evening'`; at `day.length` (14400 ticks) the phase becomes evening. Every switch to evening (timer, `CallItADay`, debug `setPhase`) goes through one function that emits `eveningStarted` exactly once for that day. `morningReset(state)`: day + 1, phase day, t = 0, `refillPlot` and `refillCreatures` on every owned plot (existing nodes and mudlets are kept, only the missing ones are added; positions of new ones are rolled from the state RNG), garden advances one night, hearts full, pickups left on the ground stay, emit `morning`. Keep a clearly named hook order so WP03 (finish jobs) and WP04 (demand, trend, stall reset) can add their steps.
 - Commands: `{ type: 'CallItADay' }` (day only), `{ type: 'Sleep' }` (any phase).
-- Faint now calls `morningReset` (replacing the WP01 deferral), then places the player at the door.
+- Faint (replacing the WP01 deferral): first move the player to the door, then call `morningReset`, so the respawn distance rule is measured from where the player wakes.
 - `src/core/garden.ts`: `state.garden: Bed[4]`, each `{ crop: ItemId | null, nightsLeft }`; command `{ type: 'Plant', bed, item }`; harvest by interact or by swing on a ready bed (ready beds join the swing target list, lowest priority) -> spawns the yield as pickups on the bed and empties it.
 - Interact routing in core: door -> event `uiRequest { ui: 'sleepConfirm' }`; stall during the day -> `uiRequest { ui: 'callItADayConfirm' }` (the evening stall is WP04); empty bed -> `uiRequest { ui: 'gardenPicker', bed }`; growing bed -> nothing; ready bed -> harvest.
 - Commands that act on a structure (`Plant`, and later station and stall commands) are rejected unless that structure is the player's current interact target. `Sleep` requires the door, `CallItADay` requires the stall.
@@ -24,20 +24,21 @@ Owns: `src/core/{clock,garden}.ts` and tests, `src/save/**`, `src/render/ui/{gar
 
 ## Behaviour and numbers
 
-All values by name from specs/content.md. The clock time shown is `06:00 + (t / day.length) x 12 h`, in 10-minute steps.
+All values by name from specs/content.md. The clock time shown is `06:00 + (t / ticks(day.length)) x 12 h` (t is in ticks), in 10-minute steps.
 
 ## Acceptance tests
 
 - [ ] `npm run verify` -> exit 0.
 - [ ] Tests that let time pass with an idle player first clear `state.creatures` (an idle player next to live mudlets faints, and a faint resets the day).
 - [ ] Vitest: with creatures cleared, after 14400 ticks from a new game the phase is evening and exactly one `eveningStarted` was emitted; t stops advancing in the evening. `CallItADay` and `setPhase('evening')` each emit exactly one `eveningStarted` too.
+- [ ] Vitest: confirming Sleep through the UI path (a `Sleep` command queued while a latched `interact` press is pending, then `clearLatches()` as the panel closes) gives exactly one `morning` event and no new `uiRequest` on the following ticks.
 - [ ] Vitest: `CallItADay` at the stall during the day jumps to evening; in the evening it is rejected; away from the stall it is rejected.
 - [ ] Vitest: `Sleep` at the door: day 2, phase day, t 0, node counts back at the home targets after some were broken, 2 mudlets after one was killed, hearts full after damage, one `morning` event. `Sleep` away from the door is rejected.
 - [ ] Vitest: plant mint (inventory -1), sleep, the bed is ready, harvest gives 3 mint; emberroot needs 2 sleeps and gives 2; planting an item the player does not own, or a non-plantable item, or on a non-empty bed, is rejected with the state unchanged.
 - [ ] Vitest: fainting advances the day and leaves inventory and coins unchanged.
 - [ ] Vitest: `deserialize(serialize(s))` deep-equals `s`; a state loaded from a save and the original, both stepped through the same 600 frames, end byte-identical; a save from version 0.2.0 loaded by 0.1.x returns null; garbage JSON returns null.
 - [ ] Vitest: the determinism test passes across a sleep.
-- [ ] Browser, if available: `?debug=1&nosave=1&seed=1` shows the title with New game and no Continue; with `skipTitle=1`, `__game.setPhase('evening')` then `__game.step(1)` -> `__game.state.phase === 'evening'`. Otherwise report "not run".
+- [ ] Browser (run by the brain after merge, you report "not run"): `?debug=1&nosave=1&seed=1` shows the title with New game and no Continue; with `skipTitle=1`, `__game.setPhase('evening')` then `__game.step(1)` -> `__game.state.phase === 'evening'`.
 
 ## Allowed deferrals
 

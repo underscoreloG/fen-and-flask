@@ -46,7 +46,7 @@ All values by name from specs/content.md.
 - [ ] Vitest, seeds 1 to 5, 3000 ticks each with the player standing still far away: no mudlet leaves the home plot or enters row 13.
 - [ ] Vitest: at 0 hearts the player is at the hut door with full hearts and `playerFainted` was emitted once.
 - [ ] Vitest: the 600-frame determinism test passes with swings and interacts in the script.
-- [ ] Browser, if available (same URL as WP00): no console error; `__game.give('mint', 3)` then `__game.step(1)` -> `__game.state.inventory.mint === 3`; `__game.state.nodes.length === 19`. Otherwise report "not run".
+- [ ] Browser (run by the brain after merge, you report "not run") (same URL as WP00): no console error; `__game.give('mint', 3)` then `__game.step(1)` -> `__game.state.inventory.mint === 3`; `__game.state.nodes.length === 19`.
 
 ## Allowed deferrals
 

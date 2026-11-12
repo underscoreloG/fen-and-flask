@@ -96,7 +96,8 @@ Per frame: `input` builds a `Frame { moveX, moveY, swing, interact, commands[] }
 
 Input delivery rules (a render frame runs 0 to 5 ticks, so nothing may be lost or doubled):
 - Edge presses (`swing`, `interact`) and `commands` are latched by the input layer until a tick consumes them, and they are applied on that one tick only.
-- A command issued by a panel while the sim is paused is queued and delivered on the first tick after the panel closes. Confirm, Start and Open close their panel. The stall setup sends its `SetPrice` list in the same frame as `OpenStall`. While the stall is open the sim runs, so `SetPrice` and `CloseStall` are delivered live.
+- A command issued by a panel while the sim is paused is queued and delivered on the first tick after the panel closes. Confirm and Start close their panel. Open closes the stall's setup view; the stall's open view is shown on `stallOpened` and does not set the pause switch. The stall setup sends its `SetPrice` list in the same frame as `OpenStall`. While the stall is open the sim runs, so `SetPrice` and `CloseStall` are delivered live.
+- While a panel is open, and on the render frame in which one opens or closes, keys feed only the UI intents: the input layer clears any latched `swing` / `interact` at those moments (it exports `clearLatches()` for this), so the C that confirmed a panel never reaches the sim as an interact, and the C that opened a panel is not also read as its confirm.
 - Panels do not read `Frame`: they read the UI intents (up, down, left, right with accelerating repeat, confirm, back, notebook, pause, mute) that `src/input` also exports.
 
 Hard boundary rules, checked by `scripts/check-boundaries.mjs`:
@@ -130,11 +131,11 @@ Debug surface (active in dev or with `?debug=1`): `window.__game = { state, step
 
 ## 6. Work packages
 
-Size M: waves of one, in order, so there is never a second writer. The Owns column lists the files a WP **creates**. A WP may also **edit** any existing file under `src/`, the `scripts` block of `package.json` and `README.md` as far as its feature needs (new sprites, a HUD element, a hook in `step.ts` or `main.ts`), without rewriting or re-styling earlier work. It never edits `specs/**`, `SPEC.md`, dependency versions, or `public/audio/**`.
+Size M: waves of one, in order, so there is never a second writer. The Owns column lists the files a WP **creates**. A WP may also **edit** any existing file under `src/`, the `scripts` block of `package.json` and `README.md` as far as its feature needs (new sprites, a HUD element, a hook in `step.ts` or `main.ts`), without rewriting or re-styling earlier work. Any WP may also create new sprite source files under `src/render/sprites/` and `*.test.ts` files next to code it touches. It never edits `specs/**`, `SPEC.md`, dependency versions, or `public/audio/**`.
 
 | WP | Name | Depends on | Owns | Model | Dispatch |
 |---|---|---|---|---|---|
-| WP00 | Foundation: scaffold, verify, core skeleton, world, player movement, sprite and font pipeline, input, debug | - | root config, `scripts/**`, `src/main.ts`, `src/core/{state,step,rng,events,commands,world,player}.ts`, `src/data/**`, `src/input/**`, `src/render/{sprites,font.ts,scenes}/**`, `src/debug/**` | opus high | subagent |
+| WP00 | Foundation: scaffold, verify, core skeleton, world, player movement, sprite and font pipeline, input, debug | - | root config, `scripts/{check-boundaries,check-size}.mjs`, `src/main.ts`, `src/core/{state,step,rng,events,commands,world,player}.ts`, `src/data/**`, `src/input/**`, `src/render/sprites/**`, `src/render/font.ts`, `src/render/scenes/{BootScene,GameScene,UIScene}.ts`, `src/debug/**` | opus high | subagent |
 | WP01 | Gathering and combat: nodes, swing, pickups, mudlets, hearts, faint, HUD, fx | WP00 | `src/core/{nodes,creatures,pickups}.ts`, `src/render/fx.ts`, `src/render/ui/hud.ts` | opus high | subagent |
 | WP02 | Day cycle, sleep, garden, save, title screen | WP01 | `src/core/{clock,garden}.ts`, `src/save/**`, `src/render/ui/{gardenPicker,confirm}.ts`, TitleScene | opus high | subagent |
 | WP03 | Stations, recipes, notebook | WP02 | `src/core/stations.ts`, `src/render/ui/{stationPanel,notebook}.ts` | opus high | subagent |
@@ -142,6 +143,8 @@ Size M: waves of one, in order, so there is never a second writer. The Owns colu
 | WP05 | Audio, pause and mute, changelog, GitHub Pages workflow | WP04; sounds already in `public/audio/` (read-only) | `src/audio/**`, `src/render/ui/pause.ts`, `scripts/write-version.mjs`, `.github/**`, `CHANGELOG.md`, `README.md` | opus high | subagent |
 
 ## 7. Gates
+
+Workers never start a dev server or run browser checks: the "Browser" lines in the WP files are run by the brain after the merge, and workers report them as "not run".
 
 After every WP the brain runs: `npm run verify` on `main`; the game in the browser pane with `?debug=1&skipTitle=1&nosave=1&seed=1`, no console errors, and the WP's state assertions through `window.__game`.
 
