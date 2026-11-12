@@ -19,7 +19,7 @@ Owns: `src/audio/**`, `src/render/ui/pause.ts`, `.github/**`, `CHANGELOG.md`, `s
 ## Acceptance tests
 
 - [ ] `npm run verify` -> exit 0.
-- [ ] Vitest: every manifest entry's file exists in `public/audio/` and is under 150 KB; every file in `public/audio/` except CREDITS.md is in the manifest; every sound id of design.md is in the manifest.
+- [ ] Vitest: every manifest entry's file exists in `public/audio/` and is under 150 KB (`marsh_ambience` under 400 KB); every file in `public/audio/` except CREDITS.md is in the manifest; every sound id of design.md is in the manifest.
 - [ ] Vitest: the event-to-sound mapping (a pure function) returns the ids above for sample events, and nothing for events without a sound.
 - [ ] Vitest: the rate limit drops a second identical id inside 50 ms.
 - [ ] `npm run build` -> `dist/version.json` holds the package version; `dist/audio/` holds the sound files.

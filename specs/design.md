@@ -102,6 +102,6 @@ Hit: target squashes 2 frames, 3-5 leaf or chip particles, 1 px screen shake for
 
 ## Sounds (WP05)
 
-Real open-license recordings, CC0 only, never synthesized. The brain lists each source and file for the user and downloads nothing before the user says yes. Files go to `public/audio/` as `.ogg`, each under 150 KB, with `public/audio/CREDITS.md` naming every source and its license.
+Real open-license recordings, CC0 only, never synthesized. The brain lists each source and file for the user and downloads nothing before the user says yes. Files go to `public/audio/` as `.ogg`, each under 150 KB (the ambience loop under 400 KB), with `public/audio/CREDITS.md` naming every source and its license.
 
 Ids: `swing`, `hit_plant`, `hit_wood`, `squish`, `pickup`, `grind`, `bubble`, `potion_done`, `coin`, `refuse`, `bell`, `hurt`, `sleep`, `ui_move`, `ui_confirm`, plus one quiet `marsh_ambience` loop. Default volume 0.6. No music in M1.
