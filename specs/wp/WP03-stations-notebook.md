@@ -3,7 +3,7 @@
 Goal: the player grinds ingredients at the mortar and brews potions at the cauldron as background jobs, and can read the recipes in a notebook.
 Read first: SPEC.md, specs/design.md (Screens, Juice), specs/content.md (Stations)
 Depends on: WP02 (interact routing with `uiRequest`, the structure-target rule for commands, the shared panel switch, `morningReset` hooks, pickups).
-Owns: `src/core/stations.ts` and tests, `src/render/ui/{stationPanel,notebook}.ts`. Shared integration files as far as needed.
+Owns: `src/core/stations.ts` and tests, `src/render/ui/{stationPanel,notebook}.ts`. Edits to existing files as allowed by SPEC section 6.
 
 ## Deliverables
 
@@ -28,6 +28,7 @@ All values by name from specs/content.md.
 ## Acceptance tests
 
 - [ ] `npm run verify` -> exit 0.
+- [ ] Tests that let time pass first clear `state.creatures` (WP02 rule). Job timers are integer ticks: 90 per ground unit, 360 per potion.
 - [ ] Vitest: `StartGrind mint x3` at the mortar: mint -3 at once; one mintpaste pickup after 90, 180 and 270 ticks; the station is free after the third.
 - [ ] Vitest: `StartBrew tonic x2`: mintpaste -2, reed -2, bogwood -1 at once; potions at 360 and 720 ticks.
 - [ ] Vitest: brew qty 6 is rejected; brew without bogwood is rejected; brew with ingredients for 1 but qty 2 is rejected; a second job on a busy station is rejected; a station command sent while the player targets something else is rejected. State unchanged in every case.

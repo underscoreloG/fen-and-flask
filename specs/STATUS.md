@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
-Phase: 2   Size: M   Milestone: M1   Updated: 2026-11-12
-Next action: user approves SPEC.md -> git init + commit on main -> Phase 3 (write specs/wp/WP00-05, review gate, plan approval)
+Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-12
+Next action: WP00 running in worktree ../fen-and-flask-wt/wp00; recheck reviewer running on the review fixes. On WP00 report: verify, merge to main, browser gate, then dispatch WP01.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -22,12 +22,12 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 ## Work packages
 | WP | Status | Dispatch | Model | Agent/session id | Branch | Notes |
 |---|---|---|---|---|---|---|
-| WP00 Foundation | todo (no WP file yet) | subagent | opus high | | | |
-| WP01 Gathering and combat | todo (no WP file yet) | subagent | opus high | | | |
-| WP02 Day, sleep, garden, save | todo (no WP file yet) | subagent | opus high | | | |
-| WP03 Stations, notebook | todo (no WP file yet) | subagent | opus high | | | |
-| WP04 Stall, land, goal, bot | todo (no WP file yet) | subagent | opus high | | | |
-| WP05 Audio, pause, Pages | todo (no WP file yet) | subagent | opus high | | | needs sound list approved by user |
+| WP00 Foundation | running | subagent | opus high | | | |
+| WP01 Gathering and combat | todo | subagent | opus high | | | |
+| WP02 Day, sleep, garden, save | todo | subagent | opus high | | | |
+| WP03 Stations, notebook | todo | subagent | opus high | | | |
+| WP04 Stall, land, goal, bot | todo | subagent | opus high | | | |
+| WP05 Audio, pause, Pages | todo | subagent | opus high | | | needs sound list approved by user |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -37,3 +37,7 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 ## Open
 - Spec approval by the user.
 - Sound source list to prepare and get approved before WP05.
+- Plan review 2026-11-12: 4 blockers, 15 rework, 5 nits, all fixed (specs/REVIEW-2026-11-12.md). Recheck dispatched in parallel with WP00 (deviation from the skill order, to save about 30 minutes; findings go to the running worker by message).
+- Sounds: 16 CC0 files in public/audio (user approved the download 2026-11-12). Loudness uneven: WP05 must set base volumes (quiet: squish, bell, coin; loud: refuse, hurt, hit_wood).
+- Workers do no browser checks; the brain runs them after each merge. Preview entry fen-and-flask (port 5345) is in ../.claude/launch.json and serves the main checkout.
+- Git identity is repo-local (GitHub noreply address, as in sibling repos).

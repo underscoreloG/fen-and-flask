@@ -62,7 +62,7 @@ No color ships outside these tokens (`src/data/palette.ts`).
 | Mute | M | - |
 | In panels | Up/Down select, Left/Right change quantity or price (hold to repeat, accelerating) | same on stick or d-pad |
 
-Only X, C, V, M, Esc and the arrows are used: they sit in the same place on AZERTY and QWERTY keyboards.
+Only X, C, V, M, Esc and the arrows are used: X, C and V sit in the same place on AZERTY and QWERTY keyboards. Read keys by their value (Phaser KeyCodes or `event.key`), never by `event.code`, so M is the key labelled M on any layout.
 
 Hints show the keyboard key or the gamepad button depending on the last device used.
 
@@ -81,7 +81,7 @@ Panels are at most 220 px wide, `panel` fill with a `panellight` border, text in
 
 ## Font
 
-A code-defined bitmap font: 5x7 glyphs in a 6x8 cell, uppercase A-Z, digits, and `. , : ; ! ? - + / ( ) ' x %` plus space. Lowercase input is shown as uppercase. Built into a texture at boot and used for all text.
+A code-defined bitmap font: 5x7 glyphs in a 6x8 cell, uppercase A-Z, digits, and `. , : ; ! ? - + / ( ) ' % & =` plus space. Lowercase input is shown as uppercase (so "x3" renders as "X3"). Built into a texture at boot and used for all text.
 
 ## Juice (driven by core events)
 

@@ -3,7 +3,7 @@
 Goal: the game has sound driven by core events, a pause menu with mute, a changelog, and a workflow that builds and deploys it to GitHub Pages.
 Read first: SPEC.md (section 10), specs/design.md (Sounds, Screens, Controls)
 Depends on: WP04 (all core events exist). The sound files are already in `public/audio/` with `public/audio/CREDITS.md`, placed there by the brain after the user approved each source; do not download or generate any audio yourself.
-Owns: `src/audio/**`, `src/render/ui/pause.ts`, `.github/**`, `CHANGELOG.md`, `scripts/write-version.mjs`. Shared integration files as far as needed. `public/audio/**` is read-only for you.
+Owns: `src/audio/**`, `src/render/ui/pause.ts`, `.github/**`, `CHANGELOG.md`, `README.md`, `scripts/write-version.mjs`. Edits to existing files as allowed by SPEC section 6. `public/audio/**` is read-only for you.
 
 ## Deliverables
 
@@ -23,7 +23,7 @@ Owns: `src/audio/**`, `src/render/ui/pause.ts`, `.github/**`, `CHANGELOG.md`, `s
 - [ ] Vitest: the event-to-sound mapping (a pure function) returns the ids above for sample events, and nothing for events without a sound.
 - [ ] Vitest: the rate limit drops a second identical id inside 50 ms.
 - [ ] `npm run build` -> `dist/version.json` holds the package version; `dist/audio/` holds the sound files.
-- [ ] Browser, if available (`?debug=1&skipTitle=1&nosave=1&seed=1`): no console error or warning about audio after `__game.step(600)` with a few swings. Otherwise report "not run".
+- [ ] Browser, if available (`?debug=1&skipTitle=1&nosave=1&seed=1`): no console error or warning from the game's own code about audio after `__game.step(600)` with a few swings (the browser's own autoplay-policy notice does not count). Otherwise report "not run".
 
 ## Allowed deferrals
 

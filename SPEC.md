@@ -50,6 +50,7 @@ Verified on npm 2026-11-12. No `^`, no dependency outside this table without a C
 | typescript | 7.0.2 | language (strict) |
 | vite | 8.3.8 | dev server and build |
 | vitest | 5.1.0 | unit and headless tests |
+| @types/node | 24.19.2 | types for scripts and for tests that read files |
 
 Decisions and why:
 - Browser, not Godot: playable from anywhere by URL, and the brain can run and assert the game in the browser pane.
@@ -93,6 +94,11 @@ scripts/check-boundaries.mjs
 
 Per frame: `input` builds a `Frame { moveX, moveY, swing, interact, commands[] }` -> an accumulator calls `step(state, frame)` at a fixed **60 Hz** (max 5 steps per render frame) -> `render` draws from `state` and plays fx and audio from the returned events. While a UI panel is open the sim is paused (no `step` calls), except while the stall is open for business, which is a core mode of its own.
 
+Input delivery rules (a render frame runs 0 to 5 ticks, so nothing may be lost or doubled):
+- Edge presses (`swing`, `interact`) and `commands` are latched by the input layer until a tick consumes them, and they are applied on that one tick only.
+- A command issued by a panel while the sim is paused is queued and delivered on the first tick after the panel closes. Confirm, Start and Open close their panel. The stall setup sends its `SetPrice` list in the same frame as `OpenStall`. While the stall is open the sim runs, so `SetPrice` and `CloseStall` are delivered live.
+- Panels do not read `Frame`: they read the UI intents (up, down, left, right with accelerating repeat, confirm, back, notebook, pause, mute) that `src/input` also exports.
+
 Hard boundary rules, checked by `scripts/check-boundaries.mjs`:
 1. `src/core/**` and `src/data/**` import nothing from `phaser`, `render`, `input`, `audio`, `save`, `debug`, and never use `window`, `document`, `Math.random`, `Date` or `performance`.
 2. Nothing outside `src/core/**` mutates `GameState`. UI changes state only through `Command`s in a frame.
@@ -104,6 +110,8 @@ Rule 1 is checked by script (imports and forbidden globals). Rules 2-4 are check
 ## 5. Conventions
 
 - Units: pixels and seconds. x right, y down. Tile = 16 px. Plot-local tile coordinates start at the plot's top-left.
+- Time in core is counted in **integer ticks**, never in accumulated float seconds: every duration from the data tables is converted once with `ticks = round(seconds x 60)` and timers count ticks. A cooldown of N ticks allows the next action N ticks after the previous one.
+- Sizes: 1 KB = 1000 bytes, 1 MB = 1000 KB.
 - Internal resolution 480x270, scaled by the largest integer zoom that fits the window, centered, `pixelArt: true`, `roundPixels: true`.
 - Named exports only. Comments say why, not what. Plain `-` only, never em or en dashes, in code, comments and docs.
 - Tests live next to code as `*.test.ts`. Core logic is tested headless; never test through Phaser.
@@ -118,11 +126,11 @@ Debug surface (active in dev or with `?debug=1`): `window.__game = { state, step
 | `?skipTitle=1` | start a new game at once, ignore any save |
 | `?nosave=1` | never read or write localStorage |
 | `?autoplay=1` | the bot plays |
-| `?speed=N` | N sim ticks per render frame (debug only, max 32) |
+| `?speed=N` | multiplies the ticks run per render frame by N (debug only, max 32; the 5-step cap scales with it) |
 
 ## 6. Work packages
 
-Size M: waves of one, in order. Each WP owns its new modules; it may also edit the shared integration files (`core/state.ts`, `core/step.ts`, `core/events.ts`, `core/commands.ts`, `data/content.ts`, `data/tuning.ts`, `render/scenes/*`, `debug/debug.ts`) as far as its feature needs, without rewriting earlier work.
+Size M: waves of one, in order, so there is never a second writer. The Owns column lists the files a WP **creates**. A WP may also **edit** any existing file under `src/`, the `scripts` block of `package.json` and `README.md` as far as its feature needs (new sprites, a HUD element, a hook in `step.ts` or `main.ts`), without rewriting or re-styling earlier work. It never edits `specs/**`, `SPEC.md`, dependency versions, or `public/audio/**`.
 
 | WP | Name | Depends on | Owns | Model | Dispatch |
 |---|---|---|---|---|---|
@@ -130,8 +138,8 @@ Size M: waves of one, in order. Each WP owns its new modules; it may also edit t
 | WP01 | Gathering and combat: nodes, swing, pickups, mudlets, hearts, faint, HUD, fx | WP00 | `src/core/{nodes,creatures,pickups}.ts`, `src/render/fx.ts`, `src/render/ui/hud.ts` | opus high | subagent |
 | WP02 | Day cycle, sleep, garden, save, title screen | WP01 | `src/core/{clock,garden}.ts`, `src/save/**`, `src/render/ui/{gardenPicker,confirm}.ts`, TitleScene | opus high | subagent |
 | WP03 | Stations, recipes, notebook | WP02 | `src/core/stations.ts`, `src/render/ui/{stationPanel,notebook}.ts` | opus high | subagent |
-| WP04 | Stall, customers, demand, land purchase, east plot, M1 goal, bot and health test | WP03 | `src/core/{stall,bot}.ts`, `src/render/ui/stallPanel.ts` | opus high | subagent |
-| WP05 | Audio, pause and mute, changelog, GitHub Pages workflow | WP04 + sounds approved by the user | `src/audio/**`, `public/audio/**`, `.github/**`, `CHANGELOG.md` | opus high | subagent |
+| WP04 | Stall, customers, demand, land purchase, east plot, M1 goal, bot and health test | WP03 | `src/core/{stall,bot}.ts`, `src/render/ui/{stallPanel,toast}.ts` | opus high | subagent |
+| WP05 | Audio, pause and mute, changelog, GitHub Pages workflow | WP04; sounds already in `public/audio/` (read-only) | `src/audio/**`, `src/render/ui/pause.ts`, `scripts/write-version.mjs`, `.github/**`, `CHANGELOG.md`, `README.md` | opus high | subagent |
 
 ## 7. Gates
 
@@ -139,13 +147,13 @@ After every WP the brain runs: `npm run verify` on `main`; the game in the brows
 
 **M1 gate** (after WP05):
 - `npm run verify` green.
-- Headless bot run (Vitest, seed 1, 2 and 3): east plot bought by day 4 or earlier; M1 goal reached by day 6 or earlier; coins earned on evening 1 between 40 and 130.
+- Headless bot run (Vitest, seed 1, 2 and 3): `state.day <= 4` when `plotBought` fires; `state.day <= 6` when `goalReached` fires; coins earned on evening 1 between 40 and 130.
 - Browser pane: full manual pass of one day (gather, grind, brew, plant, sell, sleep) by state assertions, plus one screenshot per phase as proof.
 - Gamepad: input module unit tests pass with a mocked standard-mapping pad.
 
 ## 8. Definition of done (every WP)
 
-`npm run verify` green on the branch (`tsc --noEmit`, `check-boundaries`, `vitest run`, `vite build`); every acceptance test in the WP file passes with evidence; no file outside owned or shared-integration paths; no new dependency; no TODO outside the WP's allowed deferrals; budgets respected.
+`npm run verify` green on the branch (`tsc --noEmit`, `check-boundaries`, `vitest run`, `vite build`); every acceptance test in the WP file passes with evidence; no file touched outside what section 6 allows; no new dependency; no TODO outside the WP's allowed deferrals; budgets respected.
 
 ## 9. Performance budgets
 

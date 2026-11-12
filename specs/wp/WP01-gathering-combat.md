@@ -3,7 +3,7 @@
 Goal: the player can hit plants and stumps, collect what drops, fight mudlets, get hurt and faint, and sees hearts, coins, an item bar and an interact hint.
 Read first: SPEC.md, specs/design.md, specs/content.md (Player, Nodes, Creature sections)
 Depends on: WP00 (core tick, world, player movement, data tables, sprite and font pipeline, debug surface). Read the existing `src/core` and `src/data` before writing.
-Owns: `src/core/{nodes,creatures,pickups}.ts` and tests, `src/render/fx.ts`, `src/render/ui/hud.ts`. Shared integration files as far as needed (SPEC section 6).
+Owns: `src/core/{nodes,creatures,pickups}.ts` and tests, `src/render/fx.ts`, `src/render/ui/hud.ts`. Edits to existing files as allowed by SPEC section 6.
 
 ## Deliverables
 
@@ -13,7 +13,7 @@ Owns: `src/core/{nodes,creatures,pickups}.ts` and tests, `src/render/fx.ts`, `sr
 - Swing and targeting in `player.ts` / `step.ts`: `state.player.swingTarget` and `state.player.interactTarget` (ids or null) recomputed every tick; swing cooldown; damage.
 - Interact: pressing interact on a target emits `{ type: 'interact', kind, structureId }`. No panel exists yet; later WPs consume it.
 - Hearts, hurt, invulnerability, knockback, faint.
-- Events added to `GameEvent`: `swing`, `nodeHit`, `nodeBroken`, `creatureHit`, `creatureDied`, `pickupSpawned`, `pickupCollected`, `playerHurt`, `playerFainted`, `interact`. Each carries the ids and positions the renderer needs.
+- Events added to `GameEvent`: `swing`, `nodeHit`, `nodeBroken`, `creatureHit`, `creatureDied`, `pickupSpawned`, `pickupCollected`, `playerHurt`, `playerFainted`, `interact`. Each carries the ids and positions the renderer needs. Every hit on a node emits `nodeHit { nodeType, ... }`; the hit that breaks it emits `nodeHit` and then `nodeBroken { nodeType, ... }`. The same pattern for `creatureHit` then `creatureDied`. `pickupSpawned` and `pickupCollected` carry the item id.
 - `src/render/ui/hud.ts`: hearts and coins top-left, item bar bottom-center (only items with count > 0, in the item table order), interact hint above the bar (hint text from the structure table, prefixed with the key or button for the last device used).
 - `src/render/fx.ts`: the juice list of design.md that applies to these events, plus the `bone` outline on the swing target and the interact target.
 - Sprites: the 5 nodes, mudlet (2 frames), the 13 item icons, heart, coin, particle.
@@ -23,7 +23,8 @@ Owns: `src/core/{nodes,creatures,pickups}.ts` and tests, `src/render/fx.ts`, `sr
 
 All values by name from specs/content.md.
 
-- Nodes are solid with a 10 x 8 feet box. Spawn rule as in content.md, and additionally never within 1 tile of the player's current tile.
+- Nodes are solid with a 10 x 8 feet box. Node and mudlet spawn rules as in content.md (World and Creature sections).
+- All timers are integer ticks (SPEC section 5): cooldown 18, invulnerability 60, knockbacks 9, stun 15.
 - Swing: on press, if `swing.cooldown` has elapsed, pick the target (priority: creature, node; ready soil beds arrive in WP02) inside `swing.reach`; if none, use `swing.assistRadius` and turn the player to face that target. Apply `swing.damage`. A swing with no target still plays (event `swing` with no target).
 - Interact targeting uses the same shape and assist over the structure table's interact tiles (target a structure when its interact tile center is in reach).
 - Node drops: counts per the Nodes table (1-2 means `nextInt(1, 2)`), scattered `8-14` px in a random direction, not inside solid things when avoidable.
@@ -35,9 +36,10 @@ All values by name from specs/content.md.
 
 - [ ] `npm run verify` -> exit 0. The WP00 tests still pass, with their expectations updated only where the initial state legitimately grew.
 - [ ] Vitest, seeds 1 to 20: the initial home plot holds exactly the home targets of every node type, and no node breaks the spawn rule.
-- [ ] Vitest: a swing at a mintbush in reach removes it and spawns 1 mint pickup; walking onto it gives `inventory.mint === 1`.
+- [ ] Tests that need a quiet scene build their state explicitly (clear `state.nodes` and `state.creatures`, then place what the test needs); never rely on where a seed happened to put things.
+- [ ] Vitest: a swing at a mintbush in reach removes it, emits `nodeHit` then `nodeBroken` with `nodeType: 'mintbush'`, and spawns 1 mint pickup; walking onto it gives `inventory.mint === 1`.
 - [ ] Vitest: reedclump breaks on the 2nd hit and drops 1 or 2 reed; stump breaks on the 3rd and drops 2 bogwood.
-- [ ] Vitest: two swing presses 0.1 s apart land one hit; 0.31 s apart land two.
+- [ ] Vitest: two swing presses 6 ticks apart land one hit; 19 ticks apart land two.
 - [ ] Vitest: with nothing in front and a node 14 px behind the player, the swing hits it and the facing flips.
 - [ ] Vitest: with a mudlet and a node both in reach, the mudlet is hit.
 - [ ] Vitest: 3 hits kill a mudlet and drop 1 mudgel; contact costs exactly 1 heart, and a second contact inside 1.0 s costs none.

@@ -13,18 +13,20 @@ Every value here lives in `src/data/tuning.ts` or `src/data/content.ts` under th
 
 | Thing | Tiles | Solid | Interact |
 |---|---|---|---|
-| Hut | (1,1) to (3,2) | yes | door at (2,3): sleep |
-| Soil beds x4 | (6,2) (7,2) (6,3) (7,3) | no | plant / harvest |
-| Mortar | (10,2) | yes | grind |
-| Cauldron | (12,2) | yes | brew |
-| Stall | (8,11) to (10,11) | yes | from tile (9,10): stall |
+| Hut | (1,1) to (3,2) | yes | interact tile (2,3), the door: sleep |
+| Soil beds x4 | (6,2) (7,2) (6,3) (7,3) | no | interact tile = the bed's own tile: plant / harvest |
+| Mortar | (10,2) | yes | interact tile (10,3): grind |
+| Cauldron | (12,2) | yes | interact tile (12,3): brew |
+| Stall | (8,11) to (10,11) | yes | interact tile (9,10): stall |
 | Customer spot | (9,12) | no | - |
-| East signpost | (19,6) | yes | buy east plot |
+| East signpost | (19,6) | yes | interact tile (18,6): buy east plot |
 | Player start | (2,4) | - | - |
 
 East plot: no structures in M1.
 
-Node spawn rule: a random free tile in rows 0-11, not solid, not a soil bed, not within 1 tile of a structure or another node. Positions are re-rolled each morning from the state RNG.
+A structure is the interact target when the center of its interact tile is in reach (see Player).
+
+Node spawn rule: a random free tile in rows 0-11, not solid, not a soil bed, not within 1 tile of a structure (or of its interact tile) or another node, not within 1 tile of the player's tile. Nodes that survive a night stay where they are; only the missing ones are rolled, from the state RNG.
 
 ## Items
 
@@ -61,7 +63,9 @@ Inventory: a count per item id, no limit.
 | `hurt.invulnerable` | 1.0 s |
 | `hurt.knockback` | 24 px over 0.15 s |
 
-Swing target priority: nearest creature in reach, else nearest node, else a ready soil bed (harvest). The current swing target and the current interact target are exposed in state so the renderer can outline them.
+Swing target priority: nearest creature in reach, else nearest node, else a ready soil bed (harvest). "Nearest" is measured from the center of the reach circle (for the assist: from the player's feet). The current swing target and the current interact target are recomputed every tick and exposed in state so the renderer can outline them; computing them never turns the player. The player turns toward an assist target only on the press itself.
+
+Durations in ticks (60 Hz): swing cooldown 18, invulnerability 60, hurt knockback 9.
 
 Faint (0 hearts): fade out, then the normal morning reset runs and the player wakes at the hut door with full hearts. That day's stall is lost. Nothing else is lost.
 
@@ -87,16 +91,20 @@ Pickups: scatter 8-14 px from the source, `pickup.magnetRadius` 28 px, fly at 16
 | wander | 30 px/s; walk 1.5-3 s in a random direction, idle 0.5-1.5 s |
 | aggro radius | 56 px, then hops toward the player at 45 px/s |
 | contact | 1 heart |
-| when hit | knockback 20 px, stun 0.25 s |
+| hitbox | 10 x 8 px at the feet |
+| when hit | knockback 20 px over 0.15 s, stun 0.25 s |
 | drop | 1 mudgel |
 | count each morning | home 2, east 4 |
 
-Mudlets never leave their plot and never enter the road row.
+Mudlets never leave their plot and never enter the road row. Mudlets that survive a night stay; missing ones spawn by the node spawn rule over rows 0-12, at least 4 tiles from the player.
+
+While the stall is open for business the player cannot be hurt or pushed, and mudlets only wander (no aggro, no contact damage).
 
 ## Day clock
 
 - `day.length` 240 s (tune). The clock shows 06:00 to 18:00 across it. Then phase `evening`, which has no timer.
 - Interacting with the stall during the day asks "Call it a day?"; yes jumps to evening.
+- Every switch to evening (timer, call it a day, debug) emits `eveningStarted` exactly once for that day.
 - Sleeping (hut door, any time, with a confirm) runs the morning reset: day + 1, phase day, nodes and mudlets refilled, garden advances one night, hearts full, demand recovers, a trend potion is picked, the game saves.
 - Station jobs still running at sleep finish instantly and drop their output.
 
@@ -114,7 +122,7 @@ Mudlets never leave their plot and never enter the road row.
 
 One job at a time per station. Start a job from its panel, walk away, outputs pop out next to the station as pickups. A progress bar shows above a busy station.
 
-Mortar: pick an input and a quantity (1 to all owned); `mortar.secondsPerUnit` 1.5.
+Mortar: pick an input and a quantity (1 to all owned); `mortar.secondsPerUnit` 1.5 (90 ticks; the cauldron's 6 s is 360 ticks).
 
 | Input | Output |
 |---|---|
@@ -149,14 +157,14 @@ Reaction, with `value = base x demand[potion] x trend x personal` and `r = price
 
 - `personal`: uniform 0.95-1.05 per customer.
 - `demand[potion]`: starts 1.0; -0.04 per unit sold (floor 0.6); +0.15 per night (cap 1.0).
-- `trend`: each morning one potion type the player can currently brew (recipe ingredients obtainable on owned plots) is "in demand": x1.3 for that day. Announced by a toast when evening starts and shown in the notebook.
+- `trend`: each morning one potion type the player can currently brew (recipe ingredients obtainable on owned plots) is "in demand": x1.3 for that day. Announced by a toast when evening starts and shown in the notebook. Day 1 has no trend (`trend` is null, multiplier 1, no toast, the notebook shows "IN DEMAND TODAY: -"); the first trend is picked at the first morning reset.
 - The notebook keeps the last 3 (price, reaction) entries per potion.
 
 ## Economy and goal
 
 - East plot: 150 coins at the signpost. Buying it unlocks it at once and fills it to its targets.
 - M1 goal: the first sale of an emberelixir shows the banner "First Ember Elixir sold - the marsh is yours to grow" once. Play continues.
-- Health targets (headless bot, seeds 1-3): coins earned on evening 1 between 40 and 130; east plot bought by day 4; goal reached by day 6.
+- Health targets (headless bot, seeds 1-3): coins earned on evening 1 between 40 and 130; `state.day <= 4` when the plot is bought; `state.day <= 6` when the goal is reached.
 
 ## Save
 
