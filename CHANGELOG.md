@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.2 - 2026-11-13
+
+- The key hint on the title screen is now bright enough to read.
+
 ## v0.1.1 - 2026-11-13
 
 - Enter now works like C (confirm and interact), and the title menu can be clicked with the mouse.

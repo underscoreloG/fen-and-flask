@@ -33,7 +33,7 @@ export class TitleScene extends Phaser.Scene {
     addText(this, viewW / 2, K.titleTextY, 'FEN & FLASK', 'bone').setOrigin(0.5, 0.5).setScale(K.titleScale);
     const rows = this.saved ? [{ label: 'CONTINUE' }, { label: 'NEW GAME' }] : [{ label: 'NEW GAME' }];
     this.menu = new ListPanel(this, null, rows, K.titleMenuY);
-    addText(this, viewW / 2, K.titleHintY, 'C OR ENTER TO START', 'waterlight').setOrigin(0.5, 0.5);
+    addText(this, viewW / 2, K.titleHintY, 'C OR ENTER TO START', 'bone').setOrigin(0.5, 0.5);
     this.clicked = null;
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.clicked = this.menu.rowAt(p.x, p.y);
