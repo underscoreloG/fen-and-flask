@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 3   Size: M   Milestone: M2 shop progression   Updated: 2026-11-13
-Next action: the user approves the M2 plan (WP07-WP09). Then: worktree ../fen-and-flask-wt/wp07, dispatch WP07 (opus high), verify, merge, browser gate through the headless Edge harness, ship v0.3.0; then WP08 (v0.3.1), WP09 (v0.3.2).
+Next action: M2 plan approved by the user 2026-11-13 ("Approve, build it"). WP07 worker is running in ../fen-and-flask-wt/wp07 (branch wp/07-catalog). On its report: check the diff, merge --no-ff, npm run verify, browser gate through the headless Edge harness, ship v0.3.0; then WP08 (v0.3.1), WP09 (v0.3.2), same loop.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -29,7 +29,7 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP04 Stall, land, goal, bot | merged | subagent | opus high | | wp/04-stall | verify green (128 tests). Health seeds 1-3: evening-1 coins 87, plot bought day 2, goal day 3, 0 faints. Browser: bot reaches the goal on day 3 (32000 ticks); with real keys the stall setup opens, tonic raised 10 -> 12 sells as happy, 6 potions sold for 79 coins, summary shown, no console error |
 | WP09 Customer types, daily order (v0.3.2) | todo | subagent | opus high | | | |
 | WP08 Helpers: toads (v0.3.1) | todo | subagent | opus high | | | |
-| WP07 Catalog and upgrades (v0.3.0) | todo | subagent | opus high | | | |
+| WP07 Catalog and upgrades (v0.3.0) | running | subagent | opus high | | wp/07-catalog | dispatched 2026-11-13 |
 | WP06 Shop interior (v0.2.0) | merged | subagent | opus high | | wp/06-shop | verify green (205 tests); health seeds 1-3 unchanged (87 coins, plot day 2, goal day 3, 0 unpaid). Headless Edge with real key events: walk in, stock shelves through the panel, open from the sign, ring up at the till (+10 coins), unserved customer leaves at 1800 ticks with the potion back on the shelf, sleep indoors to day 2, mortar panel indoors, walk out |
 | WP05 Audio, pause, Pages | merged | subagent | opus high | | wp/05-audio | verify green (160 tests). Browser: 16 audio files load (200), pause menu and mute work, no console error or warning |
 

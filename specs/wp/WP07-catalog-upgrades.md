@@ -99,4 +99,4 @@ None.
 
 ## Out of scope
 
-Helpers and automation (WP08), customer types and the daily order (WP09), new land, new potions, customers buying several units, selling upgrades back, decoration.
+Helpers and automation (WP08), customer types and the daily order (WP09), new land, new potions, customers buying more than two units or two units without deep tables, selling upgrades back, decoration.
