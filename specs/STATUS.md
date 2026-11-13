@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
-Phase: 5   Size: M   Milestone: M1   Updated: 2026-11-13
-Next action: the user plays v0.1.0 and answers the fun gate: "After reaching the Ember Elixir goal (about 20 minutes), do you want to keep playing another day?" No M2 scope before a yes; feel feedback becomes a tuning WP first.
+Phase: 4   Size: M   Milestone: M1 feedback batch (v0.2.0)   Updated: 2026-11-13
+Next action: WP06 shop interior running in worktree ../fen-and-flask-wt/wp06. On report: verify, merge, browser gate with real keys (walk in, stock a shelf, open, ring up, let one customer time out, sleep), tag v0.2.0, push, live check. Then back to the fun gate.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -27,6 +27,7 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
 | WP03 Stations, notebook | merged | subagent | opus high | | wp/03-stations | verify green (98 tests). Browser, real keys: mortar panel grinds 3 mint into 3 paste, cauldron panel starts 3 tonics for 1 bogwood, notebook page 1 shows recipes, no console error |
 | WP04 Stall, land, goal, bot | merged | subagent | opus high | | wp/04-stall | verify green (128 tests). Health seeds 1-3: evening-1 coins 87, plot bought day 2, goal day 3, 0 faints. Browser: bot reaches the goal on day 3 (32000 ticks); with real keys the stall setup opens, tonic raised 10 -> 12 sells as happy, 6 potions sold for 79 coins, summary shown, no console error |
+| WP06 Shop interior (v0.2.0) | running | subagent | opus high | | wp/06-shop | user feedback batch before the fun verdict |
 | WP05 Audio, pause, Pages | merged | subagent | opus high | | wp/05-audio | verify green (160 tests). Browser: 16 audio files load (200), pause menu and mute work, no console error or warning |
 
 ## Helper agents (not WPs)
@@ -51,3 +52,4 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 - Still open from v0.1.0: deploy-pages@v4 Node 20 deprecation warning (bump action majors in the next feature batch).
 - 2026-11-13 v0.1.2: the user did not see the title key hint in v0.1.1 (it was drawn in waterlight on deepwater, about 3:1 contrast); now bone. Brain reading: low contrast, not a missing element (layout checked: the hint sits 11 px below a two-row menu).
 - 2026-11-13 v0.1.3 (user: "its not fitting the entire screen"): scaling now fills the window at 16:9; whole-number zoom only when it covers at least 92% of the fit, else fractional zoom (pixels slightly uneven). Bars remain on one axis when the window is not 16:9. Checked at 1315x1252: canvas 1315x740, title click still lands, 60 ticks/s.
+- 2026-11-13 user feedback after first play (v0.1.x): shop inside the house with shelves and prices "exactly like in moonlighter"; potion making in a back room; customers wait at the cashier about 30 s then leave without paying; shelves take potions and raw ingredients; shop replaces the stall. Spec: specs/wp/WP06-shop-interior.md (it overrides SPEC/content/design where they disagree; fold it back into them after the merge). Brain choices to flag to the user: an impatient customer puts the item back (never lost); raw and ground base values are first guesses. No fresh-context plan review was run for WP06 (speed; brain gap pass only).
