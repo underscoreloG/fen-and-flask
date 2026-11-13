@@ -164,6 +164,9 @@ export interface BrewRecipe {
 
 export const CAULDRON_FUEL: ItemId = 'bogwood';
 
+export const GOAL_BANNER = 'First Ember Elixir sold - the marsh is yours to grow';
+export const GOAL_POTION: PotionId = 'emberelixir';
+
 export const BREW_RECIPES: readonly BrewRecipe[] = [
   { potion: 'tonic', ingredients: [{ item: 'mintpaste', n: 1 }, { item: 'reed', n: 1 }], baseValue: 14 },
   { potion: 'salve', ingredients: [{ item: 'mudgel', n: 1 }, { item: 'reed', n: 1 }], baseValue: 18 },
@@ -191,12 +194,16 @@ export interface StructureDef {
   hint: string;
   // Beds switch hint once a crop is ready.
   hintReady?: string;
+  // A signpost sells this plot and is gone once it is owned.
+  sells?: PlotId;
 }
 
 export interface PlotLayout {
   structures: readonly StructureDef[];
   playerStart?: { x: number; y: number };
   customerSpot?: { x: number; y: number };
+  // Where travellers step onto the road (they walk east along it, then up to the spot).
+  customerEntry?: { x: number; y: number };
 }
 
 const bed = (id: string, x: number, y: number): StructureDef => ({
@@ -220,10 +227,19 @@ export const PLOT_LAYOUTS: Record<PlotId, PlotLayout> = {
       { id: 'mortar', kind: 'mortar', tiles: { x: 10, y: 2, w: 1, h: 1 }, solid: true, interact: { x: 10, y: 3 }, hint: 'GRIND' },
       { id: 'cauldron', kind: 'cauldron', tiles: { x: 12, y: 2, w: 1, h: 1 }, solid: true, interact: { x: 12, y: 3 }, hint: 'BREW' },
       { id: 'stall', kind: 'stall', tiles: { x: 8, y: 11, w: 3, h: 1 }, solid: true, interact: { x: 9, y: 10 }, hint: 'STALL' },
-      { id: 'signpost', kind: 'signpost', tiles: { x: 19, y: 6, w: 1, h: 1 }, solid: true, interact: { x: 18, y: 6 }, hint: 'BUY PLOT' },
+      {
+        id: 'signpost',
+        kind: 'signpost',
+        tiles: { x: 19, y: 6, w: 1, h: 1 },
+        solid: true,
+        interact: { x: 18, y: 6 },
+        hint: 'BUY PLOT',
+        sells: 'east',
+      },
     ],
     playerStart: { x: 2, y: 4 },
     customerSpot: { x: 9, y: 12 },
+    customerEntry: { x: 0, y: 13 },
   },
   east: {
     structures: [],

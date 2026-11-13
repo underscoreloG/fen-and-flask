@@ -76,7 +76,8 @@ export function updateCreatures(state: GameState): void {
     const dx = p.x - c.x;
     const dy = p.y - c.y;
     const d = Math.hypot(dx, dy);
-    if (d <= def.aggroRadius) {
+    // While the stall is open for business mudlets only wander.
+    if (d <= def.aggroRadius && state.stall.phase !== 'open') {
       c.mode = 'chase';
       const s = Math.min(def.hopSpeed / RATE, d);
       if (d > 0) move(state, c, def, (dx / d) * s, (dy / d) * s);

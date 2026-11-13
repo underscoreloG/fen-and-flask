@@ -1,3 +1,4 @@
+import { PLOTS } from '../data/content';
 import { ticks, TUNING } from '../data/tuning';
 import { morningReset } from './clock';
 import type { Frame } from './commands';
@@ -6,7 +7,7 @@ import type { GameEvent } from './events';
 import { bedIndex, harvest, interactBed, readyBeds, type ReadyBed } from './garden';
 import { hitNode } from './nodes';
 import type { CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
-import { moveAxis, WORLD_STRUCTURES, type WorldStructure } from './world';
+import { moveAxis, structureStands, WORLD_STRUCTURES, type WorldStructure } from './world';
 
 const P = TUNING.player;
 const STEP = P.speed / TUNING.sim.tickRate;
@@ -116,7 +117,9 @@ function findSwingTarget(state: GameState): SwingTarget | null {
 
 function findInteractTarget(state: GameState): { s: WorldStructure; assist: boolean } | null {
   const p = state.player;
-  const usable = WORLD_STRUCTURES.filter((s) => state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned));
+  const usable = WORLD_STRUCTURES.filter(
+    (s) => structureStands(state, s) && state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned),
+  );
   for (const assist of [false, true]) {
     const s = nearestInReach(p, TUNING.interact, usable, (w) => ({ x: w.interactX, y: w.interactY }), assist);
     if (s) return { s, assist };
@@ -159,9 +162,15 @@ export function interact(state: GameState, events: GameEvent[]): void {
       events.push({ type: 'uiRequest', ui: 'sleepConfirm' });
       break;
     case 'stall':
-      // The evening stall is WP04.
       if (state.phase === 'day') events.push({ type: 'uiRequest', ui: 'callItADayConfirm' });
+      else if (state.stall.openedToday) events.push({ type: 'uiRequest', ui: 'toast', text: 'STALL IS DONE FOR TODAY' });
+      else events.push({ type: 'uiRequest', ui: 'stall' });
       break;
+    case 'signpost': {
+      const plot = PLOTS.findIndex((p) => p.id === s.def.sells);
+      if (plot >= 0) events.push({ type: 'uiRequest', ui: 'buyPlotConfirm', plot });
+      break;
+    }
     case 'bed':
       interactBed(state, bedIndex(s.def.id), events);
       break;
@@ -177,7 +186,8 @@ export function interact(state: GameState, events: GameEvent[]): void {
 // Contact with a mudlet: one heart, knockback away from it, then a spell of invulnerability.
 export function updateHurt(state: GameState, events: GameEvent[]): void {
   const p = state.player;
-  if (p.invulnerable > 0) return;
+  // Held at the open stall, the player cannot be hurt or pushed.
+  if (p.invulnerable > 0 || state.stall.phase === 'open') return;
   const c = touchingCreature(state);
   if (!c) return;
   p.hearts = Math.max(0, p.hearts - creatureDef(c.type).contactDamage);

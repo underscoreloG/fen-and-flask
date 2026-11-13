@@ -4,6 +4,7 @@ import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { growNight } from './garden';
 import { refillPlot } from './nodes';
+import { morningStall } from './stall';
 import { finishJobs } from './stations';
 import type { GameState, Phase } from './state';
 import { targetStructure } from './world';
@@ -24,6 +25,8 @@ export function startEvening(state: GameState, events: GameEvent[]): void {
   if (state.phase !== 'day') return;
   state.phase = 'evening';
   events.push({ type: 'eveningStarted', day: state.day });
+  const trend = state.stall.trend;
+  if (trend) events.push({ type: 'trendAnnounced', potion: trend });
 }
 
 export function callItADay(state: GameState, events: GameEvent[]): void {
@@ -58,6 +61,7 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
     if (p.owned) refillCreatures(state, i);
   });
   state.player.hearts = TUNING.player.hearts;
+  morningStall(state);
   events.push({ type: 'morning', day: state.day });
 }
 

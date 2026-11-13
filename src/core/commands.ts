@@ -10,7 +10,15 @@ export type Command =
   | { type: 'Plant'; bed: number; item: ItemId }
   // The mortar or cauldron must be the interact target and free; qty 1 to what the inputs allow.
   | { type: 'StartGrind'; input: ItemId; qty: number }
-  | { type: 'StartBrew'; potion: PotionId; qty: number };
+  | { type: 'StartBrew'; potion: PotionId; qty: number }
+  // Stall: SetPrice any time (at the stall, or live while it is open), clamped to at least 1.
+  | { type: 'SetPrice'; potion: PotionId; price: number }
+  // Evening, once a day, with a potion in hand, at the stall.
+  | { type: 'OpenStall' }
+  // While the stall is open.
+  | { type: 'CloseStall' }
+  // At the signpost that sells the plot (plot indexes state.plots), with the coins.
+  | { type: 'BuyPlot'; plot: number };
 
 // Everything one tick needs from the outside world.
 export interface Frame {

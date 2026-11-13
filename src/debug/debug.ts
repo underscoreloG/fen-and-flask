@@ -8,7 +8,7 @@ import { ITEM_IDS, type ItemId } from '../data/content';
 import { TUNING } from '../data/tuning';
 import { APP_VERSION } from '../data/version';
 import { deliver, queueCommand } from '../input/input';
-import type { Session } from '../input/session';
+import { stepBot, type Session } from '../input/session';
 
 export interface Params {
   debug: boolean;
@@ -49,8 +49,14 @@ export function installDebug(session: Session, target: Window, runFrames: (n: nu
       return session.state;
     },
     // Holds the frame for n ticks; swing, interact and commands (plus queued cmd()s) land on
-    // the first tick only.
-    step(n = 1, frame = {}) {
+    // the first tick only. Without a frame while the bot drives, each tick gets its botFrame.
+    step(n = 1, frame?: Partial<Frame>) {
+      if (frame === undefined && session.botOn) {
+        const ev = stepBot(session, n);
+        session.events.push(...ev);
+        return ev;
+      }
+      frame ??= {};
       const f: Frame = { ...neutralFrame(), ...frame };
       f.commands = [...session.latch.commands, ...(frame.commands ?? [])];
       const events: GameEvent[] = [];
@@ -71,7 +77,7 @@ export function installDebug(session: Session, target: Window, runFrames: (n: nu
     setPhase(p) {
       session.events.push(...setPhase(session.state, p));
     },
-    // Stub until WP04 (bot).
+    // The bot drives the live loop (and step(n) without a frame); the UI then ignores uiRequests.
     bot(on) {
       session.botOn = on;
     },

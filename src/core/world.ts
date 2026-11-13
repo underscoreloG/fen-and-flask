@@ -62,16 +62,24 @@ export function targetStructure(state: GameState): WorldStructure | undefined {
   return id === null ? undefined : WORLD_STRUCTURES.find((s) => s.def.id === id);
 }
 
-// Solid structure tiles never move, so they are baked once into a world-tile mask.
+// A signpost stands until the plot it sells is owned; every other structure always stands.
+export function structureStands(state: GameState, s: WorldStructure): boolean {
+  if (!s.def.sells) return true;
+  const i = PLOTS.findIndex((p) => p.id === s.def.sells);
+  return !state.plots[i]?.owned;
+}
+
+// Solid structure tiles never move, so they are baked once into a world-tile mask holding the
+// structure's index + 1 (a signpost's tiles free up once it is gone).
 const SOLID = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
-for (const s of WORLD_STRUCTURES) {
-  if (!s.def.solid) continue;
+WORLD_STRUCTURES.forEach((s, k) => {
+  if (!s.def.solid) return;
   const tx = s.x / TILE;
   const ty = s.y / TILE;
   for (let j = 0; j < s.def.tiles.h; j++) {
-    for (let i = 0; i < s.def.tiles.w; i++) SOLID[(ty + j) * WORLD_TILES_W + tx + i] = 1;
+    for (let i = 0; i < s.def.tiles.w; i++) SOLID[(ty + j) * WORLD_TILES_W + tx + i] = k + 1;
   }
-}
+});
 
 export function plotAtTile(state: GameState, wtx: number, wty: number): PlotState | undefined {
   const lx = wtx - W.border;
@@ -93,12 +101,14 @@ export function tileKind(state: GameState, wtx: number, wty: number): TileKind {
 
 export function isSolidStructureTile(wtx: number, wty: number): boolean {
   if (wtx < 0 || wty < 0 || wtx >= WORLD_TILES_W || wty >= WORLD_TILES_H) return false;
-  return SOLID[wty * WORLD_TILES_W + wtx] === 1;
+  return SOLID[wty * WORLD_TILES_W + wtx]! > 0;
 }
 
 export function isTileBlocked(state: GameState, wtx: number, wty: number): boolean {
   const kind = tileKind(state, wtx, wty);
-  return kind === 'deepwater' || kind === 'locked' || isSolidStructureTile(wtx, wty);
+  if (kind === 'deepwater' || kind === 'locked') return true;
+  const k = SOLID[wty * WORLD_TILES_W + wtx]!;
+  return k > 0 && structureStands(state, WORLD_STRUCTURES[k - 1]!);
 }
 
 const NODE_W = TUNING.node.hitboxW;

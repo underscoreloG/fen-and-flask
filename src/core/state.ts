@@ -6,6 +6,7 @@ import { refillCreatures } from './creatures';
 import { createGarden } from './garden';
 import { refillPlot } from './nodes';
 import { seedRng } from './rng';
+import { createStall, type StallState } from './stall';
 import { createStations, type Stations } from './stations';
 import { plotTileCenter } from './world';
 
@@ -109,6 +110,13 @@ export interface GameState {
   pickups: PickupState[];
   garden: BedState[];
   stations: Stations;
+  stall: StallState;
+  flags: Flags;
+}
+
+export interface Flags {
+  // The first Ember Elixir has been sold (M1 goal).
+  m1Goal: boolean;
 }
 
 export function createInitialState(seed: number): GameState {
@@ -147,6 +155,8 @@ export function createInitialState(seed: number): GameState {
     pickups: [],
     garden: createGarden(),
     stations: createStations(),
+    stall: createStall(),
+    flags: { m1Goal: false },
   };
   // Nodes first: mudlets then keep clear of them.
   state.plots.forEach((p, i) => {
