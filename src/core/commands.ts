@@ -13,6 +13,8 @@ export type Command =
   // The targeted mortar or cauldron (either one) must be free; qty 1 to what the inputs allow.
   | { type: 'StartGrind'; input: ItemId; qty: number }
   | { type: 'StartBrew'; potion: PotionId; qty: number }
+  // The targeted station must have a job: it stops, the inputs of the units not yet out come back.
+  | { type: 'CancelJob' }
   // At that shelf: move qty from the inventory onto it, or take its whole stack back.
   | { type: 'StockShelf'; shelf: number; item: ItemId; qty: number }
   | { type: 'ClearShelf'; shelf: number }

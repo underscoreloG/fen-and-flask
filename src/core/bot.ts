@@ -518,12 +518,13 @@ function nudged(price: number, reaction: keyof typeof B.priceAfter): number {
 
 // A customer reacted to the price still on the tag: that price is due a nudge (read from state,
 // so once it is sent the price differs and the nudge is done). The bot tells the customer types
-// apart by their looks and nudges by what a traveller with that mood would have thought, so a
-// courier's delight or a haggler's grumble does not drag the price off for everyone else.
+// apart by their looks and nudges by what a traveller would have thought, so a courier's delight or
+// a haggler's grumble does not drag the price off for everyone else. It judges as a traveller in a
+// low mood: a grumble no longer buys (specs/wp/WP10), so the price settles where every traveller does.
 function pendingNudge(s: GameState): { item: ItemId; price: number } | null {
   for (const c of s.shop.customers) {
     if (c.item === null || c.reaction === null || s.shop.prices[c.item] !== c.price) continue;
-    const price = nudged(c.price, reactTo(s, c.item, c.price, c.personal).reaction);
+    const price = nudged(c.price, reactTo(s, c.item, c.price, TUNING.stall.personalMin).reaction);
     if (price !== c.price) return { item: c.item, price };
   }
   return null;

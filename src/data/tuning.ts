@@ -103,7 +103,6 @@ export const TUNING = {
     delightedMax: 0.8,
     happyMax: 1.1,
     grumblingMax: 1.3,
-    grumbleDemandPenalty: 0.05,
     personalMin: 0.95,
     personalMax: 1.05,
   },

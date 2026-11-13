@@ -123,7 +123,8 @@ const perItem = <T>(f: (i: ItemId) => T): Record<ItemId, T> => Object.fromEntrie
 
 export const baseValue = (item: ItemId): number => ITEMS.find((i) => i.id === item)!.value;
 
-// Below the value of every item, so an untouched price always sells on the first evening.
+// Below the value of every item, so an untouched price sells on the first evening (one known
+// exception since WP10: a haggler grumbles at bogwood's floor price of 1, and grumblers do not buy).
 export const firstPrice = (item: ItemId): number => Math.max(S.priceMin, Math.round(S.firstPriceFactor * baseValue(item)));
 
 export function createShop(): ShopState {
@@ -176,7 +177,8 @@ export function typeMultiplier(type: CustomerType, item: ItemId): number {
   return isPotion(item) ? t.potions : t.herbs;
 }
 
-// A customer of `type` with this personal mood (0.95-1.05) seeing `price` on `item`.
+// A customer of `type` with this personal mood (0.95-1.05) seeing `price` on `item`. Only delighted
+// and happy buy (specs/wp/WP10): a grumble walks out like a refusal.
 export function reactTo(
   state: GameState,
   item: ItemId,
@@ -185,7 +187,7 @@ export function reactTo(
   type: CustomerType = 'traveller',
 ): { reaction: Reaction; sold: boolean } {
   const reaction = judge(price, itemValue(state, item) * personal * typeMultiplier(type, item));
-  return { reaction, sold: reaction !== 'refuses' };
+  return { reaction, sold: reaction === 'delighted' || reaction === 'happy' };
 }
 
 // One state RNG roll, weighted by the type table.
@@ -334,8 +336,8 @@ export function reachM1Goal(state: GameState, item: ItemId, events: GameEvent[])
   events.push({ type: 'goalReached' });
 }
 
-// Every unit carried is paid at the fixed price and drops demand; a grumble costs extra once. The
-// first payment of a type puts it in the notebook.
+// Every unit carried is paid at the fixed price and drops demand. The first payment of a type puts
+// it in the notebook.
 function pay(state: GameState, c: Customer, events: GameEvent[]): void {
   const sh = state.shop;
   const item = c.item;
@@ -345,8 +347,7 @@ function pay(state: GameState, c: Customer, events: GameEvent[]): void {
   state.coins += c.price * qty;
   sh.soldCount += qty;
   sh.soldCoins += c.price * qty;
-  const drop = D.perSale * qty + (c.reaction === 'grumbling' ? S.grumbleDemandPenalty : 0);
-  sh.demand[item] = Math.max(D.floor, sh.demand[item] - drop);
+  sh.demand[item] = Math.max(D.floor, sh.demand[item] - D.perSale * qty);
   events.push({ type: 'sale', item, price: c.price, qty });
   const type = c.type ?? 'traveller';
   if (!sh.met.includes(type)) sh.met.push(type);

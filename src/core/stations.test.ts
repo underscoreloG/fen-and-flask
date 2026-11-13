@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BREW_RECIPES, CAULDRON_FUEL, GRIND_RECIPES, type ItemId } from '../data/content';
+import { arriveUpgrades } from './catalog';
 import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
 import { createInitialState, type GameState } from './state';
@@ -228,5 +229,73 @@ describe('stations', () => {
       return JSON.stringify({ s, events });
     };
     expect(play()).toBe(play());
+  });
+});
+
+describe('stop a job (specs/wp/WP10)', () => {
+  const STOP: Command = { type: 'CancelJob' };
+  const mintpasteOut = (s: GameState): number => s.inventory.mintpaste + s.pickups.filter((k) => k.item === 'mintpaste').length;
+
+  it('mortar grinding 3 mint, stopped after the first unit: 2 mint back, free, one jobCancelled, no jobFinished, the unit out stays', () => {
+    const s = scene('mortar', { mint: 3 });
+    step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 3 }));
+    const before = perStep(s, UNIT_TICKS.mortar);
+    expect(stepsWith(before, (e) => e.type === 'jobUnitDone')).toEqual([UNIT_TICKS.mortar]);
+    expect(s.inventory.mint).toBe(0);
+    const ev = step(s, cmd(STOP));
+    expect(ev.filter((e) => e.type === 'jobCancelled')).toEqual([{ type: 'jobCancelled', station: 'mortar', item: 'mintpaste', refunded: 2 }]);
+    expect(ev.some((e) => e.type === 'jobFinished')).toBe(false);
+    expect(s.inventory.mint).toBe(2);
+    expect(s.stations.mortar).toBeNull();
+    expect(mintpasteOut(s)).toBe(1);
+    // Nothing more comes out of the stopped job.
+    const after = perStep(s, UNIT_TICKS.mortar * 3).flat();
+    expect(after.filter((e) => e.type === 'jobUnitDone' || e.type === 'jobFinished' || e.type === 'jobCancelled')).toEqual([]);
+    expect(mintpasteOut(s)).toBe(1);
+  });
+
+  it('cauldron brewing 3 tonic, stopped halfway through the first unit: 3 mint paste and 3 reed back, no bogwood; the second cauldron runs on', () => {
+    const s = scene('cauldron', { mintpaste: 4, reed: 4, bogwood: 2 });
+    s.catalog.pending.push('cauldron2');
+    arriveUpgrades(s, []);
+    inside(s, 20, 4, 'up');
+    expect(s.player.interactTarget).toBe('cauldron2');
+    step(s, cmd({ type: 'StartBrew', potion: 'tonic', qty: 1 }));
+    inside(s, 18, 4, 'up');
+    expect(s.player.interactTarget).toBe('cauldron');
+    step(s, cmd({ type: 'StartBrew', potion: 'tonic', qty: 3 }));
+    expect([s.inventory.mintpaste, s.inventory.reed, s.inventory.bogwood]).toEqual([0, 0, 0]);
+    perStep(s, UNIT_TICKS.cauldron / 2 - 1);
+    const ev = step(s, cmd(STOP));
+    expect(ev.filter((e) => e.type === 'jobCancelled')).toEqual([{ type: 'jobCancelled', station: 'cauldron', item: 'tonic', refunded: 3 }]);
+    expect([s.inventory.mintpaste, s.inventory.reed, s.inventory.bogwood]).toEqual([3, 3, 0]);
+    expect(s.stations.cauldron).toBeNull();
+    expect(s.stations.cauldron2).toMatchObject({ recipe: 'tonic', remaining: 1 });
+    const rest = perStep(s, UNIT_TICKS.cauldron).flat();
+    expect(rest).toContainEqual({ type: 'jobFinished', station: 'cauldron2' });
+    expect(rest.filter((e) => e.type === 'jobUnitDone').map((e) => e.type === 'jobUnitDone' && e.station)).toEqual(['cauldron2']);
+  });
+
+  it('is rejected (state unchanged, no event) away from a station and on a free station', () => {
+    expectRejected(scene('mortar', { mint: 3 }), STOP);
+    expectRejected(scene('cauldron'), STOP);
+    const s = scene('mortar', { mint: 3 });
+    step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 3 }));
+    inside(s, 10, 7, 'down');
+    expect(s.player.interactTarget).toBeNull();
+    expectRejected(s, STOP);
+    outside(s, 5, 7, 'down');
+    expectRejected(s, STOP);
+    expect(s.stations.mortar).not.toBeNull();
+  });
+
+  it('after a stop the same station accepts a new job on the next tick', () => {
+    const s = scene('mortar', { mint: 3 });
+    step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 3 }));
+    step(s, cmd(STOP));
+    expect(s.inventory.mint).toBe(3);
+    const ev = step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 2 }));
+    expect(ev).toContainEqual({ type: 'jobStarted', station: 'mortar', item: 'mintpaste', qty: 2 });
+    expect(s.stations.mortar).toEqual({ recipe: 'mintpaste', remaining: 2, progress: 0 });
   });
 });

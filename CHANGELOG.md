@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.3 - 2026-11-13
+
+Play feedback: stop a job, and unhappy customers keep their coins.
+
+- A busy mortar or cauldron can be stopped: its panel has a second row, STOP, TAKE n BACK. The ingredients of every unit not yet made come back to your bag (the one in progress included); the bogwood is burnt. What is already out stays where it is.
+- Only delighted and happy customers buy. A grumbling one shows its face, leaves the item on the table and walks out, like one who refuses: grumbling means a little too dear, refusing far too dear. A grumble no longer lowers demand, since nothing is sold.
+- Saves from 0.3.2 load as they are.
+
 ## v0.3.2 - 2026-11-13
 
 Customers stop being one rule, and every morning brings an order.

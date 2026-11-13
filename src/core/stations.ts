@@ -113,6 +113,21 @@ export function startBrew(state: GameState, potion: PotionId, qty: number, event
   startJob(state, kind, r.potion, qty, events);
 }
 
+// Stop (specs/wp/WP10): rejected unless the targeted station has a job. The inputs of every unit
+// not yet out come back, the one in progress included; the job's bogwood is burnt. Units already
+// out stay where they are.
+export function cancelJob(state: GameState, events: GameEvent[]): void {
+  const kind = targetStation(state);
+  const job = kind === null ? null : state.stations[kind];
+  if (kind === null || !job) return;
+  const inputs = isCauldron(kind)
+    ? brewRecipe(job.recipe as PotionId)!.ingredients
+    : [{ item: GRIND_RECIPES.find((r) => r.output === job.recipe)!.input, n: 1 }];
+  for (const ing of inputs) state.inventory[ing.item] += ing.n * job.remaining;
+  state.stations[kind] = null;
+  events.push({ type: 'jobCancelled', station: kind, item: job.recipe, refunded: job.remaining });
+}
+
 // One unit out: an indoor pickup on the station's interact tile, arcing from the station itself.
 function produce(state: GameState, kind: StationKind, job: Job, events: GameEvent[]): void {
   const s = STATION_STRUCTURES[kind];

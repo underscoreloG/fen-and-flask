@@ -161,6 +161,9 @@ export class UIScene extends Phaser.Scene {
         case 'plotBought':
           this.toasts.toast(`THE ${(PLOTS[e.plot]?.id ?? '').toUpperCase()} PLOT IS YOURS`);
           break;
+        case 'jobCancelled':
+          this.toasts.toast(`STOPPED: ${e.refunded} BACK`);
+          break;
         case 'upgradeArrived':
         case 'gardenToadHarvested':
         case 'basketToadBrought':
