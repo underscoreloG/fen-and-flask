@@ -159,6 +159,7 @@ Size M: waves of one, in order, so there is never a second writer. The Owns colu
 | WP08 | Helpers: incremental automation (v0.3.1) | WP07 | `src/core/helpers.ts`, `src/render/sprites/toads.ts` | opus high | subagent |
 | WP09 | Customer types and the daily order (v0.3.2) | WP08 | `src/core/orders.ts`, `src/render/ui/orderPanel.ts` | opus high | subagent |
 | WP10 | Play feedback 1: stop a job, unhappy customers do not buy (v0.3.3) | WP09 | see `specs/wp/WP10-feedback-1.md` | opus high | subagent |
+| WP11 | Play feedback 2: swap the sides of the counter (v0.3.4) | WP10 | see `specs/wp/WP11-counter-sides.md` | opus high | subagent |
 
 ## 7. Gates
 
