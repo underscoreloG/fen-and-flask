@@ -379,8 +379,8 @@ export const SHOP_LAYOUT: ShopLayout = {
   entry: { x: 7, y: 10 },
   exit: { x: 7, y: 11 },
   queue: [
-    { x: 3, y: 9 },
-    { x: 4, y: 9 },
+    { x: 3, y: 7 },
+    { x: 4, y: 7 },
   ],
   crate: { x: 6, y: 10 },
   structures: [
@@ -391,7 +391,7 @@ export const SHOP_LAYOUT: ShopLayout = {
     // Tables 5 and 6 come from the catalog; state.shop.shelves[i] belongs to the i-th shelf here.
     shelf(4, 9, 7, 'shelf5'),
     shelf(5, 12, 7, 'shelf6'),
-    { id: 'counter', kind: 'counter', tiles: { x: 2, y: 8, w: 3, h: 1 }, solid: true, interact: { x: 3, y: 7 }, hint: 'RING UP' },
+    { id: 'counter', kind: 'counter', tiles: { x: 2, y: 8, w: 3, h: 1 }, solid: true, interact: { x: 3, y: 9 }, hint: 'RING UP' },
     { id: 'sign', kind: 'sign', tiles: { x: 9, y: 10, w: 1, h: 1 }, solid: true, interact: { x: 9, y: 9 }, hint: 'OPEN SHOP' },
     { id: 'mortar', kind: 'mortar', tiles: { x: 16, y: 3, w: 1, h: 1 }, solid: true, interact: { x: 16, y: 4 }, hint: 'GRIND' },
     { id: 'cauldron', kind: 'cauldron', tiles: { x: 18, y: 3, w: 1, h: 1 }, solid: true, interact: { x: 18, y: 4 }, hint: 'BREW' },

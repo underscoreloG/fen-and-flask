@@ -185,7 +185,7 @@ describe('tables 5 and 6', () => {
     expect(s.inventory.tonic).toBe(0);
   });
 
-  it('with six tables stocked, over 200 customers every table is browsed and nobody steps on a table or behind the counter', () => {
+  it('with six tables stocked, over 200 customers every table is browsed and nobody steps on a table, the counter or behind it', () => {
     const s = quiet();
     own(s, 'shelf5', 'shelf6');
     expect(s.shop.shelves).toHaveLength(6);
@@ -197,7 +197,7 @@ describe('tables 5 and 6', () => {
     step(s, cmd({ type: 'OpenStall' }));
     expect(s.shop.phase).toBe('open');
     s.shop.customersLeft = 200;
-    inside(s, 3, 7, 'down');
+    inside(s, 3, 9, 'up');
     const browsed = new Set<number>();
     let served = 0;
     for (let i = 0; i < 200000 && s.shop.phase === 'open'; i++) {
@@ -207,8 +207,10 @@ describe('tables 5 and 6', () => {
       for (const c of s.shop.customers) {
         if (c.mode === 'look') browsed.add(c.shelf);
         const [x, y] = shopTile(c.x, c.y);
-        expect((x === 9 || x === 12) && y === 7, `customer on table tile ${x},${y}`).toBe(false);
-        expect(y === 7 && x <= 4, `customer behind the counter ${x},${y}`).toBe(false);
+        expect(((x === 9 || x === 12) && y === 7) || ([3, 6, 9, 12].includes(x) && y === 4), `customer on table tile ${x},${y}`).toBe(false);
+        expect(y === 8 && x >= 2 && x <= 4, `customer on the counter ${x},${y}`).toBe(false);
+        // The shopkeeper's side since specs/wp/WP11.
+        expect((y === 9 || y === 10) && x >= 1 && x <= 4, `customer behind the counter ${x},${y}`).toBe(false);
       }
     }
     expect(served).toBe(200);
@@ -245,7 +247,7 @@ function oneBuyer(qty: number, deep: boolean, double: boolean): GameState {
   step(s, cmd({ type: 'StockShelf', shelf: 0, item: 'tonic', qty }, { type: 'SetPrice', item: 'tonic', price: 14 }));
   inside(s, 9, 9, 'down');
   step(s, cmd({ type: 'OpenStall' }));
-  inside(s, 3, 7, 'down');
+  inside(s, 3, 9, 'up');
   expect(s.shop.customers).toHaveLength(1);
   s.shop.customers[0]!.personal = 1;
   s.shop.customers[0]!.type = 'traveller';
@@ -340,7 +342,7 @@ describe('deep tables', () => {
     inside(s, 9, 9, 'down');
     step(s, cmd({ type: 'OpenStall' }));
     s.shop.customersLeft = 2100;
-    inside(s, 3, 7, 'down');
+    inside(s, 3, 9, 'up');
     let buyers = 0;
     let doubles = 0;
     for (let i = 0; i < 1000000 && buyers < 2000; i++) {

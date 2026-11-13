@@ -38,7 +38,7 @@ function inside(s: GameState, tx: number, ty: number, facing: Facing): void {
   step(s, neutralFrame());
 }
 
-const atCounter = (s: GameState): void => inside(s, 3, 7, 'down');
+const atCounter = (s: GameState): void => inside(s, 3, 9, 'up');
 const atCot = (s: GameState): void => inside(s, 18, 9, 'right');
 
 function run(s: GameState, n: number): GameEvent[] {
@@ -107,6 +107,8 @@ describe('counter toad', () => {
       expect(counterDelay(s)).toBe(delay);
       until(s, 'customerQueued');
       const c = s.shop.customers[0]!;
+      // Queue spot 1 is above the counter since specs/wp/WP11.
+      expect([c.spot, c.x, c.y]).toEqual([0, shopTileCenter(3, 7).x, shopTileCenter(3, 7).y]);
       const before = run(s, delay - 1);
       expect(c.waited).toBe(delay - 1);
       expect(count(before, 'sale')).toBe(0);
