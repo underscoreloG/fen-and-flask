@@ -1,18 +1,21 @@
 import Phaser from 'phaser';
+import type { GameAudio } from '../../audio/audio';
 import type { Command } from '../../core/commands';
 import type { GameEvent, UiRequest } from '../../core/events';
+import { createInitialState } from '../../core/state';
 import { GOAL_BANNER, ITEMS, PLOTS } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
 import { APP_VERSION } from '../../data/version';
 import { clearLatches, queueCommand } from '../../input/input';
-import { closePanel, openPanel, type Session } from '../../input/session';
-import { store } from '../../save/save';
+import { closePanel, openPanel, startGame, type Session } from '../../input/session';
+import { clear, store } from '../../save/save';
 import { addText } from '../font';
 import { confirmPanel, UI_DEPTH, type Panel } from '../ui/confirm';
 import { gardenPicker } from '../ui/gardenPicker';
 import { Hud } from '../ui/hud';
 import { notebook } from '../ui/notebook';
+import { pausePanel } from '../ui/pause';
 import { stallSetup, stallSummary, StallOpenView } from '../ui/stallPanel';
 import { stationPanel } from '../ui/stationPanel';
 import { Toasts } from '../ui/toast';
@@ -26,6 +29,7 @@ type StallSummary = { ui: 'stallSummary'; soldCount: number; soldCoins: number }
 // session.intents each frame; when it returns commands, it closes and they reach the next tick.
 export class UIScene extends Phaser.Scene {
   private readonly session: Session;
+  private readonly audio: GameAudio;
   private hud!: Hud;
   private panel: Panel | null = null;
   // The open stall's live view: shown on stallOpened, gone on stallClosed; it never pauses.
@@ -34,9 +38,10 @@ export class UIScene extends Phaser.Scene {
   private tint!: Phaser.GameObjects.Rectangle;
   private night!: Phaser.GameObjects.Rectangle;
 
-  constructor(session: Session) {
+  constructor(session: Session, audio: GameAudio) {
     super('ui');
     this.session = session;
+    this.audio = audio;
   }
 
   create(): void {
@@ -50,10 +55,12 @@ export class UIScene extends Phaser.Scene {
     this.night = this.add.rectangle(0, 0, viewW, viewH, PALETTE.night, 1).setOrigin(0, 0).setDepth(UI_DEPTH.overlay).setAlpha(0);
     const onSim = (events: GameEvent[]): void => {
       this.hud.onEvents(events, this.scene.get('game').cameras.main.worldView);
+      this.audio.play(events);
       this.onEvents(events);
     };
     this.game.events.on(SIM_EVENTS, onSim);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off(SIM_EVENTS, onSim));
+    this.audio.ambience();
     if (!this.session.options.debug) return;
     addText(this, viewW - uiMargin, viewH - uiMargin, `v${APP_VERSION}`, 'bone').setOrigin(1, 1);
   }
@@ -61,7 +68,13 @@ export class UIScene extends Phaser.Scene {
   update(): void {
     this.hud.update();
     this.tint.setVisible(this.session.state.phase === 'evening');
+    const intents = this.session.intents;
+    this.audio.wake(intents);
+    // M works everywhere, the open stall and every panel included.
+    if (intents.mute) this.audio.toggleMute();
+    const moved = intents.up || intents.down || intents.left || intents.right;
     if (!this.panel && this.stallView) {
+      if (moved && !this.session.botOn) this.audio.ui('ui_move');
       const live = this.stallView.update(this.session.intents, this.session.state, this.session.botOn);
       // Sent live (the sim runs); the key that sent them never reaches the sim as a swing.
       for (const c of live) this.session.latch = clearLatches(queueCommand(this.session.latch, c));
@@ -73,15 +86,31 @@ export class UIScene extends Phaser.Scene {
       if (this.session.intents.notebook && !this.session.panelOpen) {
         this.panel = notebook(this, this.session.state);
         openPanel(this.session);
+      } else if (intents.pause && !this.session.panelOpen && !this.session.botOn) {
+        // Never while the stall is open (handled above) or during a sleep fade (switch still on).
+        this.panel = pausePanel(this, this.audio, () => this.newGame());
+        openPanel(this.session);
       }
       return;
     }
-    const out = this.panel.update(this.session.intents);
-    if (!out) return;
+    const out = this.panel.update(intents);
+    if (!out) {
+      if (moved) this.audio.ui('ui_move');
+      return;
+    }
+    // Back and no-op closes stay quiet; a confirm that closes the panel clicks.
+    if (intents.confirm) this.audio.ui('ui_confirm');
     this.panel.destroy();
     this.panel = null;
     if (out.some((c) => c.type === 'Sleep')) this.sleepThen(out);
     else closePanel(this.session, out);
+  }
+
+  // From the pause menu, in place: the save goes (unless ?nosave) and a fresh game with this page's
+  // seed swaps in; the scenes keep running and redraw from the new state.
+  private newGame(): void {
+    if (!this.session.options.nosave) clear();
+    startGame(this.session, createInitialState(this.session.options.seed));
   }
 
   // In order: at high ?speed one batch can hold a stall's whole evening.

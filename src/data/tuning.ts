@@ -145,6 +145,8 @@ export const TUNING = {
   },
   audio: {
     volume: 0.6,
+    // A second play of the same sound inside this gap is dropped (a busy tick stacks hits).
+    minGapMs: 50,
   },
   render: {
     viewW: 480,

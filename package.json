@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5345 --strictPort",
-    "build": "vite build",
+    "build": "vite build && node scripts/write-version.mjs",
     "test": "vitest run --silent=false",
-    "verify": "tsc --noEmit && node scripts/check-boundaries.mjs && vitest run --silent=false && vite build && node scripts/check-size.mjs"
+    "verify": "tsc --noEmit && node scripts/check-boundaries.mjs && vitest run --silent=false && npm run build && node scripts/check-size.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0"
