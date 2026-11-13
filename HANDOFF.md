@@ -8,7 +8,7 @@ Cozy top-down pixel game in the browser: you run a potion stall at the edge of a
 
 ## Where the build stands
 
-v0.3.2 is live at https://underscorelog.github.io/fen-and-flask/ (public repo underscoreloG/fen-and-flask, Pages via GitHub Actions, deploys on every push to main).
+v0.3.3 is live at https://underscorelog.github.io/fen-and-flask/ (public repo underscoreloG/fen-and-flask, Pages via GitHub Actions, deploys on every push to main).
 
 - v0.1.0 to v0.1.3: the first slice (gather, fight, garden, grind, brew, sell, sleep, buy land, Ember Elixir goal), then fixes from the first play: Enter confirms, title menu clickable, readable hint, the game fills the window.
 - v0.2.0: the hut is a building you walk into. Shop room with 4 shelves you stock and price (any item), customers browse, queue at the counter and leave unpaid after 30 s; back room with mortar, cauldron and bed. The outdoor stall and stations are gone. Spec: `specs/wp/WP06-shop-interior.md`.
@@ -16,8 +16,9 @@ v0.3.2 is live at https://underscorelog.github.io/fen-and-flask/ (public repo un
 - v0.2.1: the sign is one action, OPEN SHOP (by day it also starts the evening); hidden test menu on F2 (coins, items, hearts, evening, morning, land).
 
 - v0.3.0 to v0.3.2 (milestone M2 "shop progression", approved and built 2026-11-13): a catalog stand sells 14 upgrades delivered the next morning (tables 5-6, signboard, lantern sign, deep tables, stone mortar, second cauldron, copper sickle, two beds, and toads that tend the garden, ring up customers and bring ingredients); four customer types; a daily order on a board; dig up a growing bed; the shop is "complete" once the whole catalog is owned. Specs `specs/wp/WP07..WP09`, reviews `specs/REVIEW-2026-11-13.md`.
+- v0.3.3 (user feedback): a busy station has STOP, TAKE n BACK; grumbling customers no longer buy (only delighted and happy do).
 
-Next: the user plays and answers the M2 fun gate (below). The ledger `specs/STATUS.md` has every decision, gate result and open leftover.
+Next: the user plays; open question and backlog are in the ledger's Next action (counter position wording, warm indoor ambience "not now", late-game coin sink). The ledger `specs/STATUS.md` has every decision, gate result and open leftover.
 
 Browser checks: the in-app browser pane only works while this session is open in a window; otherwise use a headless Edge over the DevTools protocol (see the ledger).
 
