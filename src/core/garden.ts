@@ -13,8 +13,9 @@ export function bedIndex(structureId: string): number {
   return BED_IDS.indexOf(structureId);
 }
 
+// The beds from the catalog are added on the morning they arrive (catalog.ts).
 export function createGarden(): BedState[] {
-  return BEDS.map(() => ({ crop: null, nightsLeft: 0 }));
+  return BEDS.filter((s) => !s.def.requires).map(() => ({ crop: null, nightsLeft: 0 }));
 }
 
 export function cropDef(item: ItemId): CropDef | undefined {

@@ -1,5 +1,6 @@
 // Day clock, evening, sleep and the morning reset (specs/content.md, Day clock).
 import { ticks, TUNING } from '../data/tuning';
+import { arriveUpgrades } from './catalog';
 import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { growNight } from './garden';
@@ -38,32 +39,53 @@ export function sleep(state: GameState, events: GameEvent[]): void {
   morningReset(state, events);
 }
 
-// Hook order matters (each step sees the one before):
-//   1. clock and day counter
+// Hook order matters (each step sees the one before); the same list is in specs/wp/WP07-WP09:
+//   1. day and clock
 //   2. the player wakes in bed, indoors (WP06)
-//   3. finish running station jobs (WP03)
-//   4. garden grows one night
-//   5. refill nodes, then mudlets (so mudlets keep clear of new nodes), on every owned plot
-//   6. player hearts
-//   7. demand recovery, trend pick, shop reset (WP04, WP06)
-//   8. emit morning
+//   3. station jobs finish (WP03)
+//   4. catalog arrivals: effects apply, upgradeArrived (WP07)
+//   5. the garden grows one night
+//   6. garden toad (WP08)
+//   7. plots refill their nodes
+//   8. mudlets refill (after the nodes, so they keep clear of them)
+//   9. basket toad (WP08)
+//  10. hearts
+//  11. demand, trend and shop reset (WP04, WP06)
+//  12. the daily order (WP09)
+//  13. the M2 goal check (WP09)
+//  14. morning (the UI saves on it)
 // Pickups on the ground stay.
 export function morningReset(state: GameState, events: GameEvent[]): void {
+  // 1.
   state.day += 1;
   state.phase = 'day';
   state.clock.t = 0;
+  // 2.
   const p = state.player;
   Object.assign(p, { area: 'shop', x: COT.interactX, y: COT.interactY, facing: 'down', moving: false, knockTicks: 0, knockX: 0, knockY: 0 });
+  // 3.
   finishJobs(state, events);
+  // 4.
+  arriveUpgrades(state, events);
+  // 5.
   growNight(state);
+  // 6. garden toad (WP08)
+  // 7.
   state.plots.forEach((p, i) => {
     if (p.owned) refillPlot(state, i);
   });
+  // 8.
   state.plots.forEach((p, i) => {
     if (p.owned) refillCreatures(state, i);
   });
+  // 9. basket toad (WP08)
+  // 10.
   p.hearts = TUNING.player.hearts;
+  // 11.
   morningShop(state);
+  // 12. the daily order (WP09)
+  // 13. the M2 goal check (WP09)
+  // 14.
   events.push({ type: 'morning', day: state.day });
 }
 

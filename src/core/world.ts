@@ -97,8 +97,10 @@ export function targetStructure(state: GameState): WorldStructure | undefined {
   return id === null ? undefined : structureById(id);
 }
 
-// A signpost stands until the plot it sells is owned; every other structure always stands.
+// A signpost stands until the plot it sells is owned; a catalog structure from the morning its
+// item arrives; every other structure always stands.
 export function structureStands(state: GameState, s: WorldStructure): boolean {
+  if (s.def.requires) return state.catalog.owned.includes(s.def.requires);
   if (!s.def.sells) return true;
   const i = PLOTS.findIndex((p) => p.id === s.def.sells);
   return !state.plots[i]?.owned;
@@ -113,7 +115,8 @@ export const EXIT_TILE = { x: SHOP_TX + SHOP_LAYOUT.exit.x, y: SHOP_TY + SHOP_LA
 export const ENTRY_TILE = { x: SHOP_TX + SHOP_LAYOUT.entry.x, y: SHOP_TY + SHOP_LAYOUT.entry.y };
 
 // Solid structure tiles never move, so they are baked once into tile masks holding the
-// structure's index + 1 (a signpost's tiles free up once it is gone).
+// structure's index + 1 (a signpost's tiles free up once it is gone, a catalog structure's are
+// only solid once it stands).
 const SOLID = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
 // Shop-local: 1 = wall, k + 2 = the solid tile of structure k.
 const SHOP_SOLID = new Uint8Array(SHOP_W * SHOP_H);
@@ -140,10 +143,11 @@ WORLD_STRUCTURES.forEach((s, k) => {
   }
 });
 
-// Indoors, shop-local: a wall or a solid structure (the exit gap is open; see isTileBlocked).
-export function isShopTileSolid(lx: number, ly: number): boolean {
+// Indoors, shop-local: a wall or a solid structure that stands (the exit gap is open; see isTileBlocked).
+export function isShopTileSolid(state: GameState, lx: number, ly: number): boolean {
   if (lx < 0 || ly < 0 || lx >= SHOP_W || ly >= SHOP_H) return true;
-  return SHOP_SOLID[ly * SHOP_W + lx]! > 0;
+  const k = SHOP_SOLID[ly * SHOP_W + lx]!;
+  return k === 1 || (k > 1 && structureStands(state, WORLD_STRUCTURES[k - 2]!));
 }
 
 export function plotAtTile(state: GameState, wtx: number, wty: number): PlotState | undefined {
@@ -173,7 +177,7 @@ export function isSolidStructureTile(wtx: number, wty: number): boolean {
 export function isTileBlocked(state: GameState, wtx: number, wty: number): boolean {
   if (inShop(wtx, wty)) {
     if (wtx === EXIT_TILE.x && wty === EXIT_TILE.y) return state.shop.phase === 'open';
-    return isShopTileSolid(wtx - SHOP_TX, wty - SHOP_TY);
+    return isShopTileSolid(state, wtx - SHOP_TX, wty - SHOP_TY);
   }
   const kind = tileKind(state, wtx, wty);
   if (kind === 'deepwater' || kind === 'locked') return true;

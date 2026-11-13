@@ -76,6 +76,13 @@ export function nodeDef(type: NodeState['type']): NodeDef {
   return NODES.find((n) => n.id === type)!;
 }
 
+// Hits a fresh node of this type needs: the copper sickle (specs/wp/WP07) takes some off, never
+// below one.
+export function nodeHits(state: GameState, type: NodeState['type']): number {
+  const fewer = state.catalog.owned.includes('sickle') ? TUNING.sickle.hitsFewer : 0;
+  return Math.max(1, nodeDef(type).hits - fewer);
+}
+
 // Brings every node type of a plot up to its target count; survivors stay where they are.
 export function refillPlot(state: GameState, plotIndex: number): void {
   const plotId = PLOTS[plotIndex]?.id;
@@ -85,7 +92,7 @@ export function refillPlot(state: GameState, plotIndex: number): void {
     while (have < def.targets[plotId]) {
       const at = pickSpawnTile(state, plotIndex, S.nodeMaxRow, S.playerClearance + 1);
       if (!at) return;
-      state.nodes.push({ id: state.nextId++, type: def.id, x: at.x, y: at.y, hp: def.hits, plot: plotIndex });
+      state.nodes.push({ id: state.nextId++, type: def.id, x: at.x, y: at.y, hp: nodeHits(state, def.id), plot: plotIndex });
       have += 1;
     }
   }

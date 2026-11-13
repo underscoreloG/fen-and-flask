@@ -3,6 +3,7 @@
 // purchase its coins pay for. Reaction rules are those of specs/content.md, Stall.
 import {
   BREW_RECIPES,
+  CATALOG,
   CAULDRON_FUEL,
   CREATURES,
   GOAL_POTION,
@@ -20,7 +21,7 @@ import { startEvening } from './clock';
 import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { refillPlot } from './nodes';
-import { nextInt, nextRange } from './rng';
+import { nextFloat, nextInt, nextRange } from './rng';
 import type { Facing, GameState } from './state';
 import { isShopTileSolid, SHOP_H, SHOP_TX, SHOP_TY, SHOP_W, shopTileCenter, targetStructure, tileAt, WORLD_STRUCTURES } from './world';
 
@@ -63,8 +64,10 @@ export interface Customer {
   item: ItemId | null;
   price: number;
   reaction: Reaction | null;
-  // Carrying one unit of `item` to the counter, at `price`, not yet paid.
+  // Carrying `qty` units of `item` to the counter, at `price` each, not yet paid.
   holding: boolean;
+  // 2 for a double buy on deep tables (specs/wp/WP07); missing in older states, read as 1.
+  qty?: number;
   // Queue spot index (0 = spot 1), or -1; ticks waited since first reaching a spot, or -1.
   spot: number;
   waited: number;
@@ -112,7 +115,8 @@ export function createShop(): ShopState {
   return {
     phase: 'closed',
     openedToday: false,
-    shelves: SHELVES.map(() => ({ item: null, count: 0 })),
+    // Tables 5 and 6 are pushed on the morning they arrive (catalog.ts).
+    shelves: SHELVES.filter((s) => !s.def.requires).map(() => ({ item: null, count: 0 })),
     prices: perItem(firstPrice),
     demand: perItem(() => D.start),
     trend: null,
@@ -154,9 +158,16 @@ export function reactTo(state: GameState, item: ItemId, price: number, personal:
   return { reaction, sold: reaction !== 'refuses' };
 }
 
+// 6, +2 per extra plot, + what the owned catalog items draw (tables and signs).
 export function customersFor(state: GameState): number {
   const owned = state.plots.filter((p) => p.owned).length;
-  return S.customersBase + S.customersPerExtraPlot * Math.max(0, owned - 1);
+  const drawn = CATALOG.reduce((n, d) => n + (state.catalog.owned.includes(d.id) ? (d.customers ?? 0) : 0), 0);
+  return S.customersBase + S.customersPerExtraPlot * Math.max(0, owned - 1) + drawn;
+}
+
+// Units a table holds: more once the deep tables arrive.
+export function shelfCapacity(state: GameState): number {
+  return state.catalog.owned.includes('deepShelves') ? SH.deepShelfCapacity : SH.shelfCapacity;
 }
 
 // Potions whose every input (and the cauldron's fuel) can be gathered on owned plots.
@@ -183,7 +194,7 @@ export function stockShelf(state: GameState, shelf: number, item: ItemId, qty: n
   const sl = state.shop.shelves[shelf];
   if (!sl || targetShelf(state) !== shelf || !ITEM_IDS.includes(item)) return;
   if (!Number.isInteger(qty) || qty < 1 || state.inventory[item] < qty) return;
-  if ((sl.item !== null && sl.item !== item) || sl.count + qty > SH.shelfCapacity) return;
+  if ((sl.item !== null && sl.item !== item) || sl.count + qty > shelfCapacity(state)) return;
   state.inventory[item] -= qty;
   sl.item = item;
   sl.count += qty;
@@ -231,7 +242,7 @@ export function closeShop(state: GameState, events: GameEvent[]): void {
   if (sh.phase !== 'open') return;
   for (const c of sh.customers) {
     if (c.holding) pay(state, c, events);
-    leave(c);
+    leave(state, c);
   }
   finish(state, events);
 }
@@ -242,8 +253,8 @@ export function ringUp(state: GameState, events: GameEvent[]): void {
   const c = sh.customers.find((o) => o.spot === 0 && o.mode === 'queued');
   if (!c) return;
   pay(state, c, events);
-  leave(c);
-  advanceQueue(sh);
+  leave(state, c);
+  advanceQueue(state);
 }
 
 function finish(state: GameState, events: GameEvent[]): void {
@@ -252,17 +263,19 @@ function finish(state: GameState, events: GameEvent[]): void {
   events.push({ type: 'stallClosed', soldCount: sh.soldCount, soldCoins: sh.soldCoins });
 }
 
+// Every unit carried is paid at the fixed price and drops demand; a grumble costs extra once.
 function pay(state: GameState, c: Customer, events: GameEvent[]): void {
   const sh = state.shop;
   const item = c.item;
   if (!c.holding || item === null) return;
+  const qty = c.qty ?? 1;
   c.holding = false;
-  state.coins += c.price;
-  sh.soldCount += 1;
-  sh.soldCoins += c.price;
-  const drop = D.perSale + (c.reaction === 'grumbling' ? S.grumbleDemandPenalty : 0);
+  state.coins += c.price * qty;
+  sh.soldCount += qty;
+  sh.soldCoins += c.price * qty;
+  const drop = D.perSale * qty + (c.reaction === 'grumbling' ? S.grumbleDemandPenalty : 0);
   sh.demand[item] = Math.max(D.floor, sh.demand[item] - drop);
-  events.push({ type: 'sale', item, price: c.price });
+  events.push({ type: 'sale', item, price: c.price, qty });
   if (item === GOAL_POTION && !state.flags.m1Goal) {
     state.flags.m1Goal = true;
     events.push({ type: 'goalReached' });
@@ -279,13 +292,14 @@ const COUNTER = WORLD_STRUCTURES.find((s) => s.def.kind === 'counter')!;
 const STAFF_Y = tileAt(COUNTER.interactY) - SHOP_TY;
 const STAFF_X0 = COUNTER.def.tiles.x - 1;
 const STAFF_X1 = COUNTER.def.tiles.x + COUNTER.def.tiles.w - 1;
-const customerBlocked = (x: number, y: number): boolean => isShopTileSolid(x, y) || (y === STAFF_Y && x >= STAFF_X0 && x <= STAFF_X1);
+const customerBlocked = (state: GameState, x: number, y: number): boolean =>
+  isShopTileSolid(state, x, y) || (y === STAFF_Y && x >= STAFF_X0 && x <= STAFF_X1);
 const SHELF_SPOTS = SHELVES.map((s) => ({ x: tileAt(s.interactX) - SHOP_TX, y: tileAt(s.interactY) - SHOP_TY }));
 const QUEUE_SPOTS = L.queue;
 
-// Shortest 4-connected path over the customers' floor, from tile a (excluded) to tile b, as
-// shop-local tile indexes.
-export function pathBetween(a: number, b: number): number[] {
+// Shortest 4-connected path over the customers' floor (tables that have not arrived are floor),
+// from tile a (excluded) to tile b, as shop-local tile indexes.
+export function pathBetween(state: GameState, a: number, b: number): number[] {
   const parent = new Int16Array(SHOP_W * SHOP_H).fill(-1);
   parent[a] = a;
   const queue = [a];
@@ -294,7 +308,7 @@ export function pathBetween(a: number, b: number): number[] {
     const x = i % SHOP_W;
     const next = [i - SHOP_W, i + SHOP_W, x > 0 ? i - 1 : -1, x < SHOP_W - 1 ? i + 1 : -1];
     for (const j of next) {
-      if (j < 0 || j >= SHOP_W * SHOP_H || parent[j] !== -1 || customerBlocked(j % SHOP_W, Math.floor(j / SHOP_W))) continue;
+      if (j < 0 || j >= SHOP_W * SHOP_H || parent[j] !== -1 || customerBlocked(state, j % SHOP_W, Math.floor(j / SHOP_W))) continue;
       parent[j] = i;
       queue.push(j);
     }
@@ -306,9 +320,9 @@ export function pathBetween(a: number, b: number): number[] {
 
 // Walks on from the tile center it is heading for (or stands on), so a re-route mid-step stays on
 // the grid's axis lines.
-function routeTo(c: Customer, goal: { x: number; y: number }): void {
+function routeTo(state: GameState, c: Customer, goal: { x: number; y: number }): void {
   const here = c.path[0] ?? (tileAt(c.y) - SHOP_TY) * SHOP_W + tileAt(c.x) - SHOP_TX;
-  const rest = pathBetween(here, idx(goal));
+  const rest = pathBetween(state, here, idx(goal));
   c.path = c.path.length > 0 ? [here, ...rest] : rest;
 }
 
@@ -332,20 +346,21 @@ function walk(c: Customer): boolean {
   return c.path.length === 0;
 }
 
-function leave(c: Customer): void {
+function leave(state: GameState, c: Customer): void {
   c.mode = 'leaving';
   c.spot = -1;
-  routeTo(c, L.entry);
+  routeTo(state, c, L.entry);
 }
 
 // When spot 1 frees up, whoever holds spot 2 steps forward (still counting their patience).
-function advanceQueue(sh: ShopState): void {
+function advanceQueue(state: GameState): void {
+  const sh = state.shop;
   if (sh.customers.some((o) => o.spot === 0)) return;
   const c = sh.customers.find((o) => o.spot === 1);
   if (!c) return;
   c.spot = 0;
   c.mode = 'toQueue';
-  routeTo(c, QUEUE_SPOTS[0]!);
+  routeTo(state, c, QUEUE_SPOTS[0]!);
 }
 
 function goToShelf(state: GameState, c: Customer): boolean {
@@ -353,7 +368,7 @@ function goToShelf(state: GameState, c: Customer): boolean {
   if (stocked.length === 0) return false;
   c.shelf = stocked[nextInt(state, 0, stocked.length - 1)]!;
   c.mode = 'toShelf';
-  routeTo(c, SHELF_SPOTS[c.shelf]!);
+  routeTo(state, c, SHELF_SPOTS[c.shelf]!);
   return true;
 }
 
@@ -374,6 +389,7 @@ function enter(state: GameState): void {
     price: 0,
     reaction: null,
     holding: false,
+    qty: 1,
     spot: -1,
     waited: -1,
   };
@@ -387,12 +403,13 @@ function enter(state: GameState): void {
 
 // At the shelf: an empty one sends it to another stocked shelf (or out); otherwise it reacts to the
 // price, and on a sale takes one unit at once (the price is fixed now, the payment comes later).
+// With deep tables, a buyer at a table holding 2 or more takes two on one RNG roll.
 function arriveAtShelf(state: GameState, c: Customer, events: GameEvent[]): void {
   const sh = state.shop;
   const shelf = sh.shelves[c.shelf]!;
   const item = shelf.item;
   if (item === null) {
-    if (!goToShelf(state, c)) leave(c);
+    if (!goToShelf(state, c)) leave(state, c);
     return;
   }
   const price = sh.prices[item];
@@ -404,25 +421,29 @@ function arriveAtShelf(state: GameState, c: Customer, events: GameEvent[]): void
   if (h.length > TUNING.notebook.historyLength) h.shift();
   Object.assign(c, { mode: 'look', t: 0, facing: 'up', item, price, reaction });
   if (!sold) return;
+  const double = state.catalog.owned.includes('deepShelves') && shelf.count >= 2 && nextFloat(state) < SH.doubleChance;
+  c.qty = double ? 2 : 1;
   c.holding = true;
-  shelf.count -= 1;
+  shelf.count -= c.qty;
   if (shelf.count === 0) shelf.item = null;
 }
 
-// Out of patience: the unit goes back on its shelf if it fits there, else to the player.
+// Out of patience: each unit goes back on its shelf while it fits there, the rest to the player.
 function leaveUnpaid(state: GameState, c: Customer, events: GameEvent[]): void {
   const item = c.item!;
   const shelf = state.shop.shelves[c.shelf]!;
-  if (shelf.item === null || (shelf.item === item && shelf.count < SH.shelfCapacity)) {
-    shelf.item = item;
-    shelf.count += 1;
-  } else {
-    state.inventory[item] += 1;
+  for (let i = 0; i < (c.qty ?? 1); i++) {
+    if (shelf.item === null || (shelf.item === item && shelf.count < shelfCapacity(state))) {
+      shelf.item = item;
+      shelf.count += 1;
+    } else {
+      state.inventory[item] += 1;
+    }
   }
   c.holding = false;
   events.push({ type: 'customerLeftUnpaid', item });
-  leave(c);
-  advanceQueue(state.shop);
+  leave(state, c);
+  advanceQueue(state);
 }
 
 function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void {
@@ -441,12 +462,12 @@ function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void 
       c.t += 1;
       if (c.t < REACT_TICKS) break;
       if (!c.holding) {
-        leave(c);
+        leave(state, c);
         break;
       }
       c.spot = state.shop.customers.some((o) => o !== c && o.spot === 0) ? 1 : 0;
       c.mode = 'toQueue';
-      routeTo(c, QUEUE_SPOTS[c.spot]!);
+      routeTo(state, c, QUEUE_SPOTS[c.spot]!);
       break;
     case 'toQueue':
       if (!walk(c)) break;
@@ -480,7 +501,7 @@ export function updateShop(state: GameState, events: GameEvent[]): void {
   if ((sh.customersLeft === 0 && sh.customers.length === 0) || (!stocked && !buying)) finish(state, events);
 }
 
-// Morning reset step 6: demand recovers, a new trend, the shop is ready again. Shelves keep their stock.
+// Morning reset step 11: demand recovers, a new trend, the shop is ready again. Shelves keep their stock.
 export function morningShop(state: GameState): void {
   const sh = state.shop;
   for (const i of ITEM_IDS) sh.demand[i] = Math.min(D.cap, sh.demand[i] + D.perNight);

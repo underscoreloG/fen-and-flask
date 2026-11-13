@@ -1,5 +1,5 @@
 // GameState is plain JSON: no classes, Maps, Sets or functions, so it saves and diffs as is.
-import { ITEM_IDS, PLOTS, PLOT_LAYOUTS, type CreatureId, type ItemId, type NodeId } from '../data/content';
+import { ITEM_IDS, PLOTS, PLOT_LAYOUTS, type CatalogId, type CreatureId, type ItemId, type NodeId } from '../data/content';
 import { TUNING } from '../data/tuning';
 import { APP_VERSION } from '../data/version';
 import { refillCreatures } from './creatures';
@@ -117,6 +117,8 @@ export interface GameState {
   garden: BedState[];
   stations: Stations;
   shop: ShopState;
+  // Catalog items bought (specs/wp/WP07): pending ones arrive at the next morning reset.
+  catalog: { owned: CatalogId[]; pending: CatalogId[] };
   flags: Flags;
 }
 
@@ -163,6 +165,7 @@ export function createInitialState(seed: number): GameState {
     garden: createGarden(),
     stations: createStations(),
     shop: createShop(),
+    catalog: { owned: [], pending: [] },
     flags: { m1Goal: false },
   };
   // Nodes first: mudlets then keep clear of them.

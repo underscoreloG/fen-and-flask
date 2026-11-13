@@ -44,8 +44,8 @@ export const SOUNDS: readonly SoundDef[] = [
   { id: 'squish', file: 'squish.ogg', volume: 1.0, on: [{ event: 'creatureHit' }, { event: 'creatureDied' }] },
   { id: 'pickup', file: 'pickup.ogg', volume: 0.5, on: [{ event: 'pickupCollected' }] },
   { id: 'grind', file: 'grind.ogg', volume: 0.9, on: [{ event: 'jobStarted', when: (e) => e.station === 'mortar' }] },
-  { id: 'bubble', file: 'bubble.ogg', volume: 0.6, on: [{ event: 'jobStarted', when: (e) => e.station === 'cauldron' }] },
-  { id: 'potion_done', file: 'potion_done.ogg', volume: 0.8, on: [{ event: 'jobUnitDone', when: (e) => e.station === 'cauldron' }] },
+  { id: 'bubble', file: 'bubble.ogg', volume: 0.6, on: [{ event: 'jobStarted', when: (e) => e.station !== 'mortar' }] },
+  { id: 'potion_done', file: 'potion_done.ogg', volume: 0.8, on: [{ event: 'jobUnitDone', when: (e) => e.station !== 'mortar' }] },
   { id: 'coin', file: 'coin.ogg', volume: 1.0, on: [{ event: 'sale' }] },
   {
     id: 'refuse',

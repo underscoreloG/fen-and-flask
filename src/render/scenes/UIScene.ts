@@ -3,13 +3,14 @@ import type { GameAudio } from '../../audio/audio';
 import type { Command } from '../../core/commands';
 import type { GameEvent, UiRequest } from '../../core/events';
 import { createInitialState } from '../../core/state';
-import { GOAL_BANNER, ITEMS, PLOTS } from '../../data/content';
+import { CATALOG, GOAL_BANNER, ITEMS, PLOTS } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
 import { APP_VERSION } from '../../data/version';
 import { closePanel, openPanel, startGame, type Session } from '../../input/session';
 import { clear, store } from '../../save/save';
 import { addText } from '../font';
+import { catalogPanel } from '../ui/catalogPanel';
 import { cheatPanel } from '../ui/cheats';
 import { confirmPanel, UI_DEPTH, type Panel } from '../ui/confirm';
 import { gardenPicker } from '../ui/gardenPicker';
@@ -144,6 +145,13 @@ export class UIScene extends Phaser.Scene {
         case 'plotBought':
           this.toasts.toast(`THE ${(PLOTS[e.plot]?.id ?? '').toUpperCase()} PLOT IS YOURS`);
           break;
+        case 'upgradeArrived': {
+          // One toast per item: a toast replaces the one showing, so later ones wait their turn.
+          const name = CATALOG.find((d) => d.id === e.id)?.name ?? e.id;
+          const n = events.slice(0, i).filter((o) => o.type === 'upgradeArrived').length;
+          this.time.delayedCall(n * TUNING.toast.ms, () => this.toasts.toast(`ARRIVED: ${name}`));
+          break;
+        }
         case 'stallClosed':
           // Not when the shop closed because the player went to sleep: the morning follows.
           if (!bot && !events.slice(i).some((o) => o.type === 'morning')) {
@@ -175,6 +183,8 @@ export class UIScene extends Phaser.Scene {
         return gardenPicker(this, this.session.state, req.bed);
       case 'station':
         return stationPanel(this, this.session.state, req.station);
+      case 'catalog':
+        return catalogPanel(this, state);
       case 'shelf':
         return shelfPanel(this, state, req.shelf, this.session.latch.lastDevice);
       case 'shopSummary':

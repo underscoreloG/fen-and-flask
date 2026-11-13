@@ -1,6 +1,7 @@
 // Every code-drawn sprite, by texture frame name. Things that stand up or can be used get an
 // ink outline (readability rule 1); ground tiles and shadows do not. Everything that can be a
 // swing or interact target also gets `<name>_hl`, the same sprite outlined in bone (rule 2).
+import { CATALOG_PROPS, CATALOG_STRUCTURES, COPPER_SWING } from './catalog';
 import { addOutline, sprite, type SpriteDef } from './format';
 import { CREATURE_SPRITES, NODE_SPRITES } from './gathering';
 import { FX_SPRITES, ICON_SPRITES } from './icons';
@@ -26,8 +27,11 @@ export const SPRITES: Readonly<Record<string, SpriteDef>> = {
   ...plain(INTERIOR_TILES),
   ...plain(SHADOW_SPRITES),
   ...outlined(PLAYER_SPRITES),
+  ...outlined(COPPER_SWING),
   ...targetable(STRUCTURE_SPRITES),
   ...targetable(INTERIOR_STRUCTURES),
+  ...targetable(CATALOG_STRUCTURES),
+  ...outlined(CATALOG_PROPS),
   ...targetable(NODE_SPRITES),
   ...targetable(CREATURE_SPRITES),
   ...plain(ICON_SPRITES),

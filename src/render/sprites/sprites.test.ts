@@ -121,6 +121,41 @@ describe('sprites', () => {
     }
   });
 
+  it('has the WP07 catalog sprites: stand, stone mortar, crate, the hut with board and lantern, the copper swing', () => {
+    const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
+    for (const [k, w, h] of [
+      ['catalog', 16, 24],
+      ['mortar_stone', 16, 16],
+      ['crate', 16, 16],
+      ['hut_board', 48, 48],
+      ['hut_lantern', 48, 48],
+    ] as const) {
+      expect(size(k), k).toEqual([w, h]);
+      expect(SPRITES[k]!.rows.join('').includes('k'), k).toBe(true);
+    }
+    for (const k of ['catalog', 'mortar_stone']) expect(size(`${k}_hl`), k).toEqual(size(k));
+    // Each reads differently from what it replaces or grows from.
+    expect(SPRITES.mortar_stone!.rows).not.toEqual(SPRITES.mortar!.rows);
+    expect(SPRITES.hut_board!.rows).not.toEqual(SPRITES.hut!.rows);
+    expect(SPRITES.hut_lantern!.rows).not.toEqual(SPRITES.hut_board!.rows);
+    for (const dir of ['down', 'up', 'side']) {
+      const plain = SPRITES[`player_${dir}_swing`]!;
+      const copper = SPRITES[`player_${dir}_swing_copper`]!;
+      expect(size(`player_${dir}_swing_copper`)).toEqual([16, 24]);
+      expect(plain.rows.join('')).toContain('b');
+      expect(copper.rows.join(''), dir).not.toContain('b');
+      expect(copper.rows.join('').replace(/e/g, 'b'), dir).toBe(plain.rows.join('').replace(/e/g, 'b'));
+    }
+  });
+
+  it('the stand, the stone mortar and the crate keep a 1 px clear margin, so their outline closes all around', () => {
+    for (const name of ['catalog', 'catalog_hl', 'mortar_stone', 'mortar_stone_hl', 'crate']) {
+      const s = SPRITES[name]!;
+      const edge = [s.rows[0]!, s.rows[s.h - 1]!, ...s.rows.map((r) => r[0]! + r[s.w - 1]!)].join('');
+      expect(edge.replace(/[.bk]/g, ''), name).toBe('');
+    }
+  });
+
   it('node and mudlet outlines are complete (their art keeps a 1 px clear margin)', () => {
     for (const [name, s] of Object.entries(SPRITES)) {
       if (!/^(node_|mudlet_)/.test(name)) continue;

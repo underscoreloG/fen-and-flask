@@ -1,6 +1,6 @@
 // UI -> core. UI changes state only through these. Each one names the structure that must be the
 // interact target; otherwise it is dropped with the state untouched.
-import type { ItemId, PotionId } from '../data/content';
+import type { CatalogId, ItemId, PotionId } from '../data/content';
 import type { CheatId } from './cheat';
 
 export type Command =
@@ -8,7 +8,7 @@ export type Command =
   | { type: 'Sleep' }
   // bed indexes state.garden; that bed must be the interact target.
   | { type: 'Plant'; bed: number; item: ItemId }
-  // The mortar or cauldron must be the interact target and free; qty 1 to what the inputs allow.
+  // The targeted mortar or cauldron (either one) must be free; qty 1 to what the inputs allow.
   | { type: 'StartGrind'; input: ItemId; qty: number }
   | { type: 'StartBrew'; potion: PotionId; qty: number }
   // At that shelf: move qty from the inventory onto it, or take its whole stack back.
@@ -24,6 +24,8 @@ export type Command =
   | { type: 'RingUp' }
   // At the signpost that sells the plot (plot indexes state.plots), with the coins.
   | { type: 'BuyPlot'; plot: number }
+  // At the catalog stand: not owned, not pending, its requirement owned, coins enough.
+  | { type: 'BuyUpgrade'; id: CatalogId }
   // Hidden test menu (F2); no target needed.
   | { type: 'Cheat'; cheat: CheatId };
 

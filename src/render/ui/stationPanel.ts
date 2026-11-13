@@ -8,7 +8,7 @@ import type { GameState } from '../../core/state';
 import { BREW_RECIPES, CAULDRON_FUEL, GRIND_RECIPES, ITEMS, type ItemId } from '../../data/content';
 import { ListPanel, type Panel, type PanelRow } from './confirm';
 
-const TITLES: Record<StationKind, string> = { mortar: 'MORTAR', cauldron: 'CAULDRON' };
+const TITLES: Record<StationKind, string> = { mortar: 'MORTAR', cauldron: 'CAULDRON', cauldron2: 'CAULDRON' };
 
 const itemName = (id: ItemId): string => ITEMS.find((i) => i.id === id)?.name ?? id;
 

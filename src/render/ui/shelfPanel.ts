@@ -5,6 +5,7 @@
 // every panel; its commands reach the first tick after it closes.
 import type Phaser from 'phaser';
 import type { Command } from '../../core/commands';
+import { shelfCapacity } from '../../core/shop';
 import type { GameState } from '../../core/state';
 import { ITEMS, type ItemId, type ItemKind } from '../../data/content';
 import type { Token } from '../../data/palette';
@@ -22,7 +23,6 @@ const ICON = 8;
 const CHAR_W = R.fontCellW;
 const CHAR_H = R.fontCellH;
 const TEXT_DY = Math.floor((K.rowH - CHAR_H) / 2) + 1;
-const CAP = TUNING.shop.shelfCapacity;
 const KEYS: Record<Device, { ok: string; back: string }> = { keyboard: { ok: 'C', back: 'X' }, gamepad: { ok: 'A', back: 'B' } };
 const KIND_ORDER: readonly ItemKind[] = ['potion', 'ground', 'raw', 'fuel'];
 
@@ -151,6 +151,8 @@ export function shelfPanel(scene: Phaser.Scene, state: GameState, shelf: number,
   const k = KEYS[device];
   const title = `SHELF ${shelf + 1}`;
   const sl = state.shop.shelves[shelf]!;
+  // 5 per table, 8 with the deep tables.
+  const CAP = shelfCapacity(state);
   const owned = (id: ItemId): number => state.inventory[id];
   const header = (item: ItemId, extra: string): Line => ({ left: [{ icon: `icon_${item}` }, { text: itemName(item) }], right: [{ text: extra }] });
 

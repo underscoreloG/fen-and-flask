@@ -14,7 +14,6 @@ import {
   SHOP_TY,
   SHOP_W,
   shopTileCenter,
-  structureOfKind,
   structureStands,
   TILE,
   WORLD_H,
@@ -25,8 +24,9 @@ import {
   type WorldStructure,
 } from '../../core/world';
 import { bedIndex, isReady } from '../../core/garden';
-import { PATIENCE_TICKS, SHELVES, type Customer } from '../../core/shop';
-import { STATION_KINDS, UNIT_TICKS } from '../../core/stations';
+import { owns } from '../../core/catalog';
+import { PATIENCE_TICKS, shelfCapacity, SHELVES, type Customer } from '../../core/shop';
+import { isCauldron, STATION_KINDS, STATION_STRUCTURES, unitTicks, type StationKind } from '../../core/stations';
 import type { DeviceReader } from '../../input/devices';
 import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
@@ -51,6 +51,7 @@ const STRUCTURE_FRAME: Record<StructureKind, string> = {
   cauldron: 'cauldron_idle',
   cot: 'cot',
   exit: '',
+  catalog: 'catalog',
 };
 
 // Weighted variety so the ground never reads as a flat fill.
@@ -74,8 +75,7 @@ const V = TUNING.shopView;
 const R = TUNING.render;
 const ICON = 8;
 const FEET = TUNING.player.hitboxH / 2;
-const CAP = TUNING.shop.shelfCapacity;
-const CAULDRON = structureOfKind('cauldron');
+const CAULDRONS = STATION_KINDS.filter(isCauldron);
 
 interface View {
   img: Phaser.GameObjects.Image;
@@ -111,9 +111,12 @@ export class GameScene extends Phaser.Scene {
   private fogs: { gx: number; gy: number; rect: Phaser.GameObjects.Rectangle }[] = [];
   // Progress bars over busy stations, shelf pips and patience bars, redrawn every frame.
   private bars!: Phaser.GameObjects.Graphics;
-  // Shelf count pips, just in front of the tables.
-  private pips!: Phaser.GameObjects.Graphics;
-  private hearth!: Phaser.GameObjects.Image;
+  // Shelf count pips, just in front of each table (one layer per table, sorted with it).
+  private pips: Phaser.GameObjects.Graphics[] = [];
+  // The glow under each cauldron, by station.
+  private hearths: { kind: StationKind; img: Phaser.GameObjects.Image }[] = [];
+  // The delivery crate by the door, from a morning something arrived until the player passes it.
+  private crate!: Phaser.GameObjects.Image;
   private cameraArea: Area | null = null;
 
   constructor(session: Session, reader: DeviceReader) {
@@ -128,8 +131,9 @@ export class GameScene extends Phaser.Scene {
     this.drawStructures();
     this.drawFog();
     this.bars = this.add.graphics().setDepth(DEPTH.top);
-    const table = SHELVES[0]!;
-    this.pips = this.add.graphics().setDepth(table.y + table.h + 1);
+    this.pips = SHELVES.map((t) => this.add.graphics().setDepth(t.y + t.h + 1));
+    const crate = shopTileCenter(SHOP_LAYOUT.crate.x, SHOP_LAYOUT.crate.y);
+    this.crate = this.add.image(crate.x, crate.y + TILE / 2, ATLAS, 'crate').setOrigin(0.5, 1).setDepth(crate.y + TILE / 2).setVisible(false);
     this.wares = SHELVES.map(() => this.add.image(0, 0, ATLAS, 'icon_tonic').setOrigin(0.5, 1).setVisible(false));
 
     this.playerShadow = this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(R.shadowAlpha).setDepth(DEPTH.shadow);
@@ -159,7 +163,10 @@ export class GameScene extends Phaser.Scene {
   // Fx first, while the views of things that just broke still exist; then the UI gets them.
   private onEvents(events: GameEvent[]): void {
     if (events.length === 0) return;
-    for (const e of events) if (e.type === 'swing') this.swingUntil = this.time.now + TUNING.fx.swingPoseMs;
+    for (const e of events) {
+      if (e.type === 'swing') this.swingUntil = this.time.now + TUNING.fx.swingPoseMs;
+      else if (e.type === 'upgradeArrived') this.crate.setVisible(true);
+    }
     this.fx.play(events);
     this.game.events.emit(SIM_EVENTS, events);
   }
@@ -243,11 +250,10 @@ export class GameScene extends Phaser.Scene {
     const queue = L.queue[0]!;
     at(queue.x - 1, queue.y, 'rug', DEPTH.flat);
     at(L.entry.x, L.entry.y, 'doormat', DEPTH.flat);
-    const c = CAULDRON;
-    this.hearth = this.add
-      .image(c.x + c.w / 2, c.y + c.h, ATLAS, 'hearth_glow')
-      .setDepth(DEPTH.flat)
-      .setAlpha(0);
+    for (const kind of CAULDRONS) {
+      const c = STATION_STRUCTURES[kind];
+      this.hearths.push({ kind, img: this.add.image(c.x + c.w / 2, c.y + c.h, ATLAS, 'hearth_glow').setDepth(DEPTH.flat).setAlpha(0) });
+    }
   }
 
   private drawStructures(): void {
@@ -293,7 +299,9 @@ export class GameScene extends Phaser.Scene {
     // so the lifted foot alternates.
     const phase = p.moving ? Math.floor(state.tick / R.walkFrameTicks) % 4 : 0;
     const swinging = now < this.swingUntil;
-    const frame = swinging ? `player_${dir}_swing` : `player_${dir}_${phase % 2}`;
+    // The copper sickle shows in the swing pose.
+    const tool = owns(state, 'sickle') ? '_copper' : '';
+    const frame = swinging ? `player_${dir}_swing${tool}` : `player_${dir}_${phase % 2}`;
     const flip = dir === 'side' ? p.facing === 'left' : !swinging && phase === 3;
     this.player.setFrame(frame).setFlipX(flip).setPosition(p.x, feetBottom).setDepth(feetBottom);
     this.playerShadow.setPosition(p.x, feetBottom - 1);
@@ -383,13 +391,14 @@ export class GameScene extends Phaser.Scene {
 
   // A bar over each busy station filling up toward its next unit: ink track, bone fill.
   private drawStationBars(g: Phaser.GameObjects.Graphics): void {
+    const state = this.session.state;
     for (const kind of STATION_KINDS) {
-      const job = this.session.state.stations[kind];
-      const view = this.structures.find((s) => s.kind === kind);
+      const job = state.stations[kind];
+      const view = this.structures.find((s) => s.id === kind);
       if (!job || !view) continue;
       const x = Math.round(view.img.x - R.stationBarW / 2);
       const y = Math.round(view.img.y - view.img.height - R.stationBarGap - R.stationBarH);
-      const fill = Math.round((R.stationBarW * job.progress) / UNIT_TICKS[kind]);
+      const fill = Math.round((R.stationBarW * job.progress) / unitTicks(state, kind));
       g.fillStyle(PALETTE.ink, 1).fillRect(x, y, R.stationBarW, R.stationBarH);
       g.fillStyle(PALETTE.bone, 1).fillRect(x, y, fill, R.stationBarH);
     }
@@ -402,19 +411,24 @@ export class GameScene extends Phaser.Scene {
     if (this.waterTiles[0]?.frame.name !== waterFrame) {
       for (const t of this.waterTiles) t.setFrame(waterFrame);
     }
-    // The cauldron bubbles, and its hearth glows on the floor, only while it brews.
-    const brewing = state.stations.cauldron !== null;
-    const cauldronFrame = brewing ? `cauldron_${Math.floor(this.time.now / R.cauldronFrameMs) % 2}` : STRUCTURE_FRAME.cauldron;
+    // A cauldron bubbles, and its hearth glows on the floor, only while it brews.
+    const bubbling = `cauldron_${Math.floor(this.time.now / R.cauldronFrameMs) % 2}`;
     const pulse = 1 + Math.sin(this.time.now / V.glowPulseMs) * V.glowPulseAmp;
-    this.hearth.setAlpha(brewing ? V.glowAlpha * pulse : 0);
+    for (const h of this.hearths) h.img.setAlpha(state.stations[h.kind] !== null ? V.glowAlpha * pulse : 0);
     const signFrame = state.shop.phase === 'open' ? 'sign_open' : 'sign_closed';
+    // The catalog's looks: the stone mortar, the hut's painted board and then its lantern.
+    const mortarFrame = owns(state, 'stoneMortar') ? 'mortar_stone' : STRUCTURE_FRAME.mortar;
+    const hutFrame = owns(state, 'lanternSign') ? 'hut_lantern' : owns(state, 'signboard') ? 'hut_board' : STRUCTURE_FRAME.hut;
+    this.syncCrate();
     for (const s of this.structures) {
       // A signpost is gone once its plot is bought.
       const stands = structureStands(state, s.s);
       s.img.setVisible(stands);
       s.shadow?.setVisible(stands);
       let base = STRUCTURE_FRAME[s.kind];
-      if (s.kind === 'cauldron') base = cauldronFrame;
+      if (s.kind === 'cauldron') base = state.stations[s.id as StationKind] ? bubbling : STRUCTURE_FRAME.cauldron;
+      else if (s.kind === 'mortar') base = mortarFrame;
+      else if (s.kind === 'hut') base = hutFrame;
       else if (s.kind === 'bed') base = this.bedFrame(s.id);
       else if (s.kind === 'sign') base = signFrame;
       // A ready bed can also be the swing target.
@@ -426,12 +440,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // The crate goes once the player walks past it (within a tile of it, indoors).
+  private syncCrate(): void {
+    const p = this.session.state.player;
+    const c = SHOP_LAYOUT.crate;
+    const near = Math.abs(Math.floor(p.x / TILE) - SHOP_TX - c.x) <= V.crateClearTiles && Math.abs(Math.floor(p.y / TILE) - SHOP_TY - c.y) <= V.crateClearTiles;
+    if (p.area === 'shop' && near) this.crate.setVisible(false);
+  }
+
   // Shelves show their ware and a pip per unit; customers walk, react, carry and wait.
   private syncShop(): void {
     const state = this.session.state;
     const g = this.bars.clear();
-    const pips = this.pips.clear();
+    for (const p of this.pips) p.clear();
     this.drawStationBars(g);
+    const cap = shelfCapacity(state);
+    // Pips wrap into rows of at most pipsPerRow, so 8 still fit on a 16 px table.
+    const rows = Math.ceil(cap / V.pipsPerRow);
+    const perRow = Math.ceil(cap / rows);
     state.shop.shelves.forEach((sl, i) => {
       const s = SHELVES[i]!;
       const ware = this.wares[i]!;
@@ -441,11 +467,13 @@ export class GameScene extends Phaser.Scene {
       ware.setFrame(`icon_${sl.item}`).setPosition(cx, s.y + V.wareLiftPx).setDepth(s.y + s.h + 1);
       // Count pips on the table's apron, one per unit out of the capacity: bone full, ink empty.
       const pip = V.pipSize;
-      const w = CAP * pip + (CAP - 1) * V.pipGap;
+      const w = perRow * pip + (perRow - 1) * V.pipGap;
       const x0 = Math.round(cx - w / 2);
-      const y = s.y + s.h - TILE / 2;
-      for (let k = 0; k < CAP; k++) {
-        pips.fillStyle(k < sl.count ? PALETTE.bone : PALETTE.ink, 1).fillRect(x0 + k * (pip + V.pipGap), y, pip, pip);
+      const y0 = s.y + s.h - TILE / 2;
+      for (let k = 0; k < cap; k++) {
+        const x = x0 + (k % perRow) * (pip + V.pipGap);
+        const y = y0 + Math.floor(k / perRow) * (pip + V.pipGap);
+        this.pips[i]!.fillStyle(k < sl.count ? PALETTE.bone : PALETTE.ink, 1).fillRect(x, y, pip, pip);
       }
     });
     this.syncShoppers(g);

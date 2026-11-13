@@ -72,7 +72,7 @@ describe('content', () => {
 
   it('lays out the home plot structures', () => {
     const s = PLOT_LAYOUTS.home.structures;
-    expect(s.map((x) => x.kind).sort()).toEqual(['bed', 'bed', 'bed', 'bed', 'hut', 'signpost']);
+    expect(s.map((x) => x.kind).sort()).toEqual(['bed', 'bed', 'bed', 'bed', 'bed', 'bed', 'hut', 'signpost']);
     const hut = s.find((x) => x.kind === 'hut')!;
     expect(hut).toMatchObject({ tiles: { x: 1, y: 1, w: 3, h: 2 }, solid: true, open: [{ x: 2, y: 2 }] });
     expect(hut.interact).toBeUndefined();

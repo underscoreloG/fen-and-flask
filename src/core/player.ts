@@ -7,6 +7,7 @@ import type { GameEvent } from './events';
 import { bedIndex, harvest, interactBed, readyBeds, type ReadyBed } from './garden';
 import { hitNode } from './nodes';
 import { ringUp, shelfIndex, stockedShelves } from './shop';
+import type { StationKind } from './stations';
 import type { Area, CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
 import {
   DOOR_OUTSIDE,
@@ -258,7 +259,11 @@ export function interact(state: GameState, events: GameEvent[]): void {
       break;
     case 'mortar':
     case 'cauldron':
-      events.push({ type: 'uiRequest', ui: 'station', station: s.def.kind });
+      // A station's structure id is its StationKind (there are two cauldrons).
+      events.push({ type: 'uiRequest', ui: 'station', station: s.def.id as StationKind });
+      break;
+    case 'catalog':
+      events.push({ type: 'uiRequest', ui: 'catalog' });
       break;
     default:
       break;
