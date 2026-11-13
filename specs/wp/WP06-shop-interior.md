@@ -46,7 +46,7 @@ Owns: `src/core/shop.ts` (may replace `stall.ts`), `src/render/ui/shelfPanel.ts`
 |---|---|---|---|---|
 | Shelf 1-4 (display tables) | (3,4) (6,4) (9,4) (12,4) | yes | the tile below each: (3,5) (6,5) (9,5) (12,5) | SHELF |
 | Counter | (2,8) (3,8) (4,8), till drawn on (3,8) | yes | (3,7) (the player stands behind it) | RING UP when a customer waits, otherwise none |
-| Shop sign (stand by the door) | (9,10) | yes | (9,9) | CALL IT A DAY by day; OPEN SHOP in the evening; CLOSE SHOP while open |
+| Shop sign (stand by the door) | (9,10) | yes | (9,9) | OPEN SHOP (by day too: opening ends the day); CLOSE SHOP while open |
 | Customer queue spots | (3,9), then (4,9) | no | - | - |
 | Mortar | (16,3) | yes | (16,4) | GRIND |
 | Cauldron | (18,3) | yes | (18,4) | BREW |
@@ -82,7 +82,7 @@ Raw and ground values are first guesses (tune): a potion is worth about 2.5 time
 
 ## Opening and customers
 
-- The shop opens from the sign, in the evening, once per day, with at least one stocked shelf. By day the sign asks "CALL IT A DAY?" (jumps to evening, as the stall did). While open the sign asks "CLOSE SHOP?".
+- The shop opens from the sign, once per day, with at least one stocked shelf. Opening by day switches to the evening at once (v0.2.1, the user: "instead of call it a day and then open shop merge the 2 and leave only openshop"); there is no separate "call it a day". While open the sign asks "CLOSE SHOP?".
 - While open the player moves freely indoors.
 - Customers this evening: `stall.customersBase` 6, plus 2 per extra owned plot, as before. At most 2 are indoors at once. A new one enters when fewer than 2 are indoors and at least `shop.enterGap` 150 ticks have passed since the previous entry.
 - A customer:

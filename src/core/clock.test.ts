@@ -77,34 +77,7 @@ describe('day clock', () => {
   });
 });
 
-describe('CallItADay', () => {
-  it('at the shop sign during the day jumps to evening with one eveningStarted, never a second', () => {
-    const s = quiet();
-    atSign(s);
-    expect(s.player.interactTarget).toBe('sign');
-    const ev = step(s, cmd({ type: 'CallItADay' }));
-    expect(s.phase).toBe('evening');
-    expect(count(ev, 'eveningStarted')).toBe(1);
-    const later = run(s, DAY_TICKS + 10);
-    expect(count(later, 'eveningStarted')).toBe(0);
-  });
-
-  it('is rejected in the evening', () => {
-    const s = quiet();
-    atSign(s);
-    step(s, cmd({ type: 'CallItADay' }));
-    expect(s.phase).toBe('evening');
-    expectRejected(s, { type: 'CallItADay' });
-  });
-
-  it('is rejected away from the sign', () => {
-    const s = quiet();
-    standAt(s, 5, 7, 'down');
-    expect(s.player.interactTarget).toBeNull();
-    expectRejected(s, { type: 'CallItADay' });
-    expect(s.phase).toBe('day');
-  });
-
+describe('evening', () => {
   it('debug setPhase(evening) emits exactly one eveningStarted', () => {
     const s = quiet();
     const ev = setPhase(s, 'evening');

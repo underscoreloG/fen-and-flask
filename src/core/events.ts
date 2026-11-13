@@ -8,7 +8,6 @@ import type { StationKind } from './stations';
 // What the core asks the UI to open.
 export type UiRequest =
   | { ui: 'sleepConfirm' }
-  | { ui: 'callItADayConfirm' }
   | { ui: 'openShopConfirm' }
   | { ui: 'closeShopConfirm' }
   | { ui: 'gardenPicker'; bed: number }
@@ -39,7 +38,7 @@ export type GameEvent =
   | { type: 'areaChanged'; area: Area }
   | { type: 'interact'; kind: StructureKind; structureId: string }
   | ({ type: 'uiRequest' } & UiRequest)
-  // Once per day, whatever switched it (timer, CallItADay, debug).
+  // Once per day, whatever switched it (timer, opening the shop, debug).
   | { type: 'eveningStarted'; day: number }
   // After the morning reset; day is the new day.
   | { type: 'morning'; day: number }

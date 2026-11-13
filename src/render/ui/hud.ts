@@ -35,7 +35,6 @@ const DIAL_HOURS = 12;
 
 function signHint(s: GameState): string | undefined {
   if (s.shop.phase === 'open') return 'CLOSE SHOP';
-  if (s.phase === 'day') return 'CALL IT A DAY';
   return s.shop.openedToday ? undefined : 'OPEN SHOP';
 }
 

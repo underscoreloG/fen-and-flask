@@ -237,7 +237,6 @@ export function interact(state: GameState, events: GameEvent[]): void {
       break;
     case 'sign':
       if (shop.phase === 'open') events.push({ type: 'uiRequest', ui: 'closeShopConfirm' });
-      else if (state.phase === 'day') events.push({ type: 'uiRequest', ui: 'callItADayConfirm' });
       else if (shop.openedToday) events.push({ type: 'uiRequest', ui: 'toast', text: 'SHOP IS DONE FOR TODAY' });
       else if (stockedShelves(state).length === 0) events.push({ type: 'uiRequest', ui: 'toast', text: 'STOCK A SHELF FIRST' });
       else events.push({ type: 'uiRequest', ui: 'openShopConfirm' });

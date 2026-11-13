@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { ItemId } from '../data/content';
-import { setPhase } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
 import { BED_IDS } from './garden';
@@ -155,14 +154,13 @@ describe('garden', () => {
 });
 
 describe('interact routing', () => {
-  it('cot -> sleepConfirm; sign by day -> callItADayConfirm, by evening -> openShopConfirm once a shelf is stocked', () => {
+  it('cot -> sleepConfirm; sign -> a hint to stock first, then openShopConfirm once a shelf is stocked, by day too', () => {
     const s = createInitialState(1);
     s.creatures = [];
     inside(s, 18, 9, 'right');
     expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'sleepConfirm' });
     inside(s, 9, 9, 'down');
-    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'callItADayConfirm' });
-    setPhase(s, 'evening');
+    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'toast', text: 'STOCK A SHELF FIRST' });
     s.shop.shelves[0] = { item: 'tonic', count: 1 };
     expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'openShopConfirm' });
   });

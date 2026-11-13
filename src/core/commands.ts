@@ -1,10 +1,9 @@
 // UI -> core. UI changes state only through these. Each one names the structure that must be the
 // interact target; otherwise it is dropped with the state untouched.
 import type { ItemId, PotionId } from '../data/content';
+import type { CheatId } from './cheat';
 
 export type Command =
-  // Day only, at the shop sign.
-  | { type: 'CallItADay' }
   // Any phase, at the cot.
   | { type: 'Sleep' }
   // bed indexes state.garden; that bed must be the interact target.
@@ -24,7 +23,9 @@ export type Command =
   // At the counter, with a customer waiting on queue spot 1.
   | { type: 'RingUp' }
   // At the signpost that sells the plot (plot indexes state.plots), with the coins.
-  | { type: 'BuyPlot'; plot: number };
+  | { type: 'BuyPlot'; plot: number }
+  // Hidden test menu (F2); no target needed.
+  | { type: 'Cheat'; cheat: CheatId };
 
 // Everything one tick needs from the outside world.
 export interface Frame {

@@ -31,11 +31,6 @@ export function startEvening(state: GameState, events: GameEvent[]): void {
   if (trend) events.push({ type: 'trendAnnounced', item: trend });
 }
 
-export function callItADay(state: GameState, events: GameEvent[]): void {
-  if (state.phase !== 'day' || targetStructure(state)?.def.kind !== 'sign') return;
-  startEvening(state, events);
-}
-
 // From the cot. An open shop closes first: whoever holds an item pays.
 export function sleep(state: GameState, events: GameEvent[]): void {
   if (targetStructure(state)?.def.kind !== 'cot') return;

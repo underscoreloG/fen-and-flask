@@ -16,6 +16,7 @@ import {
   type PotionId,
 } from '../data/content';
 import { ticks, TUNING } from '../data/tuning';
+import { startEvening } from './clock';
 import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { refillPlot } from './nodes';
@@ -203,8 +204,10 @@ export function setPrice(state: GameState, item: ItemId, price: number): void {
 
 export function openShop(state: GameState, events: GameEvent[]): void {
   const sh = state.shop;
-  if (state.phase !== 'evening' || sh.phase !== 'closed' || sh.openedToday) return;
+  if (sh.phase !== 'closed' || sh.openedToday) return;
   if (targetKind(state) !== 'sign' || stockedShelves(state).length === 0) return;
+  // Opening by day ends the day: there is one sign action, not two.
+  startEvening(state, events);
   sh.phase = 'open';
   sh.openedToday = true;
   sh.soldCount = 0;

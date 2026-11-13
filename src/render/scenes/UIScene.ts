@@ -10,6 +10,7 @@ import { APP_VERSION } from '../../data/version';
 import { closePanel, openPanel, startGame, type Session } from '../../input/session';
 import { clear, store } from '../../save/save';
 import { addText } from '../font';
+import { cheatPanel } from '../ui/cheats';
 import { confirmPanel, UI_DEPTH, type Panel } from '../ui/confirm';
 import { gardenPicker } from '../ui/gardenPicker';
 import { Hud } from '../ui/hud';
@@ -31,6 +32,8 @@ export class UIScene extends Phaser.Scene {
   private readonly audio: GameAudio;
   private hud!: Hud;
   private panel: Panel | null = null;
+  // F2 was pressed since the last update (the hidden test menu).
+  private cheatAsked = false;
   private toasts!: Toasts;
   private tint!: Phaser.GameObjects.Rectangle;
   private night!: Phaser.GameObjects.Rectangle;
@@ -57,6 +60,14 @@ export class UIScene extends Phaser.Scene {
     };
     this.game.events.on(SIM_EVENTS, onSim);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off(SIM_EVENTS, onSim));
+    // The test menu has its own key, outside the input layer: it is not part of the game's controls.
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'F2') return;
+      e.preventDefault();
+      this.cheatAsked = true;
+    };
+    window.addEventListener('keydown', onKey);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => window.removeEventListener('keydown', onKey));
     this.audio.ambience();
     if (!this.session.options.debug) return;
     addText(this, viewW - uiMargin, viewH - uiMargin, `v${APP_VERSION}`, 'bone').setOrigin(1, 1);
@@ -70,7 +81,14 @@ export class UIScene extends Phaser.Scene {
     // M works everywhere, every panel included.
     if (intents.mute) this.audio.toggleMute();
     const moved = intents.up || intents.down || intents.left || intents.right;
+    const cheatAsked = this.cheatAsked;
+    this.cheatAsked = false;
     if (!this.panel) {
+      if (cheatAsked && !this.session.panelOpen && !this.session.botOn) {
+        this.panel = cheatPanel(this);
+        openPanel(this.session);
+        return;
+      }
       // The notebook opens from the world on its own key, not from a uiRequest; never during a
       // sleep fade (the switch is still on then).
       if (this.session.intents.notebook && !this.session.panelOpen) {
@@ -149,8 +167,6 @@ export class UIScene extends Phaser.Scene {
     switch (req.ui) {
       case 'sleepConfirm':
         return confirmPanel(this, 'SLEEP?', [{ type: 'Sleep' }]);
-      case 'callItADayConfirm':
-        return confirmPanel(this, 'CALL IT A DAY?', [{ type: 'CallItADay' }]);
       case 'openShopConfirm':
         return confirmPanel(this, 'OPEN SHOP?', [{ type: 'OpenStall' }]);
       case 'closeShopConfirm':

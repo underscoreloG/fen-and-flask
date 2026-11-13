@@ -395,21 +395,20 @@ describe('prices and reactions', () => {
 });
 
 describe('the sign', () => {
-  it('by day asks to call it a day; in the evening OpenStall works with a stocked shelf, not with bare shelves, not twice', () => {
+  it('OpenStall needs a stocked shelf and works once a day; by day it also starts the evening', () => {
     const s = quiet();
     s.inventory.tonic = 2;
     atSign(s);
-    expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'uiRequest', ui: 'callItADayConfirm' });
-    expectRejected(s, { type: 'OpenStall' });
-    step(s, cmd({ type: 'CallItADay' }));
-    expect(s.phase).toBe('evening');
     expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'uiRequest', ui: 'toast', text: 'STOCK A SHELF FIRST' });
     expectRejected(s, { type: 'OpenStall' });
+    expect(s.phase).toBe('day');
 
     stock(s, 0, 'tonic', 2);
     atSign(s);
     expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'uiRequest', ui: 'openShopConfirm' });
     const ev = step(s, cmd({ type: 'OpenStall' }));
+    expect(s.phase).toBe('evening');
+    expect(ev.filter((e) => e.type === 'eveningStarted')).toHaveLength(1);
     expect(ev).toContainEqual({ type: 'stallOpened' });
     expect(s.shop.phase).toBe('open');
     expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'uiRequest', ui: 'closeShopConfirm' });
@@ -421,10 +420,9 @@ describe('the sign', () => {
     // Away from the sign.
     const away = quiet();
     away.inventory.tonic = 1;
-    setPhase(away, 'evening');
     stock(away, 0, 'tonic', 1);
     expectRejected(away, { type: 'OpenStall' });
-    expectRejected(away, { type: 'CallItADay' });
+    expect(away.phase).toBe('day');
   });
 });
 
@@ -679,7 +677,7 @@ describe('trend', () => {
     const s = quiet();
     atSign(s);
     expect(s.shop.trend).toBeNull();
-    expect(count(step(s, cmd({ type: 'CallItADay' })), 'trendAnnounced')).toBe(0);
+    expect(count(setPhase(s, 'evening'), 'trendAnnounced')).toBe(0);
     for (let day = 2; day <= 5; day++) {
       atCot(s);
       step(s, cmd({ type: 'Sleep' }));
@@ -687,7 +685,7 @@ describe('trend', () => {
       s.nodes = [];
       expect(s.day).toBe(day);
       atSign(s);
-      const ev = step(s, cmd({ type: 'CallItADay' }));
+      const ev = setPhase(s, 'evening');
       expect(ev.filter((e) => e.type === 'trendAnnounced')).toEqual([{ type: 'trendAnnounced', item: s.shop.trend }]);
       const types = ev.map((e) => e.type);
       expect(types.indexOf('trendAnnounced')).toBe(types.indexOf('eveningStarted') + 1);

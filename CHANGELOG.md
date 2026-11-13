@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1 - 2026-11-13
+
+- The shop sign has one action: OPEN SHOP. Opening by day also ends the day; "call it a day" is gone.
+- A test menu on F2: coins, items, hearts, skip to evening or to the next morning, unlock all land.
+
 ## v0.2.0 - 2026-11-13
 
 The shop moves indoors.

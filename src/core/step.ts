@@ -1,4 +1,5 @@
-import { callItADay, sleep, updateClock } from './clock';
+import { cheat } from './cheat';
+import { sleep, updateClock } from './clock';
 import type { Command, Frame } from './commands';
 import { updateCreatures } from './creatures';
 import type { GameEvent } from './events';
@@ -12,9 +13,6 @@ import type { GameState } from './state';
 // Invalid commands are dropped with the state untouched; each handler checks its own rules.
 function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
   switch (c.type) {
-    case 'CallItADay':
-      callItADay(state, events);
-      break;
     case 'Sleep':
       sleep(state, events);
       break;
@@ -47,6 +45,9 @@ function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
       break;
     case 'BuyPlot':
       buyPlot(state, c.plot, events);
+      break;
+    case 'Cheat':
+      cheat(state, c.cheat, events);
       break;
   }
 }

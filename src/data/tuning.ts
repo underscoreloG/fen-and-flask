@@ -222,6 +222,8 @@ export const TUNING = {
     // Potion done: a sparkle of glow bits from the cauldron's rim.
     sparkleParticles: 7,
   },
+  // Hidden test menu (F2).
+  cheat: { coinsSmall: 100, coinsBig: 1000, items: 5 },
   // Shared panel box (specs/design.md Screens): at most 220 px wide.
   panel: {
     maxW: 220,

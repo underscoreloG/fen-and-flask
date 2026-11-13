@@ -486,7 +486,6 @@ function indoorFrame(ctx: Ctx): Frame {
   const inside = pickupFrame(ctx, Infinity) ?? grindFrame(ctx) ?? brewFrame(ctx);
   if (inside) return inside;
   if (nearestGoal(plan(s, center(DOOR_OUTSIDE.x, DOOR_OUTSIDE.y)), outdoorGoals(s))) return goThroughDoor(ctx) ?? neutralFrame();
-  if (s.phase === 'day') return useStructure(ctx, SIGN, { type: 'CallItADay' }) ?? neutralFrame();
   const wait = waitFrame(ctx) ?? stockFrame(ctx);
   if (wait) return wait;
   const sh = s.shop;
