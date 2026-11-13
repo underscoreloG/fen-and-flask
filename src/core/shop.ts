@@ -358,14 +358,15 @@ function pay(state: GameState, c: Customer, events: GameEvent[]): void {
 
 const L = SHOP_LAYOUT;
 const idx = (t: { x: number; y: number }): number => t.y * SHOP_W + t.x;
-// Behind the counter is the shopkeeper's side: the row of its interact tile, from the tile
-// before the counter to its end. Customers never walk there.
+// Behind the counter is the shopkeeper's side (specs/wp/WP11): the row of its interact tile and
+// every row below it to the front wall, from the tile before the counter to its end. Customers
+// never walk there.
 const COUNTER = WORLD_STRUCTURES.find((s) => s.def.kind === 'counter')!;
 const STAFF_Y = tileAt(COUNTER.interactY) - SHOP_TY;
 const STAFF_X0 = COUNTER.def.tiles.x - 1;
 const STAFF_X1 = COUNTER.def.tiles.x + COUNTER.def.tiles.w - 1;
 const customerBlocked = (state: GameState, x: number, y: number): boolean =>
-  isShopTileSolid(state, x, y) || (y === STAFF_Y && x >= STAFF_X0 && x <= STAFF_X1);
+  isShopTileSolid(state, x, y) || (y >= STAFF_Y && x >= STAFF_X0 && x <= STAFF_X1);
 const SHELF_SPOTS = SHELVES.map((s) => ({ x: tileAt(s.interactX) - SHOP_TX, y: tileAt(s.interactY) - SHOP_TY }));
 const QUEUE_SPOTS = L.queue;
 
@@ -546,7 +547,8 @@ function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void 
     case 'toQueue':
       if (!walk(c)) break;
       c.mode = 'queued';
-      c.facing = 'up';
+      // Toward the counter and the shopkeeper below it (specs/wp/WP11).
+      c.facing = 'down';
       if (c.waited < 0) {
         c.waited = 0;
         events.push({ type: 'customerQueued', item: c.item! });

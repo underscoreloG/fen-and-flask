@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CUSTOMER_TYPES, ITEM_IDS, ITEMS, NODES, type CustomerType, type ItemId, type PotionId } from '../data/content';
+import { CUSTOMER_TYPES, ITEM_IDS, ITEMS, NODES, type CatalogId, type CustomerType, type ItemId, type PotionId } from '../data/content';
 import { ticks, TUNING } from '../data/tuning';
 import { morningReset, setPhase } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
@@ -16,7 +16,7 @@ type Facing = GameState['player']['facing'];
 
 // Interact tiles of the interior (specs/wp/WP06).
 const SHELF_X = [3, 6, 9, 12];
-const AT = { counter: [3, 7], sign: [9, 9], cot: [18, 9] } as const;
+const AT = { counter: [3, 9], sign: [9, 9], cot: [18, 9] } as const;
 
 // A new game with no nodes and no mudlets (time passes in these tests).
 function quiet(seed = 1): GameState {
@@ -40,7 +40,7 @@ function outside(s: GameState, tx: number, ty: number, facing: Facing): void {
 }
 
 const atShelf = (s: GameState, i: number): void => inside(s, SHELF_X[i]!, 5, 'up');
-const atCounter = (s: GameState): void => inside(s, AT.counter[0], AT.counter[1], 'down');
+const atCounter = (s: GameState): void => inside(s, AT.counter[0], AT.counter[1], 'up');
 const atSign = (s: GameState): void => inside(s, AT.sign[0], AT.sign[1], 'down');
 const atCot = (s: GameState): void => inside(s, AT.cot[0], AT.cot[1], 'right');
 
@@ -199,8 +199,8 @@ describe('interior', () => {
     ['shelf 2', [6, 5], [6, 4], 0, -1],
     ['shelf 3', [9, 5], [9, 4], 0, -1],
     ['shelf 4', [12, 5], [12, 4], 0, -1],
-    ['counter', [3, 7], [3, 8], 0, 1],
-    ['counter, customer side', [3, 9], [3, 8], 0, -1],
+    ['counter, customer side', [3, 7], [3, 8], 0, 1],
+    ['counter', [3, 9], [3, 8], 0, -1],
     ['sign', [9, 9], [9, 10], 0, 1],
     ['mortar', [16, 4], [16, 3], 0, -1],
     ['cauldron', [18, 4], [18, 3], 0, -1],
@@ -564,23 +564,31 @@ describe('customers', () => {
     expect(z.shop.customers).toEqual([]);
   });
 
-  it('customers walk from the door to every shelf, and from every shelf to both queue spots, never behind the counter', () => {
+  // The shopkeeper's side is rows 9 and 10 with x 1 to 4 since specs/wp/WP11; the queue is (3,7), (4,7).
+  it.each([
+    ['four tables', [] as CatalogId[]],
+    ['six tables', ['shelf5', 'shelf6'] as CatalogId[]],
+  ])('customers walk from the door to every shelf, and from every shelf to both queue spots, never behind the counter (%s)', (_name, owned) => {
     const W = 22;
     const at = (x: number, y: number): number => y * W + x;
+    const s = quiet();
+    s.catalog.owned = [...owned];
+    const tables: [number, number][] = SHELF_X.map((x) => [x, 5]);
+    if (owned.length > 0) tables.push([9, 8], [12, 8]);
     const routes: [number, number][] = [];
-    for (const x of SHELF_X) {
-      routes.push([at(7, 10), at(x, 5)]);
-      for (const q of [3, 4]) routes.push([at(x, 5), at(q, 9)]);
-      routes.push([at(x, 5), at(7, 10)]);
+    for (const [x, y] of tables) {
+      routes.push([at(7, 10), at(x, y)]);
+      for (const q of [3, 4]) routes.push([at(x, y), at(q, 7)]);
+      routes.push([at(x, y), at(7, 10)]);
     }
-    routes.push([at(4, 9), at(3, 9)], [at(3, 9), at(7, 10)]);
+    routes.push([at(4, 7), at(3, 7)], [at(3, 7), at(7, 10)], [at(4, 7), at(7, 10)]);
     for (const [a, b] of routes) {
-      const path = pathBetween(quiet(), a, b);
+      const path = pathBetween(s, a, b);
       expect(path.at(-1), `${a} -> ${b}`).toBe(b);
       for (const i of path) {
         const x = i % W;
         const y = Math.floor(i / W);
-        expect(y === 7 && x >= 1 && x <= 4, `${a} -> ${b} passes ${x},${y}`).toBe(false);
+        expect((y === 9 || y === 10) && x >= 1 && x <= 4, `${a} -> ${b} passes ${x},${y}`).toBe(false);
       }
     }
   });
@@ -605,6 +613,40 @@ describe('customers', () => {
     expect(second.waited).toBeGreaterThan(waited);
     expect(count(step(s, cmd({ type: 'RingUp' })), 'sale')).toBe(1);
     expect(s.coins).toBe(2);
+  });
+
+  // specs/wp/WP11: the shopkeeper rings up from below the counter, customers queue above it.
+  it('from (3,9) facing up the counter is the target and RingUp pays; from (3,7) facing down it is not and RingUp is rejected', () => {
+    const s = openWithOne('tonic', 1, 5);
+    until(s, 'customerQueued');
+    inside(s, 3, 7, 'down');
+    expect(s.player.interactTarget).not.toBe('counter');
+    expectRejected(s, { type: 'RingUp' });
+    inside(s, 3, 9, 'up');
+    expect(s.player.interactTarget).toBe('counter');
+    expect(step(s, cmd({ type: 'RingUp' }))).toContainEqual({ type: 'sale', item: 'tonic', price: 5, qty: 1 });
+    expect(s.coins).toBe(5);
+  });
+
+  it('a buyer queues on (3,7) facing down; a second waits on (4,7) and steps to (3,7) when the first is paid', () => {
+    const center = (x: number, y: number): [number, number] => [shopTileCenter(x, y).x, shopTileCenter(x, y).y];
+    const s = openShop([
+      ['tonic', 5, 1],
+      ['tonic', 5, 1],
+    ]);
+    s.shop.customersLeft = 1;
+    for (let i = 0; i < 5000 && s.shop.customers.filter((c) => c.mode === 'queued').length < 2; i++) step(s, neutralFrame());
+    const first = s.shop.customers.find((c) => c.spot === 0)!;
+    const second = s.shop.customers.find((c) => c.spot === 1)!;
+    expect([first.mode, second.mode]).toEqual(['queued', 'queued']);
+    expect([first.x, first.y]).toEqual(center(3, 7));
+    expect([second.x, second.y]).toEqual(center(4, 7));
+    expect([first.facing, second.facing]).toEqual(['down', 'down']);
+    expect(count(step(s, cmd({ type: 'RingUp' })), 'sale')).toBe(1);
+    for (let i = 0; i < 200 && second.mode !== 'queued'; i++) step(s, neutralFrame());
+    expect(second.mode).toBe('queued');
+    expect([second.x, second.y]).toEqual(center(3, 7));
+    expect(second.facing).toBe('down');
   });
 
   it('a customer whose shelf was emptied on the way goes to another stocked shelf, or leaves when there is none', () => {

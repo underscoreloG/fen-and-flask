@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.4 - 2026-11-13
+
+Play feedback: the shopkeeper and the customers swap sides of the counter.
+
+- You now ring up from below the counter, on the rug by the door, facing up. Customers queue above it, on the room side, and face you, so you see their faces and their bubbles.
+- Customers never walk onto your side (the two rows below the counter). From above the counter, the counter is no longer something you can use.
+- The counter toad, the till and the rug stay where they were.
+- Saves from 0.3.3 load as they are.
+
 ## v0.3.3 - 2026-11-13
 
 Play feedback: stop a job, and unhappy customers keep their coins.

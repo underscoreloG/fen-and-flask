@@ -177,6 +177,13 @@ function findSwingTarget(state: GameState): SwingTarget | null {
   return null;
 }
 
+// The counter is worked from its interact side only (specs/wp/WP11): from the customers' side the
+// reach circle can still touch its interact tile, two tiles away across it.
+function acrossCounter(state: GameState, s: WorldStructure): boolean {
+  const mid = s.y + s.h / 2;
+  return s.def.kind === 'counter' && (state.player.y - mid) * (s.interactY - mid) < 0;
+}
+
 // Structures with an interact tile in the player's area, on an owned plot. The exit is only a
 // target while the shop is open, to say why it does not let you out.
 function usableStructures(state: GameState): WorldStructure[] {
@@ -186,6 +193,7 @@ function usableStructures(state: GameState): WorldStructure[] {
       s.def.interact !== undefined &&
       s.area === state.player.area &&
       (s.def.kind !== 'exit' || open) &&
+      !acrossCounter(state, s) &&
       structureStands(state, s) &&
       state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned),
   );

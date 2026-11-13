@@ -64,7 +64,7 @@ const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
   mortar: 'up',
   cauldron: 'up',
   shelf: 'up',
-  counter: 'down',
+  counter: 'up',
   sign: 'down',
   cot: 'right',
   signpost: 'right',

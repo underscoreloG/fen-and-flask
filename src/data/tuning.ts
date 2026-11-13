@@ -299,7 +299,7 @@ export const TUNING = {
     saleCoinMs: 520,
     saleArcPx: 28,
     plusRisePx: 14,
-    // "+N" and the coins start this far above the counter's interact tile center.
+    // "+N" and the coins start this far above the till (the top edge of the counter's footprint).
     saleLiftPx: 12,
     plusMs: 900,
     // The OPEN tag under the clock.

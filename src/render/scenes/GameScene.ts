@@ -260,8 +260,9 @@ export class GameScene extends Phaser.Scene {
         at(tx, ty, frame);
       }
     }
-    const queue = L.queue[0]!;
-    at(queue.x - 1, queue.y, 'rug', DEPTH.flat);
+    // The rug lies below the counter, under the shopkeeper (specs/wp/WP11).
+    const counter = COUNTER.def.tiles;
+    at(counter.x, counter.y + counter.h, 'rug', DEPTH.flat);
     at(L.entry.x, L.entry.y, 'doormat', DEPTH.flat);
     for (const kind of CAULDRONS) {
       const c = STATION_STRUCTURES[kind];

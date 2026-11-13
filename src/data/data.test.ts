@@ -89,15 +89,16 @@ describe('content', () => {
       { x: 7, y: 10 },
       { x: 7, y: 11 },
     ]);
+    // Customers queue above the counter, the shopkeeper rings up from below it (specs/wp/WP11).
     expect(L.queue).toEqual([
-      { x: 3, y: 9 },
-      { x: 4, y: 9 },
+      { x: 3, y: 7 },
+      { x: 4, y: 7 },
     ]);
     const at = (id: string) => L.structures.find((x) => x.id === id)!;
     for (const [i, x] of [3, 6, 9, 12].entries()) {
       expect(at('shelf' + i)).toMatchObject({ kind: 'shelf', tiles: { x, y: 4, w: 1, h: 1 }, solid: true, interact: { x, y: 5 }, hint: 'SHELF' });
     }
-    expect(at('counter')).toMatchObject({ tiles: { x: 2, y: 8, w: 3, h: 1 }, solid: true, interact: { x: 3, y: 7 } });
+    expect(at('counter')).toMatchObject({ tiles: { x: 2, y: 8, w: 3, h: 1 }, solid: true, interact: { x: 3, y: 9 }, hint: 'RING UP' });
     expect(at('sign')).toMatchObject({ tiles: { x: 9, y: 10, w: 1, h: 1 }, solid: true, interact: { x: 9, y: 9 } });
     expect(at('mortar')).toMatchObject({ tiles: { x: 16, y: 3 }, solid: true, interact: { x: 16, y: 4 }, hint: 'GRIND' });
     expect(at('cauldron')).toMatchObject({ tiles: { x: 18, y: 3 }, solid: true, interact: { x: 18, y: 4 }, hint: 'BREW' });

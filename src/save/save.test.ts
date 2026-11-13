@@ -43,7 +43,7 @@ function busyShop(): GameState {
   step(s, cmd({ type: 'StockShelf', shelf: 0, item: 'tonic', qty: 4 }, { type: 'SetPrice', item: 'tonic', price: 3 }));
   inside(s, 9, 9, 'down');
   step(s, cmd({ type: 'OpenStall' }));
-  inside(s, 3, 7, 'down');
+  inside(s, 3, 9, 'up');
   for (let i = 0; i < 2000 && !s.shop.customers.some((c) => c.mode === 'queued'); i++) step(s, neutralFrame());
   expect(s.shop.customers.some((c) => c.mode === 'queued' && c.holding)).toBe(true);
   return s;
@@ -94,7 +94,7 @@ describe('save', () => {
     const b = deserialize(serialize(s, APP_VERSION), APP_VERSION)!;
     expect(b).toEqual(s);
     expect(b.catalog).toEqual({ owned: ['shelf5', 'sickle'], pending: ['shelf6'] });
-    expect(APP_VERSION).toBe('0.3.3');
+    expect(APP_VERSION).toBe('0.3.4');
     expect(deserialize(serialize(createInitialState(1), '0.2.1'), APP_VERSION)).toBeNull();
   });
 
