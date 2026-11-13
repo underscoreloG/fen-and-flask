@@ -1,6 +1,6 @@
 // Station panel (specs/design.md Screens): one row per recipe with its ingredients and owned
 // counts, a quantity changed with left/right, Start on confirm. Rows you cannot afford are dim; a
-// busy station only shows its job.
+// busy station shows its job and a row to stop it (specs/wp/WP10).
 import type Phaser from 'phaser';
 import type { Command } from '../../core/commands';
 import { maxBrew, maxGrind, type StationKind } from '../../core/stations';
@@ -43,10 +43,19 @@ function recipesOf(state: GameState, station: StationKind): RecipeView[] {
 export function stationPanel(scene: Phaser.Scene, state: GameState, station: StationKind): Panel {
   const job = state.stations[station];
   if (job) {
-    const row: PanelRow = { label: itemName(job.recipe), icon: `icon_${job.recipe}` };
-    const list = new ListPanel(scene, `${TITLES[station]}: BUSY`, [row], undefined, `${job.remaining} LEFT`);
+    // The cursor starts on the job row, which does nothing, so a double press stops nothing. The
+    // count is the one at opening; CancelJob gives back what is really left when it lands.
+    const rows: PanelRow[] = [
+      { label: itemName(job.recipe), icon: `icon_${job.recipe}` },
+      { label: `STOP, TAKE ${job.remaining} BACK` },
+    ];
+    const list = new ListPanel(scene, `${TITLES[station]}: BUSY`, rows, undefined, `${job.remaining} LEFT`);
     return {
-      update: (intents) => (list.update(intents) !== null ? [] : null),
+      update(intents): Command[] | null {
+        const r = list.update(intents);
+        if (r === null) return null;
+        return r === 'confirm' && list.selected === 1 ? [{ type: 'CancelJob' }] : [];
+      },
       destroy: () => list.destroy(),
     };
   }

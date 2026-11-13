@@ -42,7 +42,7 @@ export const SOUNDS: readonly SoundDef[] = [
   { id: 'hit_plant', file: 'hit_plant.ogg', volume: 0.6, on: [{ event: 'nodeHit', when: (e) => PLANTS.includes(e.nodeType) }, { event: 'bedDugUp' }] },
   { id: 'hit_wood', file: 'hit_wood.ogg', volume: 0.45, on: [{ event: 'nodeHit', when: (e) => e.nodeType === 'stump' }] },
   { id: 'squish', file: 'squish.ogg', volume: 1.0, on: [{ event: 'creatureHit' }, { event: 'creatureDied' }] },
-  { id: 'pickup', file: 'pickup.ogg', volume: 0.5, on: [{ event: 'pickupCollected' }] },
+  { id: 'pickup', file: 'pickup.ogg', volume: 0.5, on: [{ event: 'pickupCollected' }, { event: 'jobCancelled' }] },
   { id: 'grind', file: 'grind.ogg', volume: 0.9, on: [{ event: 'jobStarted', when: (e) => e.station === 'mortar' }] },
   { id: 'bubble', file: 'bubble.ogg', volume: 0.6, on: [{ event: 'jobStarted', when: (e) => e.station !== 'mortar' }] },
   { id: 'potion_done', file: 'potion_done.ogg', volume: 0.8, on: [{ event: 'jobUnitDone', when: (e) => e.station !== 'mortar' }] },

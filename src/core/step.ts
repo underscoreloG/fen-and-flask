@@ -9,7 +9,7 @@ import { deliverOrder } from './orders';
 import { updatePickups } from './pickups';
 import { interact, swing, updateDoors, updateHurt, updatePlayer, updateTargets } from './player';
 import { buyPlot, clearShelf, closeStall, openShop, ringUp, setPrice, stockShelf, updateShop } from './shop';
-import { startBrew, startGrind, updateStations } from './stations';
+import { cancelJob, startBrew, startGrind, updateStations } from './stations';
 import type { GameState } from './state';
 
 // Invalid commands are dropped with the state untouched; each handler checks its own rules.
@@ -29,6 +29,9 @@ function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
       break;
     case 'StartBrew':
       startBrew(state, c.potion, c.qty, events);
+      break;
+    case 'CancelJob':
+      cancelJob(state, events);
       break;
     case 'StockShelf':
       stockShelf(state, c.shelf, c.item, c.qty);

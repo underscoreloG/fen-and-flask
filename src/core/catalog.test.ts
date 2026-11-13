@@ -308,6 +308,18 @@ describe('deep tables', () => {
     expect(s.rng).toBe(rng);
   });
 
+  it('the double never triggers on a grumbling customer: no roll, nothing taken (specs/wp/WP10)', () => {
+    const s = oneBuyer(8, true, true);
+    // 16 on a value of 14 is grumbling (r 1.14).
+    s.shop.prices.tonic = 16;
+    const rng = s.rng;
+    const ev = run(s, 1000);
+    expect(ev).toContainEqual(expect.objectContaining({ type: 'customerReacted', reaction: 'grumbling', sold: false }));
+    expect(s.rng).toBe(rng);
+    expect(s.shop.shelves[0]).toEqual({ item: 'tonic', count: 8 });
+    expect(ev.filter((e) => e.type === 'customerQueued' || e.type === 'sale')).toEqual([]);
+  });
+
   it('a double that leaves unpaid puts both units back: on the table while it fits, the rest in the inventory', () => {
     const s = oneBuyer(8, true, true);
     untilQueued(s);

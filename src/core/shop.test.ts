@@ -360,7 +360,7 @@ describe('prices and reactions', () => {
     for (const id of ITEM_IDS) expect(reactTo(s, id, s.shop.prices[id], TUNING.stall.personalMax).sold, id).toBe(true);
   });
 
-  it('glowdraught, value 24, personal 1: 19 delighted, 20 and 26 happy, 27 and 31 grumbling, 32 refuses', () => {
+  it('glowdraught, value 24, personal 1: 19 delighted, 20 and 26 happy (sold), 27 and 31 grumbling, 32 refuses (not sold)', () => {
     const s = quiet();
     expect(itemValue(s, 'glowdraught')).toBeCloseTo(24);
     const at = (price: number): [string, boolean] => {
@@ -370,8 +370,9 @@ describe('prices and reactions', () => {
     expect(at(19)).toEqual(['delighted', true]);
     expect(at(20)).toEqual(['happy', true]);
     expect(at(26)).toEqual(['happy', true]);
-    expect(at(27)).toEqual(['grumbling', true]);
-    expect(at(31)).toEqual(['grumbling', true]);
+    // A grumble no longer buys (specs/wp/WP10).
+    expect(at(27)).toEqual(['grumbling', false]);
+    expect(at(31)).toEqual(['grumbling', false]);
     expect(at(32)).toEqual(['refuses', false]);
   });
 
@@ -641,7 +642,7 @@ describe('customers', () => {
 });
 
 describe('demand', () => {
-  it('a sale lowers demand by 0.04, a grumbling one by 0.09, never below 0.6; a night adds 0.15 up to 1.0', () => {
+  it('a sale lowers demand by 0.04, a grumble (no sale since WP10) leaves it, never below 0.6; a night adds 0.15 up to 1.0', () => {
     const s = openWithOne('glowdraught', 1, 1);
     serve(s);
     expect(s.shop.demand.glowdraught).toBeCloseTo(0.96);
@@ -649,8 +650,8 @@ describe('demand', () => {
     // 29 on a value of 24 is grumbling (r 1.21).
     const g = openWithOne('glowdraught', 1, 29);
     const gev = serve(g);
-    expect(gev).toContainEqual(expect.objectContaining({ type: 'customerReacted', reaction: 'grumbling', sold: true }));
-    expect(g.shop.demand.glowdraught).toBeCloseTo(0.91);
+    expect(gev).toContainEqual(expect.objectContaining({ type: 'customerReacted', reaction: 'grumbling', sold: false }));
+    expect(g.shop.demand.glowdraught).toBe(1);
 
     const f = quiet();
     f.shop.demand.tonic = 0.62;
@@ -825,12 +826,17 @@ describe('customer types (specs/wp/WP09)', () => {
     expect(typeMultiplier('herbalist', 'emberpowder')).toBe(1.5);
   });
 
-  it('at demand 1 and no trend, the first price of each item is not refused by any type at personal 0.95 or 1.05', () => {
+  // WP10: only delighted and happy buy, so the known exception is bogwood (first price 1) for a
+  // haggler: 1 / (0.95 x 0.85) = 1.24 and 1 / (1.05 x 0.85) = 1.12, both grumbling.
+  it('at demand 1 and no trend, the first price of every item is bought by every type at personal 0.95 and 1.05, except bogwood for a haggler', () => {
     const s = quiet();
     for (const id of ITEM_IDS) {
       for (const t of CUSTOMER_TYPES) {
         for (const p of [TUNING.stall.personalMin, TUNING.stall.personalMax]) {
-          expect(reactTo(s, id, s.shop.prices[id], p, t.id).sold, `${id} ${t.id} ${p}`).toBe(true);
+          const r = reactTo(s, id, s.shop.prices[id], p, t.id);
+          const exception = id === 'bogwood' && t.id === 'haggler';
+          expect(r.sold, `${id} ${t.id} ${p}`).toBe(!exception);
+          if (exception) expect(r.reaction).toBe('grumbling');
         }
       }
     }
@@ -931,5 +937,53 @@ describe('customer types (specs/wp/WP09)', () => {
     });
     expect(s.shop.soldCount).toBe(3);
     expect(s.shop.met).toEqual(['traveller', 'courier']);
+  });
+});
+
+describe('unhappy customers do not buy (specs/wp/WP10)', () => {
+  it('a traveller on glowdraught (base 24), personal 1: buys at 26 (happy), not at 27 (grumbling) nor at 32 (refuses)', () => {
+    for (const [price, reaction, sold] of [
+      [26, 'happy', true],
+      [27, 'grumbling', false],
+      [32, 'refuses', false],
+    ] as const) {
+      const s = openWithOne('glowdraught', 1, price);
+      const ev = serve(s);
+      expect(ev, `${price}`).toContainEqual({ type: 'customerReacted', item: 'glowdraught', price, reaction, sold });
+      expect(s.shop.history.glowdraught, `${price}`).toEqual([{ price, reaction }]);
+      expect(count(ev, 'sale'), `${price}`).toBe(sold ? 1 : 0);
+    }
+  });
+
+  it('after a grumble the table keeps its unit, coins and demand are unchanged, and the customer leaves without queueing', () => {
+    const s = openWithOne('glowdraught', 1, 27);
+    const coins = s.coins;
+    const ev = until(s, 'customerReacted');
+    const c = s.shop.customers[0]!;
+    expect(c).toMatchObject({ reaction: 'grumbling', holding: false });
+    expect(s.shop.shelves[0]).toEqual({ item: 'glowdraught', count: 1 });
+    // Watch it walk out: it never takes a queue spot, never carries, never counts as unpaid.
+    for (let i = 0; i < 5000 && s.shop.customers.includes(c); i++) {
+      ev.push(...step(s, neutralFrame()));
+      expect(c.spot).toBe(-1);
+      expect(c.holding).toBe(false);
+    }
+    expect(s.shop.customers).not.toContain(c);
+    expect(c.mode).toBe('leaving');
+    expect(count(ev, 'customerQueued')).toBe(0);
+    expect(count(ev, 'customerLeftUnpaid')).toBe(0);
+    expect(count(ev, 'sale')).toBe(0);
+    expect(s.shop.shelves[0]).toEqual({ item: 'glowdraught', count: 1 });
+    expect(s.coins).toBe(coins);
+    expect(s.shop.demand.glowdraught).toBe(1);
+  });
+
+  it('a haggler does not buy glowdraught at 23 and buys at 22; a courier buys it at 32 and not at 34', () => {
+    const s = quiet();
+    const buys = (type: CustomerType, price: number): boolean => reactTo(s, 'glowdraught', price, 1, type).sold;
+    expect(buys('haggler', 22)).toBe(true);
+    expect(buys('haggler', 23)).toBe(false);
+    expect(buys('courier', 32)).toBe(true);
+    expect(buys('courier', 34)).toBe(false);
   });
 });

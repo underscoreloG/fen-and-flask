@@ -52,6 +52,8 @@ export type GameEvent =
   | { type: 'jobStarted'; station: StationKind; item: ItemId; qty: number }
   | { type: 'jobUnitDone'; station: StationKind; item: ItemId }
   | { type: 'jobFinished'; station: StationKind }
+  // A job stopped from its panel (no jobFinished then); refunded is the number of units given back.
+  | { type: 'jobCancelled'; station: StationKind; item: ItemId; refunded: number }
   // Shop. customerArrived fires when a customer reaches a stocked shelf; the reaction follows on
   // the same tick. A sale is a payment at the counter.
   | { type: 'stallOpened' }

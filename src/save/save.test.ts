@@ -94,7 +94,7 @@ describe('save', () => {
     const b = deserialize(serialize(s, APP_VERSION), APP_VERSION)!;
     expect(b).toEqual(s);
     expect(b.catalog).toEqual({ owned: ['shelf5', 'sickle'], pending: ['shelf6'] });
-    expect(APP_VERSION).toBe('0.3.2');
+    expect(APP_VERSION).toBe('0.3.3');
     expect(deserialize(serialize(createInitialState(1), '0.2.1'), APP_VERSION)).toBeNull();
   });
 
@@ -141,6 +141,23 @@ describe('save', () => {
     const ev: GameEvent[] = [];
     morningReset(b, ev);
     expect(ev).toContainEqual({ type: 'orderPosted', item: b.order.item, qty: b.order.qty, pay: b.order.pay });
+  });
+
+  it('a 0.3.2 save loads in 0.3.3 as it is and steps; a grumbler it already holds pays without the old penalty', () => {
+    const s = busyShop();
+    s.inventory.mint = 3;
+    s.stations.mortar = { recipe: 'mintpaste', remaining: 2, progress: 40 };
+    // Under 0.3.2 a grumbling customer bought and queued.
+    const c = s.shop.customers.find((o) => o.mode === 'queued' && o.holding)!;
+    c.reaction = 'grumbling';
+    const b = deserialize(serialize(s, '0.3.2'), APP_VERSION)!;
+    expect(b).toEqual(s);
+    const demand = b.shop.demand.tonic;
+    const ev = step(b, cmd({ type: 'RingUp' }));
+    expect(ev.filter((e) => e.type === 'sale')).toHaveLength(1);
+    expect(b.shop.demand.tonic).toBeCloseTo(demand - 0.04, 10);
+    for (let i = 0; i < 600; i++) ev.push(...step(b, neutralFrame()));
+    expect(ev).toContainEqual({ type: 'jobFinished', station: 'mortar' });
   });
 
   it('fillDefaults restores a missing key from a fresh state and keeps loaded arrays as they are', () => {
