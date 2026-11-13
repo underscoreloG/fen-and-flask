@@ -3,15 +3,15 @@ import type { ItemId } from '../data/content';
 import { ticks, TUNING } from '../data/tuning';
 import type { GameEvent } from './events';
 import { nextRange } from './rng';
-import type { GameState, PickupState } from './state';
+import type { Area, GameState, PickupState } from './state';
 import { isBlocked } from './world';
 
 const K = TUNING.pickup;
 const FLY = K.flySpeed / TUNING.sim.tickRate;
 const LAND = ticks(K.landTime);
 
-// n pickups of `item`, each scattered scatterMin-scatterMax px from (x, y) in a random direction,
-// clear of solids when one of a few tries allows it.
+// n pickups of `item` outdoors, each scattered scatterMin-scatterMax px from (x, y) in a random
+// direction, clear of solids when one of a few tries allows it.
 export function spawnDrops(state: GameState, item: ItemId, n: number, x: number, y: number, events: GameEvent[]): void {
   for (let i = 0; i < n; i++) {
     let px = x;
@@ -27,7 +27,7 @@ export function spawnDrops(state: GameState, item: ItemId, n: number, x: number,
         break;
       }
     }
-    spawnPickup(state, item, px, py, x, y, events);
+    spawnPickup(state, item, 'world', px, py, x, y, events);
   }
 }
 
@@ -35,6 +35,7 @@ export function spawnDrops(state: GameState, item: ItemId, n: number, x: number,
 export function spawnPickup(
   state: GameState,
   item: ItemId,
+  area: Area,
   x: number,
   y: number,
   fromX: number,
@@ -42,7 +43,7 @@ export function spawnPickup(
   events: GameEvent[],
 ): void {
   const id = state.nextId++;
-  state.pickups.push({ id, item, x, y, fromX, fromY, landing: LAND });
+  state.pickups.push({ id, item, area, x, y, fromX, fromY, landing: LAND });
   events.push({ type: 'pickupSpawned', id, item, x, y, fromX, fromY });
 }
 
@@ -52,6 +53,10 @@ export function updatePickups(state: GameState, events: GameEvent[]): void {
   for (const k of state.pickups) {
     if (k.landing > 0) {
       k.landing -= 1;
+      kept.push(k);
+      continue;
+    }
+    if (k.area !== p.area) {
       kept.push(k);
       continue;
     }

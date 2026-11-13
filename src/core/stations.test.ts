@@ -5,16 +5,23 @@ import type { GameEvent } from './events';
 import { createInitialState, type GameState } from './state';
 import { STATION_STRUCTURES, UNIT_TICKS } from './stations';
 import { step } from './step';
-import { plotTileCenter, TILE } from './world';
+import { plotTileCenter, shopTileCenter } from './world';
 
 const cmd = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
 const INTERACT: Frame = { ...neutralFrame(), interact: true };
 
-function standAt(s: GameState, tx: number, ty: number, facing: GameState['player']['facing']): void {
+type Facing = GameState['player']['facing'];
+
+function outside(s: GameState, tx: number, ty: number, facing: Facing): void {
   const at = plotTileCenter(0, 0, tx, ty);
-  s.player.x = at.x;
-  s.player.y = at.y;
-  s.player.facing = facing;
+  Object.assign(s.player, { area: 'world', x: at.x, y: at.y, facing });
+  step(s, neutralFrame());
+}
+
+// Indoors on a shop-local tile: the stations stand in the back room.
+function inside(s: GameState, tx: number, ty: number, facing: Facing): void {
+  const at = shopTileCenter(tx, ty);
+  Object.assign(s.player, { area: 'shop', x: at.x, y: at.y, facing });
   step(s, neutralFrame());
 }
 
@@ -24,8 +31,8 @@ function scene(at: 'mortar' | 'cauldron', inv: Partial<Record<ItemId, number>> =
   s.nodes = [];
   s.creatures = [];
   Object.assign(s.inventory, inv);
-  if (at === 'mortar') standAt(s, 10, 3, 'up');
-  else standAt(s, 12, 3, 'up');
+  if (at === 'mortar') inside(s, 16, 4, 'up');
+  else inside(s, 18, 4, 'up');
   expect(s.player.interactTarget).toBe(at);
   return s;
 }
@@ -71,13 +78,10 @@ describe('stations', () => {
     expect(stepsWith(byStep, (e) => e.type === 'pickupSpawned' && e.item === 'mintpaste')).toEqual([90, 180, 270]);
     expect(stepsWith(byStep, (e) => e.type === 'jobFinished')).toEqual([270]);
     expect(s.stations.mortar).toBeNull();
-    // Each unit lands on the tile below the mortar.
-    const m = STATION_STRUCTURES.mortar;
+    // Each unit lands indoors on the mortar's interact tile (16,4).
+    const at = shopTileCenter(16, 4);
     const spawned = byStep.flat().filter((e) => e.type === 'pickupSpawned');
-    for (const e of spawned) {
-      expect(Math.floor(e.x / TILE)).toBe(m.x / TILE);
-      expect(Math.floor(e.y / TILE)).toBe(m.y / TILE + 1);
-    }
+    for (const e of spawned) expect([e.x, e.y]).toEqual([at.x, at.y]);
   });
 
   it('StartBrew tonic x2: mintpaste -2, reed -2, bogwood -1 at once; tonic at ticks 360 and 720', () => {
@@ -90,6 +94,40 @@ describe('stations', () => {
     ]);
     expect(stepsWith(byStep, (e) => e.type === 'jobFinished')).toEqual([720]);
     expect(s.stations.cauldron).toBeNull();
+    // Collected from its tile (18,4), indoors.
+    expect(s.inventory.tonic).toBe(2);
+  });
+
+  it('outputs are pickups in the shop area on the stations interact tiles; the world never collects them', () => {
+    const s = scene('cauldron', { mintpaste: 1, reed: 1, bogwood: 1, mint: 1 });
+    step(s, cmd({ type: 'StartBrew', potion: 'tonic', qty: 1 }));
+    inside(s, 16, 4, 'up');
+    step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 1 }));
+    // Out of the shop, standing where the outputs land in px terms does not matter: other area.
+    outside(s, 5, 7, 'down');
+    perStep(s, UNIT_TICKS.cauldron + 1);
+    const where = s.pickups.map((k) => [k.item, k.area, k.x, k.y]);
+    const m = STATION_STRUCTURES.mortar;
+    const c = STATION_STRUCTURES.cauldron;
+    expect(where).toEqual([
+      ['mintpaste', 'shop', m.interactX, m.interactY],
+      ['tonic', 'shop', c.interactX, c.interactY],
+    ]);
+    expect([m.interactX, m.interactY]).toEqual([shopTileCenter(16, 4).x, shopTileCenter(16, 4).y]);
+    expect([c.interactX, c.interactY]).toEqual([shopTileCenter(18, 4).x, shopTileCenter(18, 4).y]);
+    expect(s.inventory.tonic + s.inventory.mintpaste).toBe(0);
+  });
+
+  it('StartGrind and StartBrew are rejected outdoors', () => {
+    const s = createInitialState(1);
+    s.creatures = [];
+    s.nodes = [];
+    Object.assign(s.inventory, { mint: 3, mintpaste: 3, reed: 3, bogwood: 3 });
+    for (const [tx, ty, f] of [[10, 3, 'up'], [12, 3, 'up'], [2, 3, 'up'], [5, 7, 'down']] as const) {
+      outside(s, tx, ty, f);
+      expectRejected(s, { type: 'StartGrind', input: 'mint', qty: 1 });
+      expectRejected(s, { type: 'StartBrew', potion: 'tonic', qty: 1 });
+    }
   });
 
   it('rejects qty 6, no bogwood, ingredients for 1 at qty 2, a busy station, and the wrong target', () => {
@@ -115,7 +153,7 @@ describe('stations', () => {
     expectRejected(scene('mortar', rich), { type: 'StartBrew', potion: 'tonic', qty: 1 });
     // Targeting nothing at all.
     const away = scene('mortar', { mint: 4 });
-    standAt(away, 5, 7, 'down');
+    inside(away, 10, 7, 'down');
     expect(away.player.interactTarget).toBeNull();
     expectRejected(away, { type: 'StartGrind', input: 'mint', qty: 1 });
   });
@@ -126,9 +164,9 @@ describe('stations', () => {
     const byStep = perStep(s, UNIT_TICKS.mortar);
     expect(stepsWith(byStep, (e) => e.type === 'jobUnitDone')).toEqual([UNIT_TICKS.mortar]);
     expect(s.stations.mortar?.remaining).toBe(2);
-    // To the door (one tick, far from the next unit) and sleep.
-    standAt(s, 2, 3, 'up');
-    expect(s.player.interactTarget).toBe('hut');
+    // To the cot (one tick, far from the next unit) and sleep.
+    inside(s, 18, 9, 'right');
+    expect(s.player.interactTarget).toBe('cot');
     const before = s.pickups.filter((k) => k.item === 'mintpaste').length;
     const ev = step(s, cmd({ type: 'Sleep' }));
     expect(s.day).toBe(2);
@@ -173,14 +211,14 @@ describe('stations', () => {
       s.nodes = [];
       Object.assign(s.inventory, { mint: 6, mintpaste: 4, reed: 4, bogwood: 2 });
       const events: GameEvent[] = [];
-      standAt(s, 10, 3, 'up');
+      inside(s, 16, 4, 'up');
       events.push(...step(s, cmd({ type: 'StartGrind', input: 'mint', qty: 6 })));
-      standAt(s, 12, 3, 'up');
+      inside(s, 18, 4, 'up');
       events.push(...step(s, cmd({ type: 'StartBrew', potion: 'tonic', qty: 3 })));
       for (let i = 0; i < 500; i++) {
         events.push(...step(s, { ...neutralFrame(), moveX: Math.sin(i / 17), moveY: Math.cos(i / 23), swing: i % 40 === 0 }));
       }
-      standAt(s, 2, 3, 'up');
+      inside(s, 18, 9, 'right');
       events.push(...step(s, cmd({ type: 'Sleep' })));
       // The morning respawned mudlets; clear them again before more time passes.
       s.creatures = [];

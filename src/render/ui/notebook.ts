@@ -1,7 +1,7 @@
 // Notebook (specs/design.md Screens), opened with V / pad Y from the world: page 1 the grind and
 // brew recipes, page 2 the prices. Left/right turns the page; back or V again closes it.
 import type Phaser from 'phaser';
-import { POTION_IDS } from '../../core/stall';
+import { POTION_IDS } from '../../core/shop';
 import type { GameState } from '../../core/state';
 import { BREW_RECIPES, CAULDRON_FUEL, GRIND_RECIPES, ITEMS, type ItemId } from '../../data/content';
 import type { Token } from '../../data/palette';
@@ -41,7 +41,7 @@ function recipesPage(): NoteLine[] {
 // Page 2: per potion owned or ever offered, its last prices with the reaction each got, then
 // today's trend ("-" on day 1).
 export function pricesPage(state: GameState): NoteLine[] {
-  const st = state.stall;
+  const st = state.shop;
   const shown = POTION_IDS.filter((p) => state.inventory[p] > 0 || st.history[p].length > 0);
   const lines: NoteLine[] = [[{ text: 'PRICES', token: 'coin' }]];
   if (shown.length === 0) lines.push([{ text: 'NO POTIONS YET' }]);

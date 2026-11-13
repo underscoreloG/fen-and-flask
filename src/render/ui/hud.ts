@@ -1,5 +1,6 @@
-// HUD (specs/design.md clutter budget): hearts and coins top-left, clock and day top-right, the
-// item bar bottom-center, the interact hint above it. Collected pickups hop from the player into their slot, and the
+// HUD (specs/design.md clutter budget): hearts and coins top-left, clock and day top-right (and
+// the OPEN tag under them while the shop is open), the item bar bottom-center, the interact hint
+// above it. Collected pickups hop from the player into their slot, and the
 // count only ticks up when they land.
 import Phaser from 'phaser';
 import { ITEM_IDS, type ItemId } from '../../data/content';
@@ -8,8 +9,8 @@ import { TUNING } from '../../data/tuning';
 import { clockHour, clockLabel } from '../../core/clock';
 import type { GameEvent } from '../../core/events';
 import { bedIndex, isReady } from '../../core/garden';
-import { plotTileCenter, WORLD_STRUCTURES } from '../../core/world';
-import { PLOT_LAYOUTS, PLOTS } from '../../data/content';
+import { structureOfKind, WORLD_STRUCTURES } from '../../core/world';
+import type { GameState } from '../../core/state';
 import type { Session } from '../../input/session';
 import { addText } from '../font';
 import { ATLAS } from '../sprites/generate';
@@ -19,9 +20,9 @@ const R = TUNING.render;
 const ICON = 8;
 const CHAR_W = R.fontCellW;
 const CHAR_H = R.fontCellH;
-// Where travellers stand to buy, in world px: sale coins fly from there.
-const SPOT = PLOT_LAYOUTS.home.customerSpot ?? { x: 0, y: 0 };
-const SPOT_PX = plotTileCenter(PLOTS[0]!.gx, PLOTS[0]!.gy, SPOT.x, SPOT.y);
+// Sale coins fly from the till, in the middle of the counter.
+const COUNTER = structureOfKind('counter');
+const TILL = { x: COUNTER.x + COUNTER.w / 2, y: COUNTER.y };
 // Keyboard key or gamepad button for interact (controls table in specs/design.md).
 const INTERACT_KEY = { keyboard: 'C', gamepad: 'A' } as const;
 
@@ -31,6 +32,12 @@ const READY_HINTS: Readonly<Record<string, string | undefined>> = Object.fromEnt
 );
 // The dial is a 12-hour face with 12 at the top.
 const DIAL_HOURS = 12;
+
+function signHint(s: GameState): string | undefined {
+  if (s.shop.phase === 'open') return 'CLOSE SHOP';
+  if (s.phase === 'day') return 'CALL IT A DAY';
+  return s.shop.openedToday ? undefined : 'OPEN SHOP';
+}
 
 interface Slot {
   icon: Phaser.GameObjects.Image;
@@ -58,6 +65,7 @@ export class Hud {
   private readonly hand: Phaser.GameObjects.Graphics;
   private readonly dayText: Phaser.GameObjects.BitmapText;
   private readonly timeText: Phaser.GameObjects.BitmapText;
+  private readonly openTag: Phaser.GameObjects.BitmapText;
   private shownHearts: number;
   private barTop: number = R.viewH;
 
@@ -83,13 +91,14 @@ export class Hud {
     this.hand = scene.add.graphics();
     this.dayText = addText(scene, dialX - H.clockGap, m, '', 'bone').setOrigin(1, 0);
     this.timeText = addText(scene, R.viewW - m, m + ICON + H.clockGap, '', 'bone').setOrigin(1, 0);
+    this.openTag = addText(scene, R.viewW - m, m + ICON + H.clockGap * 2 + CHAR_H + H.openTagGap, '', 'coin').setOrigin(1, 0);
   }
 
   onEvents(events: readonly GameEvent[], worldView: Phaser.Geom.Rectangle): void {
     for (const e of events) {
       if (e.type === 'pickupCollected') this.hop(e.item, e.x - worldView.x, e.y - worldView.y - H.hopFromLiftPx);
       else if (e.type === 'playerHurt') this.pop(this.hearts[e.hearts]);
-      else if (e.type === 'sale') this.sale(e.price, SPOT_PX.x - worldView.x, SPOT_PX.y - worldView.y);
+      else if (e.type === 'sale') this.sale(e.price, TILL.x - worldView.x, TILL.y - worldView.y);
     }
   }
 
@@ -111,6 +120,9 @@ export class Hud {
     const evening = s.phase === 'evening';
     this.dayText.setText(`DAY ${s.day}`);
     this.timeText.setText(evening ? 'EVENING' : clockLabel(s.clock.t)).setTintFill(PALETTE[evening ? 'emberhot' : 'bone']);
+    // Open for business: how many customers are still to come.
+    const open = s.shop.phase === 'open';
+    this.openTag.setVisible(open).setText(open ? `OPEN  ${s.shop.customersLeft} TO COME` : '');
     // Hour hand drawn pixel by pixel from the dial's center pixel.
     const a = (clockHour(s.clock.t) / DIAL_HOURS) * Math.PI * 2 - Math.PI / 2;
     const cx = this.dial.x + ICON / 2;
@@ -121,11 +133,15 @@ export class Hud {
     }
   }
 
-  // Beds: PLANT when empty, HARVEST when ready, nothing while growing.
+  // Beds: PLANT when empty, HARVEST when ready, nothing while growing. The sign says what it
+  // will do now; the counter only speaks when someone waits.
   private hintFor(id: string): string | undefined {
+    const state = this.session.state;
+    if (id === 'sign') return signHint(state);
+    if (id === 'counter') return state.shop.customers.some((c) => c.spot === 0 && c.mode === 'queued') ? HINTS[id] : undefined;
     const i = bedIndex(id);
     if (i < 0) return HINTS[id];
-    const bed = this.session.state.garden[i];
+    const bed = state.garden[i];
     if (!bed) return undefined;
     if (bed.crop === null) return HINTS[id];
     return isReady(bed) ? READY_HINTS[id] : undefined;
@@ -166,8 +182,7 @@ export class Hud {
   }
 
   private layoutHint(): void {
-    // Held at the open stall, C does nothing: no hint.
-    const id = this.session.state.stall.phase === 'open' ? null : this.session.state.player.interactTarget;
+    const id = this.session.state.player.interactTarget;
     const hint = id ? this.hintFor(id) : undefined;
     const visible = hint !== undefined;
     this.hintKey.clear();
@@ -226,8 +241,8 @@ export class Hud {
     });
   }
 
-  // A sale: "+N" rises over the customer and a few coins arc up to the counter; the counter
-  // counts the price in when the last one lands.
+  // A sale: "+N" rises over the till and a few coins arc up to the coin counter, which counts the
+  // price in when the last one lands.
   private sale(price: number, x: number, y: number): void {
     const s = this.scene;
     const top = y - H.saleLiftPx;

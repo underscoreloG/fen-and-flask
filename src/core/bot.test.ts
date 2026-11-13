@@ -19,12 +19,13 @@ interface Metrics {
   plotDay: number | null;
   goalDay: number | null;
   faints: number;
+  unpaid: number;
   ticks: number;
 }
 
 function runBot(seed: number): Metrics {
   const s = createInitialState(seed);
-  const m: Metrics = { seed, evening1Coins: null, plotDay: null, goalDay: null, faints: 0, ticks: 0 };
+  const m: Metrics = { seed, evening1Coins: null, plotDay: null, goalDay: null, faints: 0, unpaid: 0, ticks: 0 };
   for (let i = 0; i < TICK_CAP && m.goalDay === null && s.day <= MAX_DAYS; i++) {
     const day = s.day;
     for (const e of step(s, botFrame(s))) {
@@ -32,6 +33,7 @@ function runBot(seed: number): Metrics {
       else if (e.type === 'plotBought') m.plotDay = s.day;
       else if (e.type === 'goalReached') m.goalDay = s.day;
       else if (e.type === 'playerFainted') m.faints += 1;
+      else if (e.type === 'customerLeftUnpaid') m.unpaid += 1;
     }
     m.ticks = i + 1;
   }
@@ -43,7 +45,7 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
     it(`seed ${seed}: evening-1 coins ${HEALTH.evening1CoinsMin}-${HEALTH.evening1CoinsMax}, plot by day ${HEALTH.plotBoughtMaxDay}, goal by day ${HEALTH.goalMaxDay}`, () => {
       const m = runBot(seed);
       console.log(
-        `[health] seed ${seed}: evening-1 coins ${m.evening1Coins}, plotBought day ${m.plotDay}, goalReached day ${m.goalDay}, faints ${m.faints}, ticks ${m.ticks}`,
+        `[health] seed ${seed}: evening-1 coins ${m.evening1Coins}, plotBought day ${m.plotDay}, goalReached day ${m.goalDay}, faints ${m.faints}, left unpaid ${m.unpaid}, ticks ${m.ticks}`,
       );
       expect(m.evening1Coins).not.toBeNull();
       expect(m.evening1Coins!).toBeGreaterThanOrEqual(HEALTH.evening1CoinsMin);
@@ -52,6 +54,8 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
       expect(m.plotDay!).toBeLessThanOrEqual(HEALTH.plotBoughtMaxDay);
       expect(m.goalDay).not.toBeNull();
       expect(m.goalDay!).toBeLessThanOrEqual(HEALTH.goalMaxDay);
+      // The bot rings up at once: nobody waits out their patience.
+      expect(m.unpaid).toBe(0);
     }, 60000);
   }
 });

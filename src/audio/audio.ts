@@ -84,11 +84,11 @@ export class GameAudio {
   }
 
   play(events: readonly GameEvent[]): void {
-    for (const e of events) for (const id of soundsFor(e)) this.fire(id);
+    for (const e of events) for (const p of soundsFor(e)) this.fire(p.id, p.volume);
   }
 
   ui(id: 'ui_move' | 'ui_confirm'): void {
-    this.fire(id);
+    this.fire(id, DEF.get(id)?.volume ?? 0);
   }
 
   // Once per page: the loop runs from the first world frame and survives a new game. Started on a
@@ -117,14 +117,14 @@ export class GameAudio {
 
   // Skipped while locked: one-shots started on a suspended context would pile up and burst out
   // together on unlock.
-  private fire(id: SoundId): void {
+  private fire(id: SoundId, volume: number): void {
     const g = this.game;
     if (!g || !g.cache.audio.exists(id)) return;
     const ctx = this.context();
     if (ctx ? ctx.state !== 'running' : g.sound.locked) return;
     if (!this.allow(id, performance.now())) return;
     try {
-      g.sound.play(id, { volume: DEF.get(id)?.volume ?? 0 });
+      g.sound.play(id, { volume });
     } catch (err) {
       console.warn(`audio: ${id} failed to play`, err);
     }

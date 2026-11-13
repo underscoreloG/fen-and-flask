@@ -6,7 +6,7 @@ import type { GameEvent } from './events';
 import { BED_IDS } from './garden';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
-import { plotTileCenter } from './world';
+import { plotTileCenter, shopTileCenter } from './world';
 
 const cmd = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
 const INTERACT: Frame = { ...neutralFrame(), interact: true };
@@ -35,15 +35,23 @@ function scene(): GameState {
   return s;
 }
 
-// Sleep at the door, then back to the bed on an empty plot (the morning refills nodes and mudlets).
+// Indoors on a shop-local tile.
+function inside(s: GameState, tx: number, ty: number, facing: GameState['player']['facing']): void {
+  const at = shopTileCenter(tx, ty);
+  Object.assign(s.player, { area: 'shop', x: at.x, y: at.y, facing });
+  step(s, neutralFrame());
+}
+
+// Sleep in the cot, then back out to the bed on an empty plot (the morning refills nodes and mudlets).
 function sleepAndReturn(s: GameState): void {
-  standAt(s, 2, 3, 'up');
-  expect(s.player.interactTarget).toBe('hut');
+  inside(s, 18, 9, 'right');
+  expect(s.player.interactTarget).toBe('cot');
   const day = s.day;
   step(s, cmd({ type: 'Sleep' }));
   expect(s.day).toBe(day + 1);
   s.nodes = [];
   s.creatures = [];
+  s.player.area = 'world';
   standAt(s, 5, 2, 'right');
 }
 
@@ -147,14 +155,15 @@ describe('garden', () => {
 });
 
 describe('interact routing', () => {
-  it('door -> sleepConfirm; stall by day -> callItADayConfirm, by evening -> the stall (WP04)', () => {
+  it('cot -> sleepConfirm; sign by day -> callItADayConfirm, by evening -> openShopConfirm once a shelf is stocked', () => {
     const s = createInitialState(1);
     s.creatures = [];
-    standAt(s, 2, 3, 'up');
+    inside(s, 18, 9, 'right');
     expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'sleepConfirm' });
-    standAt(s, 9, 10, 'down');
+    inside(s, 9, 9, 'down');
     expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'callItADayConfirm' });
     setPhase(s, 'evening');
-    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'stall' });
+    s.shop.shelves[0] = { item: 'tonic', count: 1 };
+    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'openShopConfirm' });
   });
 });

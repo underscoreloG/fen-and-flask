@@ -56,22 +56,33 @@ describe('event to sound', () => {
     [{ type: 'jobStarted', station: 'mortar', item: 'mintpaste', qty: 2 }, ['grind']],
     [{ type: 'jobStarted', station: 'cauldron', item: 'glowdraught', qty: 2 }, ['bubble']],
     [{ type: 'jobUnitDone', station: 'cauldron', item: 'glowdraught' }, ['potion_done']],
-    [{ type: 'sale', potion: 'glowdraught', price: 20 }, ['coin']],
-    [{ type: 'customerReacted', potion: 'glowdraught', price: 99, reaction: 'refuses', sold: false }, ['refuse']],
+    [{ type: 'sale', item: 'glowdraught', price: 20 }, ['coin']],
+    [{ type: 'customerReacted', item: 'glowdraught', price: 99, reaction: 'refuses', sold: false }, ['refuse']],
+    [{ type: 'customerLeftUnpaid', item: 'glowdraught' }, ['refuse']],
+    [{ type: 'customerQueued', item: 'glowdraught' }, ['bell']],
     [{ type: 'stallOpened' }, ['bell']],
     [{ type: 'playerHurt', ...at, hearts: 4, fromX: 0, fromY: 0 }, ['hurt']],
     [{ type: 'morning', day: 2 }, ['sleep']],
   ];
   it.each(cases)('%o -> %o', (e, ids) => {
-    expect(soundsFor(e)).toEqual(ids);
+    expect(soundsFor(e).map((p) => p.id)).toEqual(ids);
+  });
+
+  it('the bell rings softer for a customer at the counter than for the opening; others play at their base volume', () => {
+    const [open] = soundsFor({ type: 'stallOpened' });
+    const [queued] = soundsFor({ type: 'customerQueued', item: 'tonic' });
+    expect(queued!.volume).toBeLessThan(open!.volume);
+    const refuse = SOUNDS.find((s) => s.id === 'refuse')!;
+    expect(soundsFor({ type: 'customerLeftUnpaid', item: 'tonic' })).toEqual([{ id: 'refuse', volume: refuse.volume }]);
   });
 
   const silent: GameEvent[] = [
     { type: 'nodeBroken', id: 1, nodeType: 'stump', ...at },
     { type: 'jobUnitDone', station: 'mortar', item: 'mintpaste' },
     { type: 'jobFinished', station: 'cauldron' },
-    { type: 'customerArrived', potion: 'glowdraught' },
-    { type: 'customerReacted', potion: 'glowdraught', price: 20, reaction: 'happy', sold: true },
+    { type: 'customerArrived', item: 'glowdraught' },
+    { type: 'customerReacted', item: 'glowdraught', price: 20, reaction: 'happy', sold: true },
+    { type: 'areaChanged', area: 'shop' },
     { type: 'stallClosed', soldCount: 1, soldCoins: 20 },
     { type: 'eveningStarted', day: 1 },
     { type: 'goalReached' },

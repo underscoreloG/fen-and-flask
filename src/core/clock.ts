@@ -4,10 +4,12 @@ import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { growNight } from './garden';
 import { refillPlot } from './nodes';
-import { morningStall } from './stall';
+import { closeShop, morningShop } from './shop';
 import { finishJobs } from './stations';
 import type { GameState, Phase } from './state';
-import { targetStructure } from './world';
+import { structureOfKind, targetStructure } from './world';
+
+const COT = structureOfKind('cot');
 
 const D = TUNING.day;
 export const DAY_TICKS = ticks(D.length);
@@ -25,33 +27,38 @@ export function startEvening(state: GameState, events: GameEvent[]): void {
   if (state.phase !== 'day') return;
   state.phase = 'evening';
   events.push({ type: 'eveningStarted', day: state.day });
-  const trend = state.stall.trend;
-  if (trend) events.push({ type: 'trendAnnounced', potion: trend });
+  const trend = state.shop.trend;
+  if (trend) events.push({ type: 'trendAnnounced', item: trend });
 }
 
 export function callItADay(state: GameState, events: GameEvent[]): void {
-  if (state.phase !== 'day' || targetStructure(state)?.def.kind !== 'stall') return;
+  if (state.phase !== 'day' || targetStructure(state)?.def.kind !== 'sign') return;
   startEvening(state, events);
 }
 
+// From the cot. An open shop closes first: whoever holds an item pays.
 export function sleep(state: GameState, events: GameEvent[]): void {
-  if (targetStructure(state)?.def.kind !== 'hut') return;
+  if (targetStructure(state)?.def.kind !== 'cot') return;
+  closeShop(state, events);
   morningReset(state, events);
 }
 
 // Hook order matters (each step sees the one before):
 //   1. clock and day counter
-//   2. finish running station jobs (WP03)
-//   3. garden grows one night
-//   4. refill nodes, then mudlets (so mudlets keep clear of new nodes), on every owned plot
-//   5. player hearts
-//   6. demand recovery, trend pick, stall reset (WP04)
-//   7. emit morning
+//   2. the player wakes in bed, indoors (WP06)
+//   3. finish running station jobs (WP03)
+//   4. garden grows one night
+//   5. refill nodes, then mudlets (so mudlets keep clear of new nodes), on every owned plot
+//   6. player hearts
+//   7. demand recovery, trend pick, shop reset (WP04, WP06)
+//   8. emit morning
 // Pickups on the ground stay.
 export function morningReset(state: GameState, events: GameEvent[]): void {
   state.day += 1;
   state.phase = 'day';
   state.clock.t = 0;
+  const p = state.player;
+  Object.assign(p, { area: 'shop', x: COT.interactX, y: COT.interactY, facing: 'down', moving: false, knockTicks: 0, knockX: 0, knockY: 0 });
   finishJobs(state, events);
   growNight(state);
   state.plots.forEach((p, i) => {
@@ -60,8 +67,8 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
   state.plots.forEach((p, i) => {
     if (p.owned) refillCreatures(state, i);
   });
-  state.player.hearts = TUNING.player.hearts;
-  morningStall(state);
+  p.hearts = TUNING.player.hearts;
+  morningShop(state);
   events.push({ type: 'morning', day: state.day });
 }
 

@@ -3,21 +3,19 @@ import type { GameEvent } from '../core/events';
 import { botFrame } from '../core/bot';
 import { step } from '../core/step';
 import { neutralFrame } from '../core/commands';
-import { plotTileCenter } from '../core/world';
+import { shopTileCenter } from '../core/world';
 import { buildFrame, noKeys, type KeyState } from './input';
 import { closePanel, createSession, openPanel, pump, type Session } from './session';
 
 const MS = 1000 / 60;
 const keys = (k: Partial<KeyState> = {}): KeyState => ({ ...noKeys(), ...k });
 
-// A session with the player at the hut door, no mudlets.
-function atDoor(): Session {
+// A session with the player at the cot indoors, no mudlets.
+function atCot(): Session {
   const s = createSession({ seed: 1, debug: false, speed: 1, nosave: true, autoplay: false });
   s.state.creatures = [];
-  const door = plotTileCenter(0, 0, 2, 3);
-  s.state.player.x = door.x;
-  s.state.player.y = door.y;
-  s.state.player.facing = 'up';
+  const bed = shopTileCenter(18, 9);
+  Object.assign(s.state.player, { area: 'shop', x: bed.x, y: bed.y, facing: 'right' });
   step(s.state, neutralFrame());
   return s;
 }
@@ -34,7 +32,7 @@ const count = (ev: GameEvent[], type: GameEvent['type']): number => ev.filter((e
 
 describe('panel switch', () => {
   it('the C that opens a panel is not read as its confirm, and the sim is paused while it is open', () => {
-    const s = atDoor();
+    const s = atCot();
     const ev = frame(s, keys({ c: true }));
     expect(ev).toContainEqual({ type: 'uiRequest', ui: 'sleepConfirm' });
     // That frame's intents carry the C edge; opening consumes it.
@@ -49,7 +47,7 @@ describe('panel switch', () => {
   });
 
   it('confirming Sleep: one morning, no new uiRequest, commands land on the first tick after close', () => {
-    const s = atDoor();
+    const s = atCot();
     frame(s, keys({ c: true }));
     openPanel(s);
     frame(s);
@@ -69,7 +67,7 @@ describe('panel switch', () => {
   });
 
   it('closing with no commands (No / back) changes nothing but resumes the sim', () => {
-    const s = atDoor();
+    const s = atCot();
     frame(s, keys({ c: true }));
     openPanel(s);
     closePanel(s);

@@ -5,11 +5,12 @@ import type { GameEvent } from './events';
 import { spawnDrops } from './pickups';
 import { nextInt } from './rng';
 import type { GameState, NodeState } from './state';
-import { plotOrigin, tileAt, tileKind, TILE, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W } from './world';
+import { DOOR_OUTSIDE, DOOR_TILE, plotOrigin, tileAt, tileKind, TILE, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W } from './world';
 
 const S = TUNING.spawn;
 
-// World tiles within `clearance` of a structure footprint or interact tile; static, so baked once.
+// World tiles within `clearance` of a structure footprint or interact tile, or of the hut door and
+// the tile in front of it; static, so baked once.
 const NEAR_STRUCTURE = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
 {
   const mark = (tx: number, ty: number): void => {
@@ -22,11 +23,14 @@ const NEAR_STRUCTURE = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
     }
   };
   for (const s of WORLD_STRUCTURES) {
+    if (s.area !== 'world') continue;
     const tx = s.x / TILE;
     const ty = s.y / TILE;
     for (let j = 0; j < s.def.tiles.h; j++) for (let i = 0; i < s.def.tiles.w; i++) mark(tx + i, ty + j);
-    mark(tileAt(s.interactX), tileAt(s.interactY));
+    if (s.def.interact) mark(tileAt(s.interactX), tileAt(s.interactY));
   }
+  mark(DOOR_TILE.x, DOOR_TILE.y);
+  mark(DOOR_OUTSIDE.x, DOOR_OUTSIDE.y);
 }
 
 const cheb = (ax: number, ay: number, bx: number, by: number): number => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -37,13 +41,15 @@ export function isNearStructure(wtx: number, wty: number): boolean {
 
 // Free spawn tiles of a plot in row-major order: walkable grass in rows 0..maxRow, clear of
 // structures, nodes and creatures by `spawn.clearance`, and at least `minPlayerDist` tiles
-// (Chebyshev) from the player's tile.
+// (Chebyshev) from the player's tile; from the tile in front of the door while the player is
+// indoors, since that is where they come out.
 export function spawnTiles(state: GameState, plotIndex: number, maxRow: number, minPlayerDist: number): { tx: number; ty: number }[] {
   const plot = state.plots[plotIndex];
   if (!plot) return [];
   const o = plotOrigin(plot.gx, plot.gy);
-  const ptx = tileAt(state.player.x);
-  const pty = tileAt(state.player.y);
+  const outside = state.player.area === 'world';
+  const ptx = outside ? tileAt(state.player.x) : DOOR_OUTSIDE.x;
+  const pty = outside ? tileAt(state.player.y) : DOOR_OUTSIDE.y;
   const taken = [...state.nodes, ...state.creatures].map((e) => ({ tx: tileAt(e.x), ty: tileAt(e.y) }));
   const out: { tx: number; ty: number }[] = [];
   for (let ly = 0; ly <= maxRow; ly++) {
