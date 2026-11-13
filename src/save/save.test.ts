@@ -45,6 +45,14 @@ describe('save', () => {
     expect(deserialize(serialize(s, '0.1.3'), '0.1.0')).toEqual(s);
   });
 
+  it('a save written before stations existed loads with free stations and steps', () => {
+    const file = JSON.parse(serialize(played(), '0.1.0')) as { state: Partial<GameState> };
+    delete file.state.stations;
+    const s = deserialize(JSON.stringify(file), '0.1.0')!;
+    expect(s.stations).toEqual({ mortar: null, cauldron: null });
+    expect(() => step(s, neutralFrame())).not.toThrow();
+  });
+
   it('garbage and wrong shapes return null', () => {
     for (const bad of ['', '{', 'not json', 'null', '42', '"x"', '[]', '{"version":"0.1.0"}', '{"state":{}}', '{"version":1,"state":{}}']) {
       expect(deserialize(bad, '0.1.0'), bad).toBeNull();

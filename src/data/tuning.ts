@@ -147,6 +147,10 @@ export const TUNING = {
     pickupBobMs: 260,
     pickupBobPx: 1,
     pickupArcPx: 10,
+    // Progress bar over a busy station: size, and its gap above the sprite top.
+    stationBarW: 12,
+    stationBarH: 2,
+    stationBarGap: 2,
   },
   // Juice (specs/design.md), driven by core events.
   fx: {
@@ -182,6 +186,8 @@ export const TUNING = {
     sleepFadeMs: 500,
     sleepHoldMs: 500,
     eveningTintAlpha: 0.14,
+    // Potion done: a sparkle of glow bits from the cauldron's rim.
+    sparkleParticles: 7,
   },
   // Shared panel box (specs/design.md Screens): at most 220 px wide.
   panel: {
@@ -197,6 +203,8 @@ export const TUNING = {
     titleTextY: 80,
     titleScale: 2,
     titleMenuY: 160,
+    // Footer line under a list (the station quantity).
+    footerGap: 4,
   },
   hud: {
     heartGap: 1,

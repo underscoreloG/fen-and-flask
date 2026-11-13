@@ -10,6 +10,8 @@ import { addText } from '../font';
 import { confirmPanel, UI_DEPTH, type Panel } from '../ui/confirm';
 import { gardenPicker } from '../ui/gardenPicker';
 import { Hud } from '../ui/hud';
+import { notebook } from '../ui/notebook';
+import { stationPanel } from '../ui/stationPanel';
 import { SIM_EVENTS } from './GameScene';
 
 // HUD, screen tints and the panel host; the version label only in debug.
@@ -48,7 +50,15 @@ export class UIScene extends Phaser.Scene {
   update(): void {
     this.hud.update();
     this.tint.setVisible(this.session.state.phase === 'evening');
-    if (!this.panel) return;
+    if (!this.panel) {
+      // The notebook opens from the world on its own key, not from a uiRequest; never during a
+      // sleep fade (the switch is still on then).
+      if (this.session.intents.notebook && !this.session.panelOpen) {
+        this.panel = notebook(this, this.session.state);
+        openPanel(this.session);
+      }
+      return;
+    }
     const out = this.panel.update(this.session.intents);
     if (!out) return;
     this.panel.destroy();
@@ -79,6 +89,8 @@ export class UIScene extends Phaser.Scene {
         return confirmPanel(this, 'CALL IT A DAY?', [{ type: 'CallItADay' }]);
       case 'gardenPicker':
         return gardenPicker(this, this.session.state, req.bed);
+      case 'station':
+        return stationPanel(this, this.session.state, req.station);
     }
   }
 

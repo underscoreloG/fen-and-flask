@@ -7,6 +7,7 @@ import { PALETTE } from '../../data/palette';
 import { ticks, TUNING } from '../../data/tuning';
 import { plotAtTile, plotOrigin, TILE, WORLD_H, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W, WORLD_W } from '../../core/world';
 import { bedIndex, isReady } from '../../core/garden';
+import { STATION_KINDS, UNIT_TICKS } from '../../core/stations';
 import type { DeviceReader } from '../../input/devices';
 import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
@@ -20,7 +21,7 @@ const STRUCTURE_FRAME: Record<StructureKind, string> = {
   hut: 'hut',
   bed: 'bed_empty',
   mortar: 'mortar',
-  cauldron: 'cauldron_0',
+  cauldron: 'cauldron_idle',
   stall: 'stall',
   signpost: 'signpost',
 };
@@ -62,6 +63,8 @@ export class GameScene extends Phaser.Scene {
   private fx!: Fx;
   private swingUntil = -Infinity;
   private fogs: { gx: number; gy: number; rect: Phaser.GameObjects.Rectangle }[] = [];
+  // Progress bars over busy stations, redrawn every frame.
+  private stationBars!: Phaser.GameObjects.Graphics;
 
   constructor(session: Session, reader: DeviceReader) {
     super('game');
@@ -73,6 +76,7 @@ export class GameScene extends Phaser.Scene {
     this.drawGround();
     this.drawStructures();
     this.drawFog();
+    this.stationBars = this.add.graphics().setDepth(WORLD_H);
 
     const r = TUNING.render;
     this.playerShadow = this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(r.shadowAlpha).setDepth(DEPTH.shadow);
@@ -274,6 +278,22 @@ export class GameScene extends Phaser.Scene {
     return `bed_${isReady(bed) ? 'ready' : 'sprout'}_${bed.crop}`;
   }
 
+  // A bar over each busy station filling up toward its next unit: ink track, bone fill.
+  private drawStationBars(): void {
+    const r = TUNING.render;
+    const g = this.stationBars.clear();
+    for (const kind of STATION_KINDS) {
+      const job = this.session.state.stations[kind];
+      const view = this.structures.find((s) => s.kind === kind);
+      if (!job || !view) continue;
+      const x = Math.round(view.img.x - r.stationBarW / 2);
+      const y = Math.round(view.img.y - view.img.height - r.stationBarGap - r.stationBarH);
+      const fill = Math.round((r.stationBarW * job.progress) / UNIT_TICKS[kind]);
+      g.fillStyle(PALETTE.ink, 1).fillRect(x, y, r.stationBarW, r.stationBarH);
+      g.fillStyle(PALETTE.bone, 1).fillRect(x, y, fill, r.stationBarH);
+    }
+  }
+
   private syncWorld(): void {
     const r = TUNING.render;
     const { interactTarget, swingTarget } = this.session.state.player;
@@ -281,12 +301,16 @@ export class GameScene extends Phaser.Scene {
     if (this.waterTiles[0]?.frame.name !== waterFrame) {
       for (const t of this.waterTiles) t.setFrame(waterFrame);
     }
-    const cauldronFrame = `cauldron_${Math.floor(this.time.now / r.cauldronFrameMs) % 2}`;
+    // The cauldron bubbles only while it brews.
+    const cauldronFrame = this.session.state.stations.cauldron
+      ? `cauldron_${Math.floor(this.time.now / r.cauldronFrameMs) % 2}`
+      : STRUCTURE_FRAME.cauldron;
     for (const s of this.structures) {
       const base = s.kind === 'cauldron' ? cauldronFrame : s.kind === 'bed' ? this.bedFrame(s.id) : STRUCTURE_FRAME[s.kind];
       // A ready bed can also be the swing target.
       s.img.setFrame(interactTarget === s.id || swingTarget === s.id ? `${base}_hl` : base);
     }
+    this.drawStationBars();
     for (const f of this.fogs) {
       const owned = this.session.state.plots.find((p) => p.gx === f.gx && p.gy === f.gy)?.owned ?? false;
       f.rect.setVisible(!owned);

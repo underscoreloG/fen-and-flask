@@ -165,6 +165,10 @@ export function interact(state: GameState, events: GameEvent[]): void {
     case 'bed':
       interactBed(state, bedIndex(s.def.id), events);
       break;
+    case 'mortar':
+    case 'cauldron':
+      events.push({ type: 'uiRequest', ui: 'station', station: s.def.kind });
+      break;
     default:
       break;
   }

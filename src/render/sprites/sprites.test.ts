@@ -29,6 +29,7 @@ describe('sprites', () => {
     expect(size('mortar')).toEqual([16, 16]);
     expect(size('cauldron_0')).toEqual([16, 20]);
     expect(size('cauldron_1')).toEqual([16, 20]);
+    expect(size('cauldron_idle')).toEqual([16, 20]);
     expect(size('stall')).toEqual([48, 32]);
     expect(size('signpost')).toEqual([16, 24]);
     expect(size('bed_empty')).toEqual([16, 16]);
@@ -67,6 +68,14 @@ describe('sprites', () => {
       if (!/^(node_|mudlet_)/.test(name)) continue;
       const edge = [s.rows[0]!, s.rows[s.h - 1]!, ...s.rows.map((r) => r[0]! + r[s.w - 1]!)].join('');
       expect(edge.replace(/[.bk]/g, ''), name).toBe('');
+    }
+  });
+
+  it('the cauldron frames keep a clear bottom row, so the ink outline closes under the base', () => {
+    for (const k of ['cauldron_0', 'cauldron_1', 'cauldron_idle']) {
+      const s = SPRITES[k]!;
+      expect(s.rows[s.h - 1]!.replace(/[.k]/g, ''), k).toBe('');
+      expect(s.rows[s.h - 1]!.includes('k'), k).toBe(true);
     }
   });
 
