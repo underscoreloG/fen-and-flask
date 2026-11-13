@@ -1,9 +1,10 @@
 // Notebook (specs/design.md Screens), opened with V / pad Y from the world: page 1 the grind and
-// brew recipes, page 2 the prices. Left/right turns the page; back or V again closes it.
+// brew recipes, page 2 the prices and today's order, page 3 the customer types met (specs/wp/WP09).
+// Left/right turns the page; back or V again closes it.
 import type Phaser from 'phaser';
 import { POTION_IDS } from '../../core/shop';
 import type { GameState } from '../../core/state';
-import { BREW_RECIPES, CAULDRON_FUEL, GRIND_RECIPES, ITEMS, type ItemId } from '../../data/content';
+import { BREW_RECIPES, CAULDRON_FUEL, CUSTOMER_TYPES, GRIND_RECIPES, ITEMS, type ItemId } from '../../data/content';
 import type { Token } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
 import { addText } from '../font';
@@ -39,7 +40,7 @@ function recipesPage(): NoteLine[] {
 }
 
 // Page 2: per potion owned or ever offered, its last prices with the reaction each got, then
-// today's trend ("-" on day 1).
+// today's trend ("-" on day 1) and today's order.
 export function pricesPage(state: GameState): NoteLine[] {
   const st = state.shop;
   const shown = POTION_IDS.filter((p) => state.inventory[p] > 0 || st.history[p].length > 0);
@@ -52,6 +53,20 @@ export function pricesPage(state: GameState): NoteLine[] {
   }
   const trend: NotePart[] = st.trend ? [icon(st.trend), { text: itemName(st.trend) }] : [{ text: '-' }];
   lines.push([{ text: 'IN DEMAND TODAY:', token: 'coin' }, ...trend]);
+  const o = state.order;
+  const order: NotePart[] = o.done
+    ? [{ text: 'DONE' }]
+    : [{ text: String(o.qty) }, icon(o.item), { text: itemName(o.item) }, { text: 'FOR' }, { text: String(o.pay), token: 'coin' }];
+  lines.push([{ text: 'ORDER:', token: 'coin' }, ...order]);
+  return lines;
+}
+
+// Page 3: each customer type that has paid at least once, its look and name, its trait below.
+export function customersPage(state: GameState): NoteLine[] {
+  const met = CUSTOMER_TYPES.filter((t) => state.shop.met.includes(t.id));
+  const lines: NoteLine[] = [[{ text: 'CUSTOMERS', token: 'coin' }]];
+  if (met.length === 0) lines.push([{ text: 'NONE MET YET' }]);
+  for (const t of met) lines.push([{ icon: `face_${t.id}` }, { text: t.name }], [{ text: `  ${t.trait}` }]);
   return lines;
 }
 
@@ -59,7 +74,7 @@ const partW = (p: NotePart): number => ('icon' in p ? ICON : p.text.length * CHA
 const lineW = (l: NoteLine): number => l.reduce((a, p, i) => a + partW(p) + (i > 0 ? K.iconGap : 0), 0);
 
 export function notebook(scene: Phaser.Scene, state: GameState): Panel {
-  const pages = [recipesPage(), pricesPage(state)];
+  const pages = [recipesPage(), pricesPage(state), customersPage(state)];
   const title = (i: number): string => `NOTEBOOK ${i + 1}/${pages.length}`;
   // One box size for every page, so turning a page does not make it jump.
   const inner = Math.max(title(0).length * CHAR_W, ...pages.flat().map(lineW));

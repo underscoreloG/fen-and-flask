@@ -1,28 +1,42 @@
-// Customer sprites: shoppers (16x24, front, back and side, 2-frame walk, 3 looks) recoloured from
-// the player's frames, the waiting bubble, and the 4 reaction bubbles. Each reaction has its own fill token and
+// Customer sprites: shoppers (16x24, front, back and side, 2-frame walk, one look per customer
+// type of specs/wp/WP09) recoloured from the player's frames, their 8x8 faces for the notebook,
+// the waiting bubble, and the 4 reaction bubbles. Each reaction has its own fill token and
 // its own glyph, so they read apart at a glance: delighted = emberhot with a red heart,
 // happy = mint with a smile, grumbling = ember with a zigzag mouth, refuses = heart red with a
 // bone X. World bubbles are 12x12 with a tail; the `react_` icons are the 8x8 notebook versions.
+import type { CustomerType } from '../../data/content';
 import { grid, rect, stamp, toRows } from './format';
 import { PLAYER_SPRITES } from './player';
 
-// Hat, coat, coat light, coat dark of each look (never plum: creatures only).
-const LOOKS: readonly Record<string, string>[] = [
-  { r: 'O', w: 'e', W: 'E', D: 'o' },
-  { r: 'u', w: 'n', W: 'G', D: 'g' },
-  { r: 'b', w: 'u', W: 's', D: 'p' },
-];
+// Hat (r), coat (w), coat light (W), coat dark (D) of each type, one hue each so they read apart at
+// 16 px: the traveller in an ember coat under a wooden hat, the courier in night blue under a red
+// cap, the haggler in coin gold under a peat hat, the herbalist in grass green under a moss hat.
+// Never plum: creatures only.
+const LOOKS: Readonly<Record<CustomerType, Record<string, string>>> = {
+  traveller: { r: 'O', w: 'e', W: 'E', D: 'o' },
+  courier: { r: 'h', w: 'N', W: 'W', D: 'D' },
+  haggler: { r: 'p', w: '$', W: 'E', D: 'o' },
+  herbalist: { r: 'm', w: 'g', W: 'G', D: 'm' },
+};
 
 const recolor = (rows: readonly string[], map: Record<string, string>): string[] =>
   rows.map((row) => [...row].map((ch) => map[ch] ?? ch).join(''));
 
-// customer_<look>_<down|up|side>_<frame>; side faces right, like the player's.
+// customer_<type>_<down|up|side>_<frame>; side faces right, like the player's.
 export const CUSTOMER_SPRITES: Record<string, readonly string[]> = Object.fromEntries(
-  LOOKS.flatMap((map, v) =>
+  Object.entries(LOOKS).flatMap(([type, map]) =>
     ['down', 'up', 'side'].flatMap((dir) =>
-      [0, 1].map((f) => [`customer_${v}_${dir}_${f}`, recolor(PLAYER_SPRITES[`player_${dir}_${f}`]!, map)]),
+      [0, 1].map((f) => [`customer_${type}_${dir}_${f}`, recolor(PLAYER_SPRITES[`player_${dir}_${f}`]!, map)]),
     ),
   ),
+);
+
+// face_<type>, 8x8 with its own ink for the notebook: the hat and its brim, the face, the coat.
+export const FACE_SPRITES: Record<string, readonly string[]> = Object.fromEntries(
+  Object.entries(LOOKS).map(([type, map]) => [
+    `face_${type}`,
+    recolor(['..kkkk..', '.krrrrk.', 'krrrrrrk', '.kssssk.', '.kksskk.', '..kssk..', '.kDwwDk.', 'kDwwwwDk'], map),
+  ]),
 );
 
 // Waiting at the counter: a bone bubble, 12x14, whose inside (from (2,1), 8x8) holds the icon of
@@ -43,7 +57,6 @@ function waitBubble(): string[] {
   return toRows(g);
 }
 
-export const CUSTOMER_LOOKS = LOOKS.length;
 
 // 12x12: a rounded box (rows 0-9) with a tail under its middle; glyphs go in the 8x6 inside.
 function bubble(fill: string, glyph: readonly string[]): string[] {

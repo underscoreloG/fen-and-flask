@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CROPS, ITEM_IDS, NODES } from '../../data/content';
+import { CROPS, CUSTOMER_TYPES, ITEM_IDS, NODES } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { CLEAR, LEGEND } from './format';
 import { FONT_CHARS, GLYPHS } from './glyphs';
@@ -63,14 +63,40 @@ describe('sprites', () => {
     expect(size('clock_dial')).toEqual([8, 8]);
   });
 
-  it('has the customers (3 looks, front, back and side, 2-frame walk) and 4 reaction bubbles, world and icon', () => {
+  it('has the customers (a look per type, front, back and side, 2-frame walk, an 8x8 face) and 4 reaction bubbles, world and icon', () => {
     const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
-    for (const v of [0, 1, 2]) {
-      for (const dir of ['down', 'up', 'side']) for (const f of [0, 1]) expect(size(`customer_${v}_${dir}_${f}`)).toEqual([16, 24]);
+    const types = CUSTOMER_TYPES.map((t) => t.id);
+    expect(types).toHaveLength(4);
+    for (const v of types) {
+      for (const dir of ['down', 'up', 'side']) {
+        for (const f of [0, 1]) {
+          const k = `customer_${v}_${dir}_${f}`;
+          expect(size(k), k).toEqual([16, 24]);
+          // Never the player's coat, never plum (creatures only).
+          expect(SPRITES[k]!.rows.join(''), k).not.toMatch(/[wqQ]/);
+        }
+      }
+      expect(size(`face_${v}`)).toEqual([8, 8]);
+      expect(SPRITES[`face_${v}`]!.rows.join('')).not.toMatch(/[wqQ]/);
     }
-    // Front and back differ, and a customer never wears the player's coat.
-    expect(SPRITES.customer_0_down_0!.rows).not.toEqual(SPRITES.customer_0_up_0!.rows);
-    for (const v of [0, 1, 2]) expect(SPRITES[`customer_${v}_down_0`]!.rows.join('')).not.toContain('w');
+    // Front and back differ; the walk has two frames.
+    expect(SPRITES.customer_traveller_down_0!.rows).not.toEqual(SPRITES.customer_traveller_up_0!.rows);
+    expect(SPRITES.customer_traveller_side_0!.rows).not.toEqual(SPRITES.customer_traveller_side_1!.rows);
+    // Readable at a glance: every type's hat and coat differ from every other's, frame by frame.
+    const hatAndCoat = (k: string): string => SPRITES[k]!.rows.slice(0, 19).join('');
+    for (const dir of ['down', 'up', 'side']) {
+      const looks = new Set(types.map((v) => hatAndCoat(`customer_${v}_${dir}_0`)));
+      expect(looks.size, dir).toBe(4);
+    }
+    // The coat (the most common color of the front frame's body rows) is a different token per type.
+    const coat = (v: string): string => {
+      const n = new Map<string, number>();
+      for (const ch of SPRITES[`customer_${v}_down_0`]!.rows.slice(11, 19).join('')) if (ch !== '.' && ch !== 'k') n.set(ch, (n.get(ch) ?? 0) + 1);
+      return [...n.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    };
+    expect(new Set(types.map(coat)).size).toBe(4);
+    const hat = (v: string): string => SPRITES[`customer_${v}_down_0`]!.rows[2]![6]!;
+    expect(new Set(types.map(hat)).size).toBe(4);
     expect(size('bubble_wait')).toEqual([12, 14]);
     const fills = new Set<string>();
     for (const r of ['delighted', 'happy', 'grumbling', 'refuses']) {
@@ -148,8 +174,19 @@ describe('sprites', () => {
     }
   });
 
-  it('the stand, the stone mortar and the crate keep a 1 px clear margin, so their outline closes all around', () => {
-    for (const name of ['catalog', 'catalog_hl', 'mortar_stone', 'mortar_stone_hl', 'crate']) {
+  it('has the WP09 order board, 16x24 with its target outline, hung clear of the floor', () => {
+    const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
+    expect(size('order_board')).toEqual([16, 24]);
+    expect(size('order_board_hl')).toEqual([16, 24]);
+    expect(SPRITES.order_board!.rows.join('')).toContain('k');
+    expect(SPRITES.order_board_hl!.rows.join('')).toContain('b');
+    // Its lower rows are clear: it hangs on the wall above the wainscot.
+    for (const r of SPRITES.order_board!.rows.slice(16)) expect(r.replace(/\./g, '')).toBe('');
+    expect(BACK_WALL[5]).toBe('wall_plain');
+  });
+
+  it('the stand, the stone mortar, the crate and the order board keep a 1 px clear margin, so their outline closes all around', () => {
+    for (const name of ['catalog', 'catalog_hl', 'mortar_stone', 'mortar_stone_hl', 'crate', 'order_board', 'order_board_hl']) {
       const s = SPRITES[name]!;
       const edge = [s.rows[0]!, s.rows[s.h - 1]!, ...s.rows.map((r) => r[0]! + r[s.w - 1]!)].join('');
       expect(edge.replace(/[.bk]/g, ''), name).toBe('');

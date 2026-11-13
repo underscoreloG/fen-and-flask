@@ -28,6 +28,8 @@ export type Command =
   | { type: 'BuyPlot'; plot: number }
   // At the catalog stand: not owned, not pending, its requirement owned, coins enough.
   | { type: 'BuyUpgrade'; id: CatalogId }
+  // At the order board: today's order, not done, with its potions in the inventory.
+  | { type: 'DeliverOrder' }
   // Hidden test menu (F2); no target needed.
   | { type: 'Cheat'; cheat: CheatId };
 

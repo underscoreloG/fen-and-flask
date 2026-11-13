@@ -6,6 +6,7 @@ import type { GameEvent } from './events';
 import { growNight } from './garden';
 import { basketToad, gardenToad } from './helpers';
 import { refillPlot } from './nodes';
+import { checkM2Goal, postOrder } from './orders';
 import { closeShop, morningShop } from './shop';
 import { finishJobs } from './stations';
 import type { GameState, Phase } from './state';
@@ -86,8 +87,10 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
   p.hearts = TUNING.player.hearts;
   // 11.
   morningShop(state);
-  // 12. the daily order (WP09)
-  // 13. the M2 goal check (WP09)
+  // 12.
+  postOrder(state, events);
+  // 13.
+  checkM2Goal(state, events);
   // 14.
   events.push({ type: 'morning', day: state.day });
 }

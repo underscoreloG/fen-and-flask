@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CREATURES, CROPS, GRIND_RECIPES, ITEMS, NODES, PLOTS, PLOT_LAYOUTS, SHOP_LAYOUT } from './content';
+import { CREATURES, CROPS, CUSTOMER_TYPES, GRIND_RECIPES, ITEMS, NODES, PLOTS, PLOT_LAYOUTS, SHOP_LAYOUT } from './content';
 import { PALETTE, hex } from './palette';
 import { ticks, TUNING } from './tuning';
 
@@ -103,6 +103,6 @@ describe('content', () => {
     expect(at('cauldron')).toMatchObject({ tiles: { x: 18, y: 3 }, solid: true, interact: { x: 18, y: 4 }, hint: 'BREW' });
     expect(at('cot')).toMatchObject({ tiles: { x: 19, y: 9, w: 2, h: 1 }, solid: true, interact: { x: 18, y: 9 }, hint: 'SLEEP' });
     expect(TUNING.shop).toMatchObject({ shelfCapacity: 5, maxIndoors: 2, customerSpeed: 40 });
-    expect([ticks(TUNING.shop.enterGap), ticks(TUNING.shop.patience), ticks(TUNING.stall.reactionTime)]).toEqual([150, 1800, 48]);
+    expect([ticks(TUNING.shop.enterGap), ticks(CUSTOMER_TYPES.find((t) => t.id === 'traveller')!.patience), ticks(TUNING.stall.reactionTime)]).toEqual([150, 1800, 48]);
   });
 });

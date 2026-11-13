@@ -7,7 +7,7 @@ import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
 import { nodeDef, nodeHits } from './nodes';
 import { nextFloat } from './rng';
-import { customersFor } from './shop';
+import { customersFor, PATIENCE_TICKS } from './shop';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
 import { plotOrigin, plotTileCenter, SHOP_TX, SHOP_TY, shopTileCenter, tileAt } from './world';
@@ -248,6 +248,7 @@ function oneBuyer(qty: number, deep: boolean, double: boolean): GameState {
   inside(s, 3, 7, 'down');
   expect(s.shop.customers).toHaveLength(1);
   s.shop.customers[0]!.personal = 1;
+  s.shop.customers[0]!.type = 'traveller';
   s.shop.customersLeft = 0;
   s.rng = rngFor(double);
   return s;
@@ -311,7 +312,7 @@ describe('deep tables', () => {
     const s = oneBuyer(8, true, true);
     untilQueued(s);
     s.shop.shelves[0]!.count = 7;
-    const ev = run(s, TUNING.shop.patience * TUNING.sim.tickRate + 5);
+    const ev = run(s, PATIENCE_TICKS + 5);
     expect(ev.filter((e) => e.type === 'customerLeftUnpaid')).toHaveLength(1);
     expect(s.shop.shelves[0]).toEqual({ item: 'tonic', count: 8 });
     expect(s.inventory.tonic).toBe(1);

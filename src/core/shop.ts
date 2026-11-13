@@ -6,6 +6,7 @@ import {
   CATALOG,
   CAULDRON_FUEL,
   CREATURES,
+  CUSTOMER_TYPES,
   GOAL_POTION,
   GRIND_RECIPES,
   ITEM_IDS,
@@ -13,6 +14,8 @@ import {
   NODES,
   PLOTS,
   SHOP_LAYOUT,
+  type CustomerType,
+  type CustomerTypeDef,
   type ItemId,
   type PotionId,
 } from '../data/content';
@@ -38,7 +41,13 @@ export const POTION_IDS: readonly PotionId[] = BREW_RECIPES.map((r) => r.potion)
 
 export const REACT_TICKS = ticks(S.reactionTime);
 export const ENTER_GAP_TICKS = ticks(SH.enterGap);
-export const PATIENCE_TICKS = ticks(SH.patience);
+
+const typeDef = (type: CustomerType = 'traveller'): CustomerTypeDef => CUSTOMER_TYPES.find((t) => t.id === type)!;
+
+// Ticks a customer of this type waits at the counter before leaving unpaid (specs/wp/WP09).
+export const patienceTicks = (type?: CustomerType): number => ticks(typeDef(type).patience);
+// The traveller's: the plain customer of WP06.
+export const PATIENCE_TICKS = patienceTicks('traveller');
 const STEP = SH.customerSpeed / TUNING.sim.tickRate;
 
 export const SHELVES = WORLD_STRUCTURES.filter((s) => s.def.kind === 'shelf');
@@ -57,6 +66,9 @@ export interface Customer {
   path: number[];
   // The shelf it is visiting, or visited.
   shelf: number;
+  // Rolled on entry, before the shelf and the mood (specs/wp/WP09); missing in older states, read
+  // as a traveller.
+  type?: CustomerType;
   // Mood, rolled on entry (0.95-1.05).
   personal: number;
   // Ticks into the look.
@@ -103,6 +115,8 @@ export interface ShopState {
   // This evening's payments.
   soldCount: number;
   soldCoins: number;
+  // Customer types that have paid at least once, in the order met (the notebook's page 3).
+  met: CustomerType[];
 }
 
 const perItem = <T>(f: (i: ItemId) => T): Record<ItemId, T> => Object.fromEntries(ITEM_IDS.map((i) => [i, f(i)])) as Record<ItemId, T>;
@@ -128,6 +142,7 @@ export function createShop(): ShopState {
     entered: 0,
     soldCount: 0,
     soldCoins: 0,
+    met: [],
   };
 }
 
@@ -153,10 +168,41 @@ export function judge(price: number, value: number): Reaction {
   return 'refuses';
 }
 
-// A customer with this personal mood (0.95-1.05) seeing `price` on `item`.
-export function reactTo(state: GameState, item: ItemId, price: number, personal: number): { reaction: Reaction; sold: boolean } {
-  const reaction = judge(price, itemValue(state, item) * personal);
+const isPotion = (item: ItemId): boolean => ITEMS.find((i) => i.id === item)!.kind === 'potion';
+
+// How much more (or less) a customer type values an item than a traveller.
+export function typeMultiplier(type: CustomerType, item: ItemId): number {
+  const t = typeDef(type);
+  return isPotion(item) ? t.potions : t.herbs;
+}
+
+// A customer of `type` with this personal mood (0.95-1.05) seeing `price` on `item`.
+export function reactTo(
+  state: GameState,
+  item: ItemId,
+  price: number,
+  personal: number,
+  type: CustomerType = 'traveller',
+): { reaction: Reaction; sold: boolean } {
+  const reaction = judge(price, itemValue(state, item) * personal * typeMultiplier(type, item));
   return { reaction, sold: reaction !== 'refuses' };
+}
+
+// One state RNG roll, weighted by the type table.
+export function rollType(state: GameState): CustomerType {
+  const total = CUSTOMER_TYPES.reduce((w, t) => w + t.weight, 0);
+  let r = nextInt(state, 0, total - 1);
+  return CUSTOMER_TYPES.find((t) => (r -= t.weight) < 0)!.id;
+}
+
+// The table a customer of `type` heads for: uniform among the stocked ones, a herbalist's among
+// those holding a raw or ground item when there is one. One RNG roll; null with nothing stocked.
+export function pickShelf(state: GameState, type: CustomerType = 'traveller'): number | null {
+  const stocked = stockedShelves(state);
+  if (stocked.length === 0) return null;
+  const herbs = typeDef(type).prefersHerbs ? stocked.filter((i) => !isPotion(state.shop.shelves[i]!.item!)) : [];
+  const pool = herbs.length > 0 ? herbs : stocked;
+  return pool[nextInt(state, 0, pool.length - 1)]!;
 }
 
 // 6, +2 per extra plot, + what the owned catalog items draw (tables and signs).
@@ -281,7 +327,15 @@ function finish(state: GameState, events: GameEvent[]): void {
   events.push({ type: 'stallClosed', soldCount: sh.soldCount, soldCoins: sh.soldCoins });
 }
 
-// Every unit carried is paid at the fixed price and drops demand; a grumble costs extra once.
+// The M1 goal: the first Ember Elixir paid for, at the counter or delivered to the order board.
+export function reachM1Goal(state: GameState, item: ItemId, events: GameEvent[]): void {
+  if (item !== GOAL_POTION || state.flags.m1Goal) return;
+  state.flags.m1Goal = true;
+  events.push({ type: 'goalReached' });
+}
+
+// Every unit carried is paid at the fixed price and drops demand; a grumble costs extra once. The
+// first payment of a type puts it in the notebook.
 function pay(state: GameState, c: Customer, events: GameEvent[]): void {
   const sh = state.shop;
   const item = c.item;
@@ -294,10 +348,9 @@ function pay(state: GameState, c: Customer, events: GameEvent[]): void {
   const drop = D.perSale * qty + (c.reaction === 'grumbling' ? S.grumbleDemandPenalty : 0);
   sh.demand[item] = Math.max(D.floor, sh.demand[item] - drop);
   events.push({ type: 'sale', item, price: c.price, qty });
-  if (item === GOAL_POTION && !state.flags.m1Goal) {
-    state.flags.m1Goal = true;
-    events.push({ type: 'goalReached' });
-  }
+  const type = c.type ?? 'traveller';
+  if (!sh.met.includes(type)) sh.met.push(type);
+  reachM1Goal(state, item, events);
 }
 
 // --- Walking ---------------------------------------------------------------------
@@ -382,9 +435,9 @@ function advanceQueue(state: GameState): void {
 }
 
 function goToShelf(state: GameState, c: Customer): boolean {
-  const stocked = stockedShelves(state);
-  if (stocked.length === 0) return false;
-  c.shelf = stocked[nextInt(state, 0, stocked.length - 1)]!;
+  const shelf = pickShelf(state, c.type);
+  if (shelf === null) return false;
+  c.shelf = shelf;
   c.mode = 'toShelf';
   routeTo(state, c, SHELF_SPOTS[c.shelf]!);
   return true;
@@ -411,6 +464,7 @@ function enter(state: GameState): void {
     spot: -1,
     waited: -1,
   };
+  c.type = rollType(state);
   goToShelf(state, c);
   c.personal = nextRange(state, S.personalMin, S.personalMax);
   sh.customers.push(c);
@@ -431,7 +485,7 @@ function arriveAtShelf(state: GameState, c: Customer, events: GameEvent[]): void
     return;
   }
   const price = sh.prices[item];
-  const { reaction, sold } = reactTo(state, item, price, c.personal);
+  const { reaction, sold } = reactTo(state, item, price, c.personal, c.type);
   events.push({ type: 'customerArrived', item });
   events.push({ type: 'customerReacted', item, price, reaction, sold });
   const h = sh.history[item];
@@ -468,7 +522,7 @@ function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void 
   if (c.holding && c.waited >= 0) {
     c.waited += 1;
     if (counterToad(state, c, events)) return;
-    if (c.waited >= PATIENCE_TICKS) {
+    if (c.waited >= patienceTicks(c.type)) {
       leaveUnpaid(state, c, events);
       return;
     }

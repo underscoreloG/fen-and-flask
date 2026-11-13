@@ -5,6 +5,7 @@ import type { Command, Frame } from './commands';
 import { updateCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { digUpBed, plant } from './garden';
+import { deliverOrder } from './orders';
 import { updatePickups } from './pickups';
 import { interact, swing, updateDoors, updateHurt, updatePlayer, updateTargets } from './player';
 import { buyPlot, clearShelf, closeStall, openShop, ringUp, setPrice, stockShelf, updateShop } from './shop';
@@ -52,6 +53,9 @@ function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
       break;
     case 'BuyUpgrade':
       buyUpgrade(state, c.id);
+      break;
+    case 'DeliverOrder':
+      deliverOrder(state, events);
       break;
     case 'Cheat':
       cheat(state, c.cheat, events);
