@@ -34,9 +34,18 @@ Audience: the user (adult, desktop). In-game text: English, short.
 
 **Fun gate** (the user answers after M1): "After reaching the Ember Elixir goal (about 20 minutes), do you want to keep playing another day?"
 
+### M2 shop progression (build this next; approved direction 2026-11-13)
+
+The user picked "Shop progression" after playing v0.2.1: things to spend coins on and reasons to come back tomorrow. No new land in this milestone.
+- WP07 (v0.3.0): a catalog in the shop, delivery next morning; upgrades for the shop floor (tables 5 and 6, deeper tables, signboard), the workshop (stone mortar, second cauldron) and gathering (copper sickle, two garden beds).
+- WP08 (v0.3.1): incremental automation through three helper toads ordered from the catalog (till, garden, basket), two of them with a second tier.
+- WP09 (v0.3.2): four customer types and a daily order; the milestone goal is owning the whole catalog.
+
+**Fun gate for M2**: "Do the catalog, the helpers and the orders make you want to keep playing until the shop is complete?"
+
 ### Later (one line each, do not build)
-- M2: unlock tree earned by doing, more plots and biomes, more creatures, tool upgrades, spending choices.
-- M3: real art swap (generated or hand-picked sprite sheets remapped to the color bible), music.
+- M3 candidates: more plots and biomes with new ingredients and potions, more creatures, an unlock tree earned by doing.
+- Art pass: real art swap (pixel-mcp or Pillow, to be compared on one screen first), music.
 - M4: touch controls, save export/import.
 
 ### Out of scope (do not build)
@@ -145,6 +154,10 @@ Size M: waves of one, in order, so there is never a second writer. The Owns colu
 | WP03 | Stations, recipes, notebook | WP02 | `src/core/stations.ts`, `src/render/ui/{stationPanel,notebook}.ts` | opus high | subagent |
 | WP04 | Stall, customers, demand, land purchase, east plot, M1 goal, bot and health test | WP03 | `src/core/{stall,bot}.ts`, `src/render/ui/{stallPanel,toast}.ts` | opus high | subagent |
 | WP05 | Audio, pause and mute, changelog, GitHub Pages workflow | WP04; sounds already in `public/audio/` (read-only) | `src/audio/**`, `src/render/ui/pause.ts`, `scripts/write-version.mjs`, `.github/**`, `CHANGELOG.md`, `README.md` | opus high | subagent |
+| WP06 | Shop interior (v0.2.0) | WP05 | see `specs/wp/WP06-shop-interior.md` | opus high | subagent |
+| WP07 | Catalog and upgrades (v0.3.0) | WP06 | `src/core/catalog.ts`, `src/render/ui/catalogPanel.ts` | opus high | subagent |
+| WP08 | Helpers: incremental automation (v0.3.1) | WP07 | `src/core/helpers.ts`, `src/render/sprites/toads.ts` | opus high | subagent |
+| WP09 | Customer types and the daily order (v0.3.2) | WP08 | `src/core/orders.ts`, `src/render/ui/orderPanel.ts` | opus high | subagent |
 
 ## 7. Gates
 

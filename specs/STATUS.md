@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
-Phase: 5   Size: M   Milestone: M1 + feedback batch (v0.2.0)   Updated: 2026-11-13
-Next action: the user decides the next milestone (brain recommendation given 2026-11-13: things to spend coins on and reasons to come back, before a full art pass). Write its WPs only after that answer.
+Phase: 3   Size: M   Milestone: M2 shop progression   Updated: 2026-11-13
+Next action: plan review of WP07-WP09 is running (fresh reviewer). On its report: save as specs/REVIEW-2026-11-13.md, fix, show the plan to the user and get approval BEFORE dispatching WP07.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -27,6 +27,9 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
 | WP03 Stations, notebook | merged | subagent | opus high | | wp/03-stations | verify green (98 tests). Browser, real keys: mortar panel grinds 3 mint into 3 paste, cauldron panel starts 3 tonics for 1 bogwood, notebook page 1 shows recipes, no console error |
 | WP04 Stall, land, goal, bot | merged | subagent | opus high | | wp/04-stall | verify green (128 tests). Health seeds 1-3: evening-1 coins 87, plot bought day 2, goal day 3, 0 faints. Browser: bot reaches the goal on day 3 (32000 ticks); with real keys the stall setup opens, tonic raised 10 -> 12 sells as happy, 6 potions sold for 79 coins, summary shown, no console error |
+| WP09 Customer types, daily order (v0.3.2) | todo | subagent | opus high | | | |
+| WP08 Helpers: toads (v0.3.1) | todo | subagent | opus high | | | |
+| WP07 Catalog and upgrades (v0.3.0) | todo | subagent | opus high | | | |
 | WP06 Shop interior (v0.2.0) | merged | subagent | opus high | | wp/06-shop | verify green (205 tests); health seeds 1-3 unchanged (87 coins, plot day 2, goal day 3, 0 unpaid). Headless Edge with real key events: walk in, stock shelves through the panel, open from the sign, ring up at the till (+10 coins), unserved customer leaves at 1800 ticks with the potion back on the shelf, sleep indoors to day 2, mortar panel indoors, walk out |
 | WP05 Audio, pause, Pages | merged | subagent | opus high | | wp/05-audio | verify green (160 tests). Browser: 16 audio files load (200), pause menu and mute work, no console error or warning |
 
@@ -56,3 +59,4 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 - 2026-11-13 the in-app browser tools stopped answering in this session (pane not open in any window). Browser gates now run through a headless Edge harness over the DevTools protocol (scratchpad cdp.cjs + a scenario file): real key events, 60 ticks/s, screenshots. Rebuild it from the ledger note if the scratchpad is gone: spawn msedge --headless=new --remote-debugging-port, Runtime.evaluate, Input.dispatchKeyEvent, Page.captureScreenshot.
 - Small leftovers seen in the gate: favicon.ico 404; the road at the bottom of the plot has no use now that customers appear at the shop door; the title hint still says only "C OR ENTER TO START".
 - 2026-11-13 v0.2.1 (user): the sign has one action, OPEN SHOP, which also ends the day; the CallItADay command and its confirm are removed (the bot now waits for its jobs by day and opens). Hidden test menu on F2 (command Cheat: coinsSmall, coinsBig, items, hearts, evening, morning, land; numbers in TUNING.cheat). The F2 key is read by UIScene directly, outside the input layer, on purpose. favicon 404 fixed with an empty data icon. Gate: 205 tests, health unchanged, headless Edge with real keys (F2 menu rows, open by day -> evening + open, next morning).
+- 2026-11-13 M2 chosen by the user: "Shop progression". Answers: upgrade groups Shop floor + Workshop + Gathering, "also some kind of automation but we should do something that is kinda incremental and fit to the game"; delivery next morning; customer types plus a daily order; no new land yet ("Not yet"). Brain design: catalog stand with 13 items (2740 coins in total), automation = three helper toads with tiers, four customer types, order board, M2 goal = whole catalog owned. Ships as 0.3.0, 0.3.1, 0.3.2 with saves kept inside 0.3.x (fillDefaults). The user never answered the fun gate in words; they keep steering, which the brain reads as engaged, not as a yes.
