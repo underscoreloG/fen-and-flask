@@ -4,7 +4,7 @@ import { TUNING } from '../data/tuning';
 import { morningReset, setPhase } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
-import { itemValue, PATIENCE_TICKS, reactTo } from './shop';
+import { itemValue, pathBetween, PATIENCE_TICKS, reactTo } from './shop';
 import { createInitialState, type CreatureState, type GameState } from './state';
 import { step } from './step';
 import { plotTileCenter, shopTileCenter, TILE, tileAt } from './world';
@@ -561,6 +561,27 @@ describe('customers', () => {
     expect(z.coins).toBe(7);
     expect(z.day).toBe(2);
     expect(z.shop.customers).toEqual([]);
+  });
+
+  it('customers walk from the door to every shelf, and from every shelf to both queue spots, never behind the counter', () => {
+    const W = 22;
+    const at = (x: number, y: number): number => y * W + x;
+    const routes: [number, number][] = [];
+    for (const x of SHELF_X) {
+      routes.push([at(7, 10), at(x, 5)]);
+      for (const q of [3, 4]) routes.push([at(x, 5), at(q, 9)]);
+      routes.push([at(x, 5), at(7, 10)]);
+    }
+    routes.push([at(4, 9), at(3, 9)], [at(3, 9), at(7, 10)]);
+    for (const [a, b] of routes) {
+      const path = pathBetween(a, b);
+      expect(path.at(-1), `${a} -> ${b}`).toBe(b);
+      for (const i of path) {
+        const x = i % W;
+        const y = Math.floor(i / W);
+        expect(y === 7 && x >= 1 && x <= 4, `${a} -> ${b} passes ${x},${y}`).toBe(false);
+      }
+    }
   });
 
   it('two in the queue: ring up spot 1, spot 2 steps forward still counting its patience, then rings up too', () => {

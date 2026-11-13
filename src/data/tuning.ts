@@ -299,6 +299,7 @@ export const TUNING = {
     // The back room's floor glows warm around a lit cauldron.
     glowAlpha: 0.35,
     glowPulseMs: 420,
+    glowPulseAmp: 0.25,
   },
   // The shelf panel's fields.
   shelfPanel: {

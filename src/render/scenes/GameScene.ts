@@ -164,8 +164,8 @@ export class GameScene extends Phaser.Scene {
     this.game.events.emit(SIM_EVENTS, events);
   }
 
-  // Outdoors the camera follows the player within the world; indoors it holds the room centered,
-  // on ink. A change of area snaps it (no glide across the map).
+  // Outdoors the camera follows the player within the world (which always fills the view);
+  // indoors it holds the room centered, on ink. A change of area snaps it (no glide across the map).
   private syncCamera(): void {
     const area = this.session.state.player.area;
     if (area === this.cameraArea) return;
@@ -174,9 +174,11 @@ export class GameScene extends Phaser.Scene {
     if (area === 'shop') {
       cam.stopFollow();
       cam.removeBounds();
+      cam.setBackgroundColor(PALETTE.ink);
       cam.centerOn((SHOP_TX + SHOP_W / 2) * TILE, (SHOP_TY + SHOP_H / 2) * TILE);
       return;
     }
+    cam.setBackgroundColor(PALETTE.deepwater);
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
     cam.startFollow(this.player, true, R.cameraLerp, R.cameraLerp);
     cam.centerOn(this.player.x, this.player.y);
@@ -220,13 +222,9 @@ export class GameScene extends Phaser.Scene {
     return null;
   }
 
-  // The interior, tile by tile, on an ink field that fills the view around it.
+  // The interior, tile by tile (the camera's ink background fills the view around it).
   private drawInterior(): void {
     const L = SHOP_LAYOUT;
-    const { viewW, viewH } = R;
-    const cx = (SHOP_TX + SHOP_W / 2) * TILE;
-    const cy = (SHOP_TY + SHOP_H / 2) * TILE;
-    this.add.rectangle(cx, cy, viewW * 2, viewH * 2, PALETTE.ink, 1).setDepth(DEPTH.water);
     const at = (tx: number, ty: number, frame: string, depth: number = DEPTH.ground): Phaser.GameObjects.Image =>
       this.add.image((SHOP_TX + tx) * TILE, (SHOP_TY + ty) * TILE, ATLAS, frame).setOrigin(0, 0).setDepth(depth);
     for (let tx = 0; tx < SHOP_W; tx++) at(tx, 0, BACK_WALL[tx] ?? 'wall_plain');
@@ -407,7 +405,7 @@ export class GameScene extends Phaser.Scene {
     // The cauldron bubbles, and its hearth glows on the floor, only while it brews.
     const brewing = state.stations.cauldron !== null;
     const cauldronFrame = brewing ? `cauldron_${Math.floor(this.time.now / R.cauldronFrameMs) % 2}` : STRUCTURE_FRAME.cauldron;
-    const pulse = 1 + Math.sin(this.time.now / V.glowPulseMs) / 4;
+    const pulse = 1 + Math.sin(this.time.now / V.glowPulseMs) * V.glowPulseAmp;
     this.hearth.setAlpha(brewing ? V.glowAlpha * pulse : 0);
     const signFrame = state.shop.phase === 'open' ? 'sign_open' : 'sign_closed';
     for (const s of this.structures) {

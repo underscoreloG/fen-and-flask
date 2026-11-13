@@ -270,11 +270,19 @@ function pay(state: GameState, c: Customer, events: GameEvent[]): void {
 
 const L = SHOP_LAYOUT;
 const idx = (t: { x: number; y: number }): number => t.y * SHOP_W + t.x;
+// Behind the counter is the shopkeeper's side: the row of its interact tile, from the tile
+// before the counter to its end. Customers never walk there.
+const COUNTER = WORLD_STRUCTURES.find((s) => s.def.kind === 'counter')!;
+const STAFF_Y = tileAt(COUNTER.interactY) - SHOP_TY;
+const STAFF_X0 = COUNTER.def.tiles.x - 1;
+const STAFF_X1 = COUNTER.def.tiles.x + COUNTER.def.tiles.w - 1;
+const customerBlocked = (x: number, y: number): boolean => isShopTileSolid(x, y) || (y === STAFF_Y && x >= STAFF_X0 && x <= STAFF_X1);
 const SHELF_SPOTS = SHELVES.map((s) => ({ x: tileAt(s.interactX) - SHOP_TX, y: tileAt(s.interactY) - SHOP_TY }));
 const QUEUE_SPOTS = L.queue;
 
-// Shortest 4-connected path over the interior's floor, from tile a (excluded) to tile b.
-function pathBetween(a: number, b: number): number[] {
+// Shortest 4-connected path over the customers' floor, from tile a (excluded) to tile b, as
+// shop-local tile indexes.
+export function pathBetween(a: number, b: number): number[] {
   const parent = new Int16Array(SHOP_W * SHOP_H).fill(-1);
   parent[a] = a;
   const queue = [a];
@@ -283,7 +291,7 @@ function pathBetween(a: number, b: number): number[] {
     const x = i % SHOP_W;
     const next = [i - SHOP_W, i + SHOP_W, x > 0 ? i - 1 : -1, x < SHOP_W - 1 ? i + 1 : -1];
     for (const j of next) {
-      if (j < 0 || j >= SHOP_W * SHOP_H || parent[j] !== -1 || isShopTileSolid(j % SHOP_W, Math.floor(j / SHOP_W))) continue;
+      if (j < 0 || j >= SHOP_W * SHOP_H || parent[j] !== -1 || customerBlocked(j % SHOP_W, Math.floor(j / SHOP_W))) continue;
       parent[j] = i;
       queue.push(j);
     }
