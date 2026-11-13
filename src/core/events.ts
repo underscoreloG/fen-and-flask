@@ -2,9 +2,14 @@
 // deliberately no per-tick event. Positions are world px (feet centers).
 import type { CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
 import type { Facing } from './state';
+import type { StationKind } from './stations';
 
 // What the core asks the UI to open; later WPs add members (stations, stall, buy plot).
-export type UiRequest = { ui: 'sleepConfirm' } | { ui: 'callItADayConfirm' } | { ui: 'gardenPicker'; bed: number };
+export type UiRequest =
+  | { ui: 'sleepConfirm' }
+  | { ui: 'callItADayConfirm' }
+  | { ui: 'gardenPicker'; bed: number }
+  | { ui: 'station'; station: StationKind };
 
 export type GameEvent =
   // Every swing that actually plays; targetId is null for a swing at the air, a bed's
@@ -26,4 +31,9 @@ export type GameEvent =
   // Once per day, whatever switched it (timer, CallItADay, debug).
   | { type: 'eveningStarted'; day: number }
   // After the morning reset; day is the new day.
-  | { type: 'morning'; day: number };
+  | { type: 'morning'; day: number }
+  // Station jobs; item is the output (a ground item or a potion). One jobUnitDone per unit,
+  // jobFinished on the tick of the last one.
+  | { type: 'jobStarted'; station: StationKind; item: ItemId; qty: number }
+  | { type: 'jobUnitDone'; station: StationKind; item: ItemId }
+  | { type: 'jobFinished'; station: StationKind };

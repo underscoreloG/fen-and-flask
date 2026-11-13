@@ -1,6 +1,7 @@
 // localStorage save (specs/content.md, Save): the whole GameState plus the game version.
 // Called from the render side only; ?nosave=1 is checked by the callers.
 import type { GameState } from '../core/state';
+import { createStations } from '../core/stations';
 import { SAVE_KEY } from '../data/content';
 import { APP_VERSION } from '../data/version';
 
@@ -28,7 +29,15 @@ export function deserialize(json: string, version: string): GameState | null {
   const f = file as Partial<SaveFile>;
   if (typeof f.version !== 'string' || typeof f.state !== 'object' || f.state === null) return null;
   if (majorMinor(f.version) !== majorMinor(version)) return null;
-  return f.state;
+  return withDefaults(f.state);
+}
+
+// Fields added after a save was written (same major.minor) get their new-game value, in place so
+// the key order of an up-to-date save is untouched.
+function withDefaults(state: GameState): GameState {
+  const s = state as Partial<GameState>;
+  if (s.stations === undefined) s.stations = createStations();
+  return state;
 }
 
 // Private mode or blocked storage must never break the game: every access is guarded.

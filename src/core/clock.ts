@@ -4,6 +4,7 @@ import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { growNight } from './garden';
 import { refillPlot } from './nodes';
+import { finishJobs } from './stations';
 import type { GameState, Phase } from './state';
 import { targetStructure } from './world';
 
@@ -48,6 +49,7 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
   state.day += 1;
   state.phase = 'day';
   state.clock.t = 0;
+  finishJobs(state, events);
   growNight(state);
   state.plots.forEach((p, i) => {
     if (p.owned) refillPlot(state, i);

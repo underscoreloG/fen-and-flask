@@ -27,10 +27,23 @@ export function spawnDrops(state: GameState, item: ItemId, n: number, x: number,
         break;
       }
     }
-    const id = state.nextId++;
-    state.pickups.push({ id, item, x: px, y: py, fromX: x, fromY: y, landing: LAND });
-    events.push({ type: 'pickupSpawned', id, item, x: px, y: py, fromX: x, fromY: y });
+    spawnPickup(state, item, px, py, x, y, events);
   }
+}
+
+// One pickup landing at (x, y), arcing out from (fromX, fromY). Uses no RNG.
+export function spawnPickup(
+  state: GameState,
+  item: ItemId,
+  x: number,
+  y: number,
+  fromX: number,
+  fromY: number,
+  events: GameEvent[],
+): void {
+  const id = state.nextId++;
+  state.pickups.push({ id, item, x, y, fromX, fromY, landing: LAND });
+  events.push({ type: 'pickupSpawned', id, item, x, y, fromX, fromY });
 }
 
 export function updatePickups(state: GameState, events: GameEvent[]): void {

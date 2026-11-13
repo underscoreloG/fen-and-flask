@@ -6,6 +6,7 @@ import { refillCreatures } from './creatures';
 import { createGarden } from './garden';
 import { refillPlot } from './nodes';
 import { seedRng } from './rng';
+import { createStations, type Stations } from './stations';
 import { plotTileCenter } from './world';
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
@@ -107,6 +108,7 @@ export interface GameState {
   creatures: CreatureState[];
   pickups: PickupState[];
   garden: BedState[];
+  stations: Stations;
 }
 
 export function createInitialState(seed: number): GameState {
@@ -144,6 +146,7 @@ export function createInitialState(seed: number): GameState {
     creatures: [],
     pickups: [],
     garden: createGarden(),
+    stations: createStations(),
   };
   // Nodes first: mudlets then keep clear of them.
   state.plots.forEach((p, i) => {

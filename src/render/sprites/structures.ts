@@ -128,7 +128,6 @@ const MORTAR = [
 ];
 
 const CAULDRON_0 = [
-  '................',
   '.......c........',
   '....c.....c.....',
   '......cc....c...',
@@ -148,10 +147,10 @@ const CAULDRON_0 = [
   '...P.eEEEe.P....',
   '...ooeeEeeoo....',
   '..oooOooooooo...',
+  '................',
 ];
 
 const CAULDRON_1 = [
-  '................',
   '..........c.....',
   '.....c..........',
   '...c....cc......',
@@ -171,7 +170,12 @@ const CAULDRON_1 = [
   '...P.eEEEeeP....',
   '...ooeEEeeoo....',
   '..oooooooOooo...',
+  '................',
 ];
+
+// Idle: frame 0 without the bubbles above the rim, the fire under it gone to cold logs.
+const COLD: Readonly<Record<string, string>> = { e: 'p', E: 'o' };
+const CAULDRON_IDLE = CAULDRON_0.map((r, y) => (y < 4 ? '.'.repeat(r.length) : r.replace(/[eE]/g, (c) => COLD[c]!)));
 
 const SIGNPOST = [
   '................',
@@ -257,6 +261,7 @@ export const STRUCTURE_SPRITES: Record<string, readonly string[]> = {
   mortar: MORTAR,
   cauldron_0: CAULDRON_0,
   cauldron_1: CAULDRON_1,
+  cauldron_idle: CAULDRON_IDLE,
   signpost: SIGNPOST,
   bed_empty: BED_EMPTY,
 };

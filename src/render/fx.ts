@@ -5,6 +5,7 @@ import type { CreatureId, NodeId } from '../data/content';
 import { PALETTE, type Token } from '../data/palette';
 import { TUNING } from '../data/tuning';
 import type { GameEvent } from '../core/events';
+import { STATION_STRUCTURES } from '../core/stations';
 import { WORLD_H } from '../core/world';
 import { ATLAS } from './sprites/generate';
 
@@ -23,6 +24,8 @@ const NODE_BITS: Record<NodeId, readonly Token[]> = {
 const CREATURE_BITS: Record<CreatureId, readonly Token[]> = {
   mudlet: ['plumlight', 'mud', 'plumlight'],
 };
+
+const SPARKLE: readonly Token[] = ['glow', 'glow', 'bone'];
 
 interface Particle {
   img: Phaser.GameObjects.Image;
@@ -73,6 +76,13 @@ export class Fx {
         case 'playerHurt':
           this.hurtAt = this.scene.time.now;
           this.shake(F.hurtShakePx);
+          break;
+        case 'jobUnitDone':
+          // Potion done: a glow sparkle from the cauldron's rim (the footprint top).
+          if (e.station === 'cauldron') {
+            const s = STATION_STRUCTURES.cauldron;
+            this.burst(s.x + s.w / 2, s.y, SPARKLE, F.sparkleParticles, true);
+          }
           break;
         case 'playerFainted': {
           const c = Phaser.Display.Color.IntegerToColor(PALETTE.ink);

@@ -24,6 +24,8 @@ export interface PanelRow {
   icon?: string;
   // Right-aligned number (an owned count).
   count?: number;
+  // Right-aligned icon + count pairs (recipe ingredients with owned counts), after `count`.
+  extras?: readonly { icon: string; count: number }[];
   // Shown faded; confirm does nothing on it.
   dim?: boolean;
 }
@@ -35,8 +37,21 @@ export interface Panel {
   destroy(): void;
 }
 
+// The shared panel box: `panel` fill, `panellight` border.
+export function panelBox(scene: Phaser.Scene, x0: number, y0: number, w: number, h: number): Phaser.GameObjects.Graphics {
+  const box = scene.add.graphics().setDepth(UI_DEPTH.panel);
+  box.fillStyle(PALETTE.panel, 1).fillRect(x0, y0, w, h);
+  box.lineStyle(1, PALETTE.panellight, 1).strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+  return box;
+}
+
+// Width of an icon + count pair: icon, 1 px, digits.
+const pairW = (count: number): number => ICON + 1 + String(count).length * CHAR_W;
+
 // A `panel` box with an optional title and selectable rows, centered on x, its middle at cy.
 // Up/down move the cursor (wrapping); confirm on a row that is not dim gives 'confirm', back gives 'back'.
+// An optional footer is one text line under the rows that the owner rewrites with setFooter
+// (the station quantity); its initial text sets the width it may take.
 export class ListPanel {
   selected = 0;
   private readonly rows: readonly PanelRow[];
@@ -45,23 +60,32 @@ export class ListPanel {
   private readonly x0: number;
   private readonly w: number;
   private readonly rowsTop: number;
+  private readonly footerText: Phaser.GameObjects.BitmapText | null = null;
 
-  constructor(scene: Phaser.Scene, title: string | null, rows: readonly PanelRow[], cy: number = R.viewH / 2) {
+  constructor(
+    scene: Phaser.Scene,
+    title: string | null,
+    rows: readonly PanelRow[],
+    cy: number = R.viewH / 2,
+    footer: string | null = null,
+  ) {
     this.rows = rows;
+    const extrasW = (r: PanelRow): number => (r.extras ?? []).reduce((a, e) => a + K.countGap + pairW(e.count), 0);
     const rowW = (r: PanelRow): number =>
-      (r.icon ? ICON + K.iconGap : 0) + r.label.length * CHAR_W + (r.count !== undefined ? K.countGap + String(r.count).length * CHAR_W : 0);
-    const inner = Math.max(title ? title.length * CHAR_W : 0, ...rows.map(rowW));
+      (r.icon ? ICON + K.iconGap : 0) +
+      r.label.length * CHAR_W +
+      (r.count !== undefined ? K.countGap + String(r.count).length * CHAR_W : 0) +
+      extrasW(r);
+    const inner = Math.max(title ? title.length * CHAR_W : 0, footer !== null ? footer.length * CHAR_W : 0, ...rows.map(rowW));
     this.w = Math.min(K.maxW, inner + K.padX * 2);
     const titleH = title ? CHAR_H + K.titleGap : 0;
-    const h = K.padY * 2 + titleH + rows.length * K.rowH;
+    const footerH = footer !== null ? K.footerGap + CHAR_H : 0;
+    const h = K.padY * 2 + titleH + rows.length * K.rowH + footerH;
     this.x0 = Math.round((R.viewW - this.w) / 2);
     const y0 = Math.round(cy - h / 2);
     this.rowsTop = y0 + K.padY + titleH;
 
-    const box = scene.add.graphics().setDepth(UI_DEPTH.panel);
-    box.fillStyle(PALETTE.panel, 1).fillRect(this.x0, y0, this.w, h);
-    box.lineStyle(1, PALETTE.panellight, 1).strokeRect(this.x0 + 0.5, y0 + 0.5, this.w - 1, h - 1);
-    this.parts.push(box);
+    this.parts.push(panelBox(scene, this.x0, y0, this.w, h));
     this.cursor = scene.add.graphics().setDepth(UI_DEPTH.panel);
     this.parts.push(this.cursor);
     if (title) this.parts.push(addText(scene, this.x0 + K.padX, y0 + K.padY, title, 'coin').setDepth(UI_DEPTH.panel));
@@ -76,12 +100,30 @@ export class ListPanel {
         x += ICON + K.iconGap;
       }
       this.parts.push(addText(scene, x, y + textDy, r.label, 'bone').setAlpha(alpha).setDepth(UI_DEPTH.panel));
+      // Right-aligned, drawn from the right edge inward: extras last to first, then count.
+      let right = this.x0 + this.w - K.padX;
+      for (const e of [...(r.extras ?? [])].reverse()) {
+        const t = addText(scene, right, y + textDy, String(e.count), 'bone').setOrigin(1, 0);
+        this.parts.push(t.setAlpha(alpha).setDepth(UI_DEPTH.panel));
+        const ix = right - pairW(e.count);
+        this.parts.push(scene.add.image(ix, y + K.rowH / 2, ATLAS, e.icon).setOrigin(0, 0.5).setAlpha(alpha).setDepth(UI_DEPTH.panel));
+        right = ix - K.countGap;
+      }
       if (r.count !== undefined) {
-        const t = addText(scene, this.x0 + this.w - K.padX, y + textDy, String(r.count), 'bone');
+        const t = addText(scene, right, y + textDy, String(r.count), 'bone');
         this.parts.push(t.setOrigin(1, 0).setAlpha(alpha).setDepth(UI_DEPTH.panel));
       }
     });
+    if (footer !== null) {
+      const fy = this.rowsTop + rows.length * K.rowH + K.footerGap;
+      this.footerText = addText(scene, this.x0 + K.padX, fy, footer, 'bone').setDepth(UI_DEPTH.panel);
+      this.parts.push(this.footerText);
+    }
     this.drawCursor();
+  }
+
+  setFooter(text: string): void {
+    this.footerText?.setText(text.toUpperCase());
   }
 
   update(intents: UiIntents): 'confirm' | 'back' | null {
