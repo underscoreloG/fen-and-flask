@@ -72,6 +72,8 @@ function openWith(helpers: CatalogId[], qty = 1, customers = 0): GameState {
   atCot(s);
   expect(s.shop.customers).toHaveLength(1);
   s.shop.customers[0]!.personal = 1;
+  // A plain customer (specs/wp/WP09 types value and wait differently).
+  s.shop.customers[0]!.type = 'traveller';
   s.shop.customersLeft = customers;
   return s;
 }

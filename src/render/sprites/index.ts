@@ -7,7 +7,7 @@ import { CREATURE_SPRITES, NODE_SPRITES } from './gathering';
 import { FX_SPRITES, ICON_SPRITES } from './icons';
 import { INTERIOR_STRUCTURES, INTERIOR_TILES } from './interior';
 import { PLAYER_SPRITES } from './player';
-import { BUBBLE_SPRITES, CUSTOMER_SPRITES } from './stall';
+import { BUBBLE_SPRITES, CUSTOMER_SPRITES, FACE_SPRITES } from './stall';
 import { SHADOW_SPRITES, STRUCTURE_SPRITES } from './structures';
 import { TILE_SPRITES } from './tiles';
 import { TILL_FLASH, TOAD_SPRITES } from './toads';
@@ -39,6 +39,7 @@ export const SPRITES: Readonly<Record<string, SpriteDef>> = {
   ...plain(FX_SPRITES),
   ...outlined(CUSTOMER_SPRITES),
   ...plain(BUBBLE_SPRITES),
+  ...plain(FACE_SPRITES),
   ...outlined(TOAD_SPRITES),
   ...plain(TILL_FLASH),
 };

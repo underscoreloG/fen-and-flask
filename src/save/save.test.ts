@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { setPhase } from '../core/clock';
+import { morningReset, setPhase } from '../core/clock';
 import { neutralFrame, type Command, type Frame } from '../core/commands';
+import type { GameEvent } from '../core/events';
 import { createInitialState, type GameState } from '../core/state';
 import { step } from '../core/step';
 import { shopTileCenter } from '../core/world';
@@ -93,7 +94,7 @@ describe('save', () => {
     const b = deserialize(serialize(s, APP_VERSION), APP_VERSION)!;
     expect(b).toEqual(s);
     expect(b.catalog).toEqual({ owned: ['shelf5', 'sickle'], pending: ['shelf6'] });
-    expect(APP_VERSION).toBe('0.3.1');
+    expect(APP_VERSION).toBe('0.3.2');
     expect(deserialize(serialize(createInitialState(1), '0.2.1'), APP_VERSION)).toBeNull();
   });
 
@@ -103,6 +104,43 @@ describe('save', () => {
     const b = deserialize(serialize(s, '0.3.0'), APP_VERSION)!;
     expect(b).toEqual(s);
     expect(() => step(b, neutralFrame())).not.toThrow();
+  });
+
+  it('an order and the customer types met survive the round trip, and both copies step on identically', () => {
+    const a = busyShop();
+    a.order = { item: 'salve', qty: 3, pay: 81, done: true };
+    a.shop.met = ['courier', 'traveller'];
+    const b = deserialize(serialize(a, APP_VERSION), APP_VERSION)!;
+    expect(b).toEqual(a);
+    for (let i = 0; i < 600; i++) {
+      step(a, neutralFrame());
+      step(b, neutralFrame());
+    }
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  });
+
+  it('a 0.3.1 save (no order, no met, no m2Goal) loads in 0.3.2 with a valid order, steps and wakes up to a new one', () => {
+    const s = busyShop();
+    const file = JSON.parse(serialize(s, '0.3.1')) as { state: GameState & Record<string, unknown> };
+    delete (file.state as Record<string, unknown>).order;
+    delete (file.state.shop as unknown as Record<string, unknown>).met;
+    delete (file.state.flags as unknown as Record<string, unknown>).m2Goal;
+    // Its queued customer has no type either: it waits as a traveller.
+    for (const c of file.state.shop.customers) delete c.type;
+    const b = deserialize(JSON.stringify(file), APP_VERSION)!;
+    expect(b).not.toBeNull();
+    expect(b.shop.met).toEqual([]);
+    expect(b.flags).toEqual({ m1Goal: s.flags.m1Goal, m2Goal: false });
+    expect(b.order).toEqual(createInitialState(b.seed).order);
+    expect(['tonic', 'salve', 'glowdraught']).toContain(b.order.item);
+    expect(b.order.qty).toBeGreaterThanOrEqual(1);
+    expect(b.order.done).toBe(false);
+    const left: GameEvent[] = [];
+    for (let i = 0; i < 1800; i++) left.push(...step(b, neutralFrame()));
+    expect(left.filter((e) => e.type === 'customerLeftUnpaid')).toHaveLength(1);
+    const ev: GameEvent[] = [];
+    morningReset(b, ev);
+    expect(ev).toContainEqual({ type: 'orderPosted', item: b.order.item, qty: b.order.qty, pay: b.order.pay });
   });
 
   it('fillDefaults restores a missing key from a fresh state and keeps loaded arrays as they are', () => {

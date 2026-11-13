@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ITEM_IDS, NODES, type ItemId, type PotionId } from '../data/content';
-import { TUNING } from '../data/tuning';
+import { CUSTOMER_TYPES, ITEM_IDS, ITEMS, NODES, type CustomerType, type ItemId, type PotionId } from '../data/content';
+import { ticks, TUNING } from '../data/tuning';
 import { morningReset, setPhase } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
-import { itemValue, pathBetween, PATIENCE_TICKS, reactTo } from './shop';
+import { itemValue, pathBetween, PATIENCE_TICKS, patienceTicks, pickShelf, reactTo, rollType, typeMultiplier } from './shop';
 import { createInitialState, type CreatureState, type GameState } from './state';
 import { step } from './step';
 import { plotTileCenter, shopTileCenter, TILE, tileAt } from './world';
@@ -96,6 +96,8 @@ function openWithOne(item: ItemId, qty: number, price: number, personal = 1): Ga
   const s = openShop([[item, qty, price]]);
   expect(s.shop.customers).toHaveLength(1);
   s.shop.customers[0]!.personal = personal;
+  // A plain customer (specs/wp/WP09 types value and wait differently).
+  s.shop.customers[0]!.type = 'traveller';
   s.shop.customersLeft = 0;
   return s;
 }
@@ -787,5 +789,147 @@ describe('goal', () => {
     expect(count(ev, 'goalReached')).toBe(1);
     const first = ev.findIndex((e) => e.type === 'sale');
     expect(ev[first + 1]).toEqual({ type: 'goalReached' });
+  });
+});
+
+describe('customer types (specs/wp/WP09)', () => {
+  const kindOf = (item: ItemId): string => ITEMS.find((i) => i.id === item)!.kind;
+
+  it('over 4000 rolls the shares are within 3 points of 50 / 20 / 15 / 15', () => {
+    const s = quiet(11);
+    const n: Record<CustomerType, number> = { traveller: 0, courier: 0, haggler: 0, herbalist: 0 };
+    for (let i = 0; i < 4000; i++) n[rollType(s)] += 1;
+    const want: Record<CustomerType, number> = { traveller: 50, courier: 20, haggler: 15, herbalist: 15 };
+    for (const t of CUSTOMER_TYPES) expect(Math.abs((100 * n[t.id]) / 4000 - want[t.id]), t.id).toBeLessThanOrEqual(3);
+  });
+
+  it('a courier pays 1.25 on potions, a haggler 0.85 on all, a herbalist 1.5 on raw and ground; thresholds unchanged', () => {
+    const s = quiet();
+    const at = (type: CustomerType, item: ItemId, price: number): string => reactTo(s, item, price, 1, type).reaction;
+    // Glow draught, value 24: courier 30, haggler 20.4.
+    expect(at('courier', 'glowdraught', 32)).toBe('happy');
+    expect(at('courier', 'glowdraught', 40)).toBe('refuses');
+    expect(at('haggler', 'glowdraught', 22)).toBe('happy');
+    expect(at('haggler', 'glowdraught', 27)).toBe('refuses');
+    expect(at('traveller', 'glowdraught', 26)).toBe('happy');
+    expect(at('traveller', 'glowdraught', 31)).toBe('grumbling');
+    expect(at('traveller', 'glowdraught', 32)).toBe('refuses');
+    // Mint, value 2: a herbalist 3.
+    expect(at('herbalist', 'mint', 3)).toBe('happy');
+    expect(at('herbalist', 'mint', 4)).toBe('refuses');
+    expect(at('traveller', 'mint', 3)).toBe('refuses');
+    expect(at('herbalist', 'glowdraught', 32)).toBe('refuses');
+    expect(at('courier', 'mint', 3)).toBe('refuses');
+    // Bogwood (fuel) counts as raw: a herbalist values it at 1.5.
+    expect(itemValue(s, 'bogwood') * typeMultiplier('herbalist', 'bogwood')).toBeCloseTo(1.5);
+    expect(typeMultiplier('herbalist', 'emberpowder')).toBe(1.5);
+  });
+
+  it('at demand 1 and no trend, the first price of each item is not refused by any type at personal 0.95 or 1.05', () => {
+    const s = quiet();
+    for (const id of ITEM_IDS) {
+      for (const t of CUSTOMER_TYPES) {
+        for (const p of [TUNING.stall.personalMin, TUNING.stall.personalMax]) {
+          expect(reactTo(s, id, s.shop.prices[id], p, t.id).sold, `${id} ${t.id} ${p}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  const leaveAt: readonly [CustomerType, number][] = [
+    ['courier', 720],
+    ['haggler', 3000],
+    ['traveller', 1800],
+    ['herbalist', 1800],
+  ];
+  it("the counter toad's delay, trained or not, is shorter than every type's patience", () => {
+    for (const t of CUSTOMER_TYPES) expect(ticks(TUNING.helpers.counterDelay), t.id).toBeLessThan(patienceTicks(t.id));
+    expect(ticks(TUNING.helpers.counterDelayTrained)).toBeLessThan(ticks(TUNING.helpers.counterDelay));
+  });
+
+  for (const [type, ticksToLeave] of leaveAt) {
+    it(`without a counter toad a ${type} leaves unpaid at waited ${ticksToLeave}, not before`, () => {
+      expect(patienceTicks(type)).toBe(ticksToLeave);
+      const s = openWithOne('glowdraught', 1, 17);
+      s.shop.customers[0]!.type = type;
+      until(s, 'customerQueued');
+      const before = run(s, ticksToLeave - 1);
+      expect(count(before, 'customerLeftUnpaid')).toBe(0);
+      expect(s.shop.customers[0]!.waited).toBe(ticksToLeave - 1);
+      expect(step(s, neutralFrame())).toContainEqual({ type: 'customerLeftUnpaid', item: 'glowdraught' });
+    });
+  }
+
+  it('herbalists head for a raw or ground table: 200 of them with tonic and mint stocked all pick mint; with only tonic, tonic', () => {
+    const s = quiet(3);
+    s.shop.shelves[0] = { item: 'tonic', count: 5 };
+    s.shop.shelves[2] = { item: 'mint', count: 5 };
+    for (let i = 0; i < 200; i++) expect(pickShelf(s, 'herbalist')).toBe(2);
+    const others = new Set<number | null>();
+    for (let i = 0; i < 200; i++) others.add(pickShelf(s, 'traveller'));
+    expect(others).toEqual(new Set([0, 2]));
+    s.shop.shelves[2] = { item: null, count: 0 };
+    for (let i = 0; i < 50; i++) expect(pickShelf(s, 'herbalist')).toBe(0);
+    s.shop.shelves[0] = { item: null, count: 0 };
+    expect(pickShelf(s, 'herbalist')).toBeNull();
+  });
+
+  it('in the shop every herbalist browses the mint table while tonic and mint are stocked', () => {
+    const s = openShop([
+      ['tonic', 5, 1],
+      ['mint', 5, 1],
+    ]);
+    s.shop.customersLeft = 150;
+    const seen = new Map<number, { type: CustomerType; shelf: number }>();
+    serve(s, 200000, () => {
+      s.shop.shelves[0] = { item: 'tonic', count: 5 };
+      s.shop.shelves[1] = { item: 'mint', count: 5 };
+      for (const c of s.shop.customers) if (c.mode === 'look') seen.set(c.n, { type: c.type!, shelf: c.shelf });
+    });
+    const herbalists = [...seen.values()].filter((v) => v.type === 'herbalist');
+    expect(herbalists.length).toBeGreaterThan(5);
+    expect(herbalists.every((v) => v.shelf === 1)).toBe(true);
+    expect([...seen.values()].some((v) => v.shelf === 0)).toBe(true);
+  });
+
+  it('a herbalist whose table was emptied before arrival re-picks by the same rule: a raw table while one is stocked', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = openShop(
+        [
+          ['tonic', 2, 1],
+          ['salve', 2, 1],
+          ['mint', 2, 1],
+          ['reed', 2, 1],
+        ],
+        seed,
+      );
+      const c = s.shop.customers[0]!;
+      c.type = 'herbalist';
+      const first = c.shelf;
+      s.shop.shelves[first] = { item: null, count: 0 };
+      // Another customer may come in and reach a table first: follow this one.
+      for (let i = 0; i < 5000 && c.mode === 'toShelf'; i++) step(s, neutralFrame());
+      expect(c.mode, `seed ${seed}`).toBe('look');
+      expect(c.shelf, `seed ${seed}`).not.toBe(first);
+      expect(kindOf(c.item!), `seed ${seed}`).toBe('raw');
+    }
+  });
+
+  it('met gains a type on its first payment only, once', () => {
+    const s = openWithOne('glowdraught', 3, 17);
+    until(s, 'customerQueued');
+    // Choosing and queueing is not paying.
+    expect(s.shop.met).toEqual([]);
+    atCounter(s);
+    step(s, cmd({ type: 'RingUp' }));
+    expect(s.shop.met).toEqual(['traveller']);
+    // Two more: another traveller, then a courier.
+    s.shop.customersLeft = 2;
+    const types: CustomerType[] = ['traveller', 'courier'];
+    serve(s, 20000, () => {
+      for (const c of s.shop.customers) if (c.n > 0 && c.mode === 'toShelf') c.type = types[c.n - 1];
+    });
+    expect(s.shop.soldCount).toBe(3);
+    expect(s.shop.met).toEqual(['traveller', 'courier']);
   });
 });

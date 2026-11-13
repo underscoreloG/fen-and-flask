@@ -27,13 +27,12 @@ import {
 } from '../../core/world';
 import { bedIndex, isReady } from '../../core/garden';
 import { owns } from '../../core/catalog';
-import { PATIENCE_TICKS, shelfCapacity, SHELVES, type Customer } from '../../core/shop';
+import { patienceTicks, shelfCapacity, SHELVES, type Customer } from '../../core/shop';
 import { isCauldron, STATION_KINDS, STATION_STRUCTURES, unitTicks, type StationKind } from '../../core/stations';
 import type { DeviceReader } from '../../input/devices';
 import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
 import { BACK_WALL } from '../sprites/interior';
-import { CUSTOMER_LOOKS } from '../sprites/stall';
 import { SPRITES } from '../sprites/index';
 import { TILL_KEYS_AT } from '../sprites/toads';
 import { pump, type Session } from '../../input/session';
@@ -56,6 +55,7 @@ const STRUCTURE_FRAME: Record<StructureKind, string> = {
   cot: 'cot',
   exit: '',
   catalog: 'catalog',
+  board: 'order_board',
 };
 
 // Weighted variety so the ground never reads as a flat fill.
@@ -282,6 +282,11 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
       img.setDepth(bottom);
+      // The order board hangs on the wall: no shadow on the floor.
+      if (s.def.kind === 'board') {
+        this.structures.push({ s, id: s.def.id, kind: s.def.kind, img, shadow: null });
+        continue;
+      }
       const shadowFrame = s.w > TILE * 2 ? 'shadow_l' : 'shadow_m';
       const shadow = this.add.image(cx, bottom - 1, ATLAS, shadowFrame).setOrigin(0.5, 0.5).setAlpha(R.shadowAlpha).setDepth(DEPTH.shadow);
       // Stretched to the footprint (the cot is two tiles wide).
@@ -531,7 +536,7 @@ export class GameScene extends Phaser.Scene {
 
   private shopper(): Shopper {
     return {
-      img: this.add.image(0, 0, ATLAS, 'customer_0_up_0').setOrigin(0.5, 1),
+      img: this.add.image(0, 0, ATLAS, 'customer_traveller_up_0').setOrigin(0.5, 1),
       shadow: this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(R.shadowAlpha).setDepth(DEPTH.shadow),
       bubble: this.add.image(0, 0, ATLAS, 'bubble_wait').setOrigin(0.5, 1).setDepth(DEPTH.top).setVisible(false),
       item: this.add.image(0, 0, ATLAS, 'icon_tonic').setOrigin(0.5, 1).setDepth(DEPTH.top).setVisible(false),
@@ -551,7 +556,8 @@ export class GameScene extends Phaser.Scene {
         v = this.shopper();
         this.shoppers.set(c.n, v);
       }
-      const look = (c.n + state.day) % CUSTOMER_LOOKS;
+      // Each customer type has its look (specs/wp/WP09); one saved before the types is a traveller.
+      const look = c.type ?? 'traveller';
       const dir = c.facing === 'left' || c.facing === 'right' ? 'side' : c.facing;
       const walking = c.path.length > 0;
       const f = walking ? Math.floor(state.tick / V.walkFrameTicks) % 2 : 0;
@@ -570,7 +576,7 @@ export class GameScene extends Phaser.Scene {
       } else if (c.holding && c.waited >= 0 && c.item) {
         v.bubble.setFrame('bubble_wait').setVisible(true).setScale(1).setPosition(c.x, head);
         v.item.setFrame(`icon_${c.item}`).setVisible(true).setPosition(c.x, head - v.bubble.height + 1 + ICON);
-        const left = Math.max(0, 1 - c.waited / PATIENCE_TICKS);
+        const left = Math.max(0, 1 - c.waited / patienceTicks(c.type));
         const w = v.bubble.width;
         const x = Math.round(c.x - w / 2);
         const y = Math.round(head - v.bubble.height - V.bubbleLiftPx - V.patienceBarH);

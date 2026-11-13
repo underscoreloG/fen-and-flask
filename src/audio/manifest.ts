@@ -46,15 +46,20 @@ export const SOUNDS: readonly SoundDef[] = [
   { id: 'grind', file: 'grind.ogg', volume: 0.9, on: [{ event: 'jobStarted', when: (e) => e.station === 'mortar' }] },
   { id: 'bubble', file: 'bubble.ogg', volume: 0.6, on: [{ event: 'jobStarted', when: (e) => e.station !== 'mortar' }] },
   { id: 'potion_done', file: 'potion_done.ogg', volume: 0.8, on: [{ event: 'jobUnitDone', when: (e) => e.station !== 'mortar' }] },
-  { id: 'coin', file: 'coin.ogg', volume: 1.0, on: [{ event: 'sale' }] },
+  { id: 'coin', file: 'coin.ogg', volume: 1.0, on: [{ event: 'sale' }, { event: 'orderDelivered' }] },
   {
     id: 'refuse',
     file: 'refuse.ogg',
     volume: 0.4,
     on: [{ event: 'customerReacted', when: (e) => e.reaction === 'refuses' }, { event: 'customerLeftUnpaid' }],
   },
-  // A softer ring each time a customer reaches the counter.
-  { id: 'bell', file: 'bell.ogg', volume: 1.0, on: [{ event: 'stallOpened' }, { event: 'customerQueued', volume: 0.4 }] },
+  // A softer ring each time a customer reaches the counter, and for the morning's order.
+  {
+    id: 'bell',
+    file: 'bell.ogg',
+    volume: 1.0,
+    on: [{ event: 'stallOpened' }, { event: 'customerQueued', volume: 0.4 }, { event: 'orderPosted', volume: 0.4 }],
+  },
   { id: 'hurt', file: 'hurt.ogg', volume: 0.45, on: [{ event: 'playerHurt' }] },
   { id: 'sleep', file: 'sleep.ogg', volume: 0.6, on: [{ event: 'morning' }] },
   { id: 'ui_move', file: 'ui_move.ogg', volume: 0.4, on: [] },

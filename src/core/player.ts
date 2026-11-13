@@ -265,6 +265,9 @@ export function interact(state: GameState, events: GameEvent[]): void {
     case 'catalog':
       events.push({ type: 'uiRequest', ui: 'catalog' });
       break;
+    case 'board':
+      events.push({ type: 'uiRequest', ui: 'order' });
+      break;
     default:
       break;
   }

@@ -3,7 +3,7 @@ import type { GameAudio } from '../../audio/audio';
 import type { Command } from '../../core/commands';
 import type { GameEvent, UiRequest } from '../../core/events';
 import { createInitialState } from '../../core/state';
-import { CATALOG, GOAL_BANNER, ITEMS, PLOTS } from '../../data/content';
+import { CATALOG, GOAL_BANNER, ITEMS, M2_BANNER, PLOTS } from '../../data/content';
 import { PALETTE } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
 import { APP_VERSION } from '../../data/version';
@@ -16,6 +16,7 @@ import { confirmPanel, UI_DEPTH, type Panel } from '../ui/confirm';
 import { gardenPicker } from '../ui/gardenPicker';
 import { Hud } from '../ui/hud';
 import { notebook } from '../ui/notebook';
+import { orderPanel, orderText } from '../ui/orderPanel';
 import { pausePanel } from '../ui/pause';
 import { shelfPanel, shopSummary } from '../ui/shelfPanel';
 import { stationPanel } from '../ui/stationPanel';
@@ -25,11 +26,12 @@ import { SIM_EVENTS } from './GameScene';
 // The shop summary is opened by the UI itself (on stallClosed), not by a core uiRequest.
 type ShopSummary = { ui: 'shopSummary'; soldCount: number; soldCoins: number };
 
-// The morning's one-liners, shown one after another: arrivals and what the helper toads did.
+// The morning's one-liners, shown one after another: arrivals, what the helper toads did, the order.
 function morningToast(e: GameEvent): string | null {
   if (e.type === 'upgradeArrived') return `ARRIVED: ${CATALOG.find((d) => d.id === e.id)?.name ?? e.id}`;
   if (e.type === 'gardenToadHarvested') return `GARDEN TOAD: +${e.harvested}`;
   if (e.type === 'basketToadBrought') return `BASKET TOAD: +${Object.values(e.items).reduce((a, b) => a + b, 0)}`;
+  if (e.type === 'orderPosted') return orderText(e);
   return null;
 }
 
@@ -78,6 +80,8 @@ export class UIScene extends Phaser.Scene {
     window.addEventListener('keydown', onKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => window.removeEventListener('keydown', onKey));
     this.audio.ambience();
+    // A game starting or loading posts no order event: the board's note is told here.
+    this.toasts.toast(orderText(this.session.state.order));
     if (!this.session.options.debug) return;
     addText(this, viewW - uiMargin, viewH - uiMargin, `v${APP_VERSION}`, 'bone').setOrigin(1, 1);
   }
@@ -128,6 +132,7 @@ export class UIScene extends Phaser.Scene {
   private newGame(): void {
     if (!this.session.options.nosave) clear();
     startGame(this.session, createInitialState(this.session.options.seed));
+    this.toasts.toast(orderText(this.session.state.order));
   }
 
   // In order: at high ?speed one batch can hold a shop's whole evening.
@@ -150,12 +155,16 @@ export class UIScene extends Phaser.Scene {
         case 'goalReached':
           this.toasts.banner(GOAL_BANNER);
           break;
+        case 'm2GoalReached':
+          this.toasts.banner(M2_BANNER);
+          break;
         case 'plotBought':
           this.toasts.toast(`THE ${(PLOTS[e.plot]?.id ?? '').toUpperCase()} PLOT IS YOURS`);
           break;
         case 'upgradeArrived':
         case 'gardenToadHarvested':
-        case 'basketToadBrought': {
+        case 'basketToadBrought':
+        case 'orderPosted': {
           // One toast per arrival, then the toads' work: a toast replaces the one showing, so later
           // ones wait their turn.
           const text = morningToast(e);
@@ -201,6 +210,8 @@ export class UIScene extends Phaser.Scene {
         return stationPanel(this, this.session.state, req.station);
       case 'catalog':
         return catalogPanel(this, state);
+      case 'order':
+        return orderPanel(this, state);
       case 'shelf':
         return shelfPanel(this, state, req.shelf, this.session.latch.lastDevice);
       case 'shopSummary':

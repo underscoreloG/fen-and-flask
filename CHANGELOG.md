@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.2 - 2026-11-13
+
+Customers stop being one rule, and every morning brings an order.
+
+- Four kinds of customer, each with its own look: the traveller (nothing special), the courier (pays a quarter more for potions, waits only 12 s at the counter), the haggler (pays less, waits 50 s) and the herbalist (pays half again for herbs and powders, and heads for a table of them).
+- Notebook page 3, CUSTOMERS: each kind once it has paid you, with its look and what it is like.
+- The daily order: a note on the board on the shop's back wall asks for 1 to 3 of a potion you can brew, for 1.5 times its value. Deliver it from your bag at the board (potions on the tables do not count). A new note comes each morning; the notebook's price page shows it too. An Ember Elixir delivered there counts for the first-elixir goal.
+- The shop is complete once you own the whole catalog: a banner says so, and play goes on.
+- Saves from 0.3.1 load and get today's order.
+
 ## v0.3.1 - 2026-11-13
 
 Helpers: three marsh toads from the catalog each take a chore off your hands.

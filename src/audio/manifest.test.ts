@@ -61,6 +61,8 @@ describe('event to sound', () => {
     [{ type: 'customerLeftUnpaid', item: 'glowdraught' }, ['refuse']],
     [{ type: 'customerQueued', item: 'glowdraught' }, ['bell']],
     [{ type: 'stallOpened' }, ['bell']],
+    [{ type: 'orderDelivered', item: 'tonic', qty: 2, pay: 42 }, ['coin']],
+    [{ type: 'orderPosted', item: 'tonic', qty: 2, pay: 42 }, ['bell']],
     [{ type: 'playerHurt', ...at, hearts: 4, fromX: 0, fromY: 0 }, ['hurt']],
     [{ type: 'morning', day: 2 }, ['sleep']],
   ];
@@ -72,6 +74,8 @@ describe('event to sound', () => {
     const [open] = soundsFor({ type: 'stallOpened' });
     const [queued] = soundsFor({ type: 'customerQueued', item: 'tonic' });
     expect(queued!.volume).toBeLessThan(open!.volume);
+    const [posted] = soundsFor({ type: 'orderPosted', item: 'salve', qty: 1, pay: 27 });
+    expect(posted!.volume).toBeLessThan(open!.volume);
     const refuse = SOUNDS.find((s) => s.id === 'refuse')!;
     expect(soundsFor({ type: 'customerLeftUnpaid', item: 'tonic' })).toEqual([{ id: 'refuse', volume: refuse.volume }]);
   });
@@ -86,6 +90,7 @@ describe('event to sound', () => {
     { type: 'stallClosed', soldCount: 1, soldCoins: 20 },
     { type: 'eveningStarted', day: 1 },
     { type: 'goalReached' },
+    { type: 'm2GoalReached' },
     { type: 'plotBought', plot: 1 },
     { type: 'uiRequest', ui: 'sleepConfirm' },
   ];

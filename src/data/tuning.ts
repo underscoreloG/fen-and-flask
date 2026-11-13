@@ -118,8 +118,14 @@ export const TUNING = {
     // 150 ticks between two customers coming in.
     enterGap: 2.5,
     customerSpeed: 40,
-    // A queued customer leaves without paying after this long.
-    patience: 30,
+  },
+  // The daily order (specs/wp/WP09): qty from 1 to qtyMax (qtyMaxDay1 on day 1), pay = payFactor x
+  // base value x qty, rounded.
+  orders: {
+    qtyMin: 1,
+    qtyMax: 3,
+    qtyMaxDay1: 2,
+    payFactor: 1.5,
   },
   // Helper toads (specs/wp/WP08): the counter toad rings up a customer who waited this long at
   // spot 1 (480 ticks; 180 trained); the basket toad brings this many ingredients each morning.
@@ -164,13 +170,18 @@ export const TUNING = {
     evening1CoinsMax: 130,
     plotBoughtMaxDay: 4,
     goalMaxDay: 6,
-    // M2 (specs/wp/WP07, WP08): every catalog item owned by this day (all 14 with the helpers);
-    // then, over the lantern sign's arrival day and the 4 after it, coins per evening at least
-    // this times evenings 3-5, and at least this many units sold per evening.
-    catalogAllMaxDay: 22,
+    // M2 (specs/wp/WP07-WP09): every catalog item owned, and so m2GoalReached, by this day (all 14
+    // with the helpers); then, over the lantern sign's arrival day and the 4 after it, coins per
+    // evening at least this times evenings 3-5, and at least this many units sold per evening.
+    catalogAllMaxDay: 20,
     lateEveningsAfter: 4,
     lateCoinsRatio: 1.5,
     lateUnitsMin: 12,
+    // WP09: of the orders posted from this day on, at least this share delivered; customers left
+    // unpaid at most this many before a counter toad is owned (none after).
+    ordersFromDay: 3,
+    ordersDeliveredMin: 0.5,
+    unpaidBeforeToadMax: 1,
   },
   input: {
     deadZone: 0.25,

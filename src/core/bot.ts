@@ -9,7 +9,7 @@ import { catalogStatus } from './catalog';
 import { DAY_TICKS } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import { BED_IDS, isReady } from './garden';
-import { shelfCapacity, SHELVES } from './shop';
+import { reactTo, shelfCapacity, SHELVES } from './shop';
 import type { CreatureState, Facing, GameState } from './state';
 import { brewRecipe, isCauldron, maxBrew, maxGrind, STATION_KINDS, STATION_STRUCTURES } from './stations';
 import {
@@ -35,6 +35,9 @@ const B = TUNING.bot;
 const STEP = TUNING.player.speed / TUNING.sim.tickRate;
 // Highest value first: the brew order and the stocking order.
 const BREW_ORDER: readonly PotionId[] = ['emberelixir', 'glowdraught', 'salve', 'tonic'];
+// Ground items go on a table only once no potion is left for it, the most valuable first (a
+// herbalist pays 1.5 times for them). Raw items stay home: they are seeds and brewing inputs.
+const GROUND_ORDER: readonly ItemId[] = ['emberpowder', 'glowdust', 'mintpaste'];
 // Bed i grows this crop; these beds switch to emberroot once the east plot is owned and enough
 // emberroot is held (bed 3, and beds 5 and 6 from the catalog).
 const BED_CROPS: readonly ItemId[] = ['glowcap', 'glowcap', 'mint', 'mint', 'glowcap', 'mint'];
@@ -54,6 +57,7 @@ const SIGN = structureOfKind('sign');
 const COUNTER = structureOfKind('counter');
 const COT = structureOfKind('cot');
 const STAND = structureOfKind('catalog');
+const BOARD = structureOfKind('board');
 const CAULDRONS = STATION_KINDS.filter(isCauldron);
 const BEDS = WORLD_STRUCTURES.filter((s) => s.def.kind === 'bed');
 const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
@@ -65,6 +69,7 @@ const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
   cot: 'right',
   signpost: 'right',
   catalog: 'down',
+  board: 'up',
 };
 
 // A goal tile, in world tiles (the shop sits in the same tile space).
@@ -408,12 +413,26 @@ function grindFrame(ctx: Ctx): Frame | null {
   return null;
 }
 
-// Brew a full batch at once, or whatever is possible once no more inputs are coming today, in
-// the first free cauldron.
+// Potions of the daily order still to brew: wanted, minus held, brewing and lying on the floor.
+function orderShort(s: GameState): number {
+  const o = s.order;
+  if (o.done) return 0;
+  const brewing = CAULDRONS.reduce((n, k) => n + (s.stations[k]?.recipe === o.item ? s.stations[k]!.remaining : 0), 0);
+  const lying = s.pickups.filter((k) => k.item === o.item).length;
+  return Math.max(0, o.qty - s.inventory[o.item] - brewing - lying);
+}
+
+// The order's potions first, as soon as the inputs for all of them are there (no waiting for a
+// full batch); then a full batch at once, or whatever is possible once no more inputs are coming
+// today, in the first free cauldron.
 function brewFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
   const free = CAULDRONS.find((k) => s.stations[k] === null && structureStands(s, STATION_STRUCTURES[k]));
   if (!free) return null;
+  const short = orderShort(s);
+  if (short > 0 && maxBrew(s, brewRecipe(s.order.item)!) >= short) {
+    return useStructure(ctx, STATION_STRUCTURES[free], { type: 'StartBrew', potion: s.order.item, qty: short });
+  }
   const nothingComing =
     s.nodes.length === 0 &&
     s.creatures.length === 0 &&
@@ -442,6 +461,13 @@ function waitFrame(ctx: Ctx): Frame | null {
 
 // --- The shop ------------------------------------------------------------------------
 
+// The order goes to the board as soon as its potions are in hand.
+function deliverFrame(ctx: Ctx): Frame | null {
+  const o = ctx.state.order;
+  if (o.done || ctx.state.inventory[o.item] < o.qty) return null;
+  return useStructure(ctx, BOARD, { type: 'DeliverOrder' });
+}
+
 // Potions only, highest value first: top up a table that holds it; else an empty table goes to a
 // potion that has none yet, or, when every potion held has one, to the potion held most.
 function stockFrame(ctx: Ctx): Frame | null {
@@ -458,7 +484,17 @@ function stockFrame(ctx: Ctx): Frame | null {
     if (i >= 0) return put(i, potion);
   }
   const empty = shelves.findIndex((sl) => sl.item === null);
-  if (empty < 0 || held.length === 0) return null;
+  // A potion with no table and none free: the table of a ground item makes room.
+  const ground = shelves.findIndex((sl) => sl.item !== null && GROUND_ORDER.includes(sl.item));
+  if (empty < 0 && held.length > 0 && ground >= 0) return useStructure(ctx, SHELVES[ground]!, { type: 'ClearShelf', shelf: ground });
+  if (empty < 0) return null;
+  if (held.length === 0) {
+    const item = GROUND_ORDER.find((g) => s.inventory[g] > 0);
+    if (!item) return null;
+    const i = shelves.findIndex((sl) => sl.item === item && sl.count < cap);
+    const at = i >= 0 ? i : empty;
+    return useStructure(ctx, SHELVES[at]!, { type: 'StockShelf', shelf: at, item, qty: Math.min(s.inventory[item], cap - shelves[at]!.count) });
+  }
   const most = held.reduce((a, p) => (s.inventory[p] > s.inventory[a] ? p : a));
   return put(empty, held.find((p) => !shelves.some((sl) => sl.item === p)) ?? most);
 }
@@ -481,11 +517,13 @@ function nudged(price: number, reaction: keyof typeof B.priceAfter): number {
 }
 
 // A customer reacted to the price still on the tag: that price is due a nudge (read from state,
-// so once it is sent the price differs and the nudge is done).
+// so once it is sent the price differs and the nudge is done). The bot tells the customer types
+// apart by their looks and nudges by what a traveller with that mood would have thought, so a
+// courier's delight or a haggler's grumble does not drag the price off for everyone else.
 function pendingNudge(s: GameState): { item: ItemId; price: number } | null {
   for (const c of s.shop.customers) {
     if (c.item === null || c.reaction === null || s.shop.prices[c.item] !== c.price) continue;
-    const price = nudged(c.price, c.reaction);
+    const price = nudged(c.price, reactTo(s, c.item, c.price, c.personal).reaction);
     if (price !== c.price) return { item: c.item, price };
   }
   return null;
@@ -513,7 +551,7 @@ function openFrame(ctx: Ctx): Frame {
 // the jobs, stock, open, sleep.
 function indoorFrame(ctx: Ctx): Frame {
   const s = ctx.state;
-  const inside = pickupFrame(ctx, Infinity) ?? grindFrame(ctx) ?? brewFrame(ctx) ?? catalogFrame(ctx);
+  const inside = pickupFrame(ctx, Infinity) ?? deliverFrame(ctx) ?? grindFrame(ctx) ?? brewFrame(ctx) ?? catalogFrame(ctx);
   if (inside) return inside;
   if (nearestGoal(plan(s, center(DOOR_OUTSIDE.x, DOOR_OUTSIDE.y)), outdoorGoals(s))) return goThroughDoor(ctx) ?? neutralFrame();
   const wait = waitFrame(ctx) ?? stockFrame(ctx);

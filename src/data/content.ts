@@ -168,6 +168,8 @@ export const CAULDRON_FUEL: ItemId = 'bogwood';
 
 export const GOAL_BANNER = 'First Ember Elixir sold - the marsh is yours to grow';
 export const GOAL_POTION: PotionId = 'emberelixir';
+// M2 goal (specs/wp/WP09): every catalog item owned.
+export const M2_BANNER = 'THE SHOP IS COMPLETE - WELL RUN';
 
 export const BREW_RECIPES: readonly BrewRecipe[] = [
   { potion: 'tonic', ingredients: [{ item: 'mintpaste', n: 1 }, { item: 'reed', n: 1 }] },
@@ -233,12 +235,39 @@ export const TOAD_SPOTS: Readonly<Record<'counter' | 'garden' | 'basket', { area
   basket: { area: 'shop', x: 15, y: 10 },
 };
 
+// --- Customer types (specs/wp/WP09) ----------------------------------------
+// Rolled on entry by weight. A customer values potions at x potions and every other item (raw,
+// fuel, ground) at x herbs; patience in seconds at the counter. A herbalist heads for a table of
+// raw or ground items when there is one.
+
+export type CustomerType = 'traveller' | 'courier' | 'haggler' | 'herbalist';
+
+export interface CustomerTypeDef {
+  id: CustomerType;
+  name: string;
+  // The notebook's one line about it.
+  trait: string;
+  weight: number;
+  potions: number;
+  herbs: number;
+  patience: number;
+  prefersHerbs: boolean;
+}
+
+export const CUSTOMER_TYPES: readonly CustomerTypeDef[] = [
+  { id: 'traveller', name: 'TRAVELLER', trait: 'NOTHING SPECIAL', weight: 50, potions: 1, herbs: 1, patience: 30, prefersHerbs: false },
+  { id: 'courier', name: 'COURIER', trait: 'PAYS MORE, WILL NOT WAIT', weight: 20, potions: 1.25, herbs: 1, patience: 12, prefersHerbs: false },
+  { id: 'haggler', name: 'HAGGLER', trait: 'PAYS LESS, WAITS LONG', weight: 15, potions: 0.85, herbs: 0.85, patience: 50, prefersHerbs: false },
+  { id: 'herbalist', name: 'HERBALIST', trait: 'WANTS HERBS AND POWDERS', weight: 15, potions: 1, herbs: 1.5, patience: 30, prefersHerbs: true },
+];
+
 // --- Structures --------------------------------------------------------
 
 // hut: the shop seen from outside; bed: a soil bed; cot: where the player sleeps; exit: the shop
 // door seen from inside (a target only while the shop is open, to say why it does not open);
-// catalog: the stand where upgrades are bought (specs/wp/WP07).
-export type StructureKind = 'hut' | 'bed' | 'signpost' | 'shelf' | 'counter' | 'sign' | 'mortar' | 'cauldron' | 'cot' | 'exit' | 'catalog';
+// catalog: the stand where upgrades are bought (specs/wp/WP07); board: the daily order, hung on the
+// back wall (specs/wp/WP09).
+export type StructureKind = 'hut' | 'bed' | 'signpost' | 'shelf' | 'counter' | 'sign' | 'mortar' | 'cauldron' | 'cot' | 'exit' | 'catalog' | 'board';
 
 export interface TileRect {
   x: number;
@@ -369,6 +398,8 @@ export const SHOP_LAYOUT: ShopLayout = {
     // A station's id is its StationKind; the second cauldron is a cauldron like the first.
     { id: 'cauldron2', kind: 'cauldron', tiles: { x: 20, y: 3, w: 1, h: 1 }, solid: true, interact: { x: 20, y: 4 }, hint: 'BREW', requires: 'cauldron2' },
     { id: 'catalog', kind: 'catalog', tiles: { x: 12, y: 10, w: 1, h: 1 }, solid: true, interact: { x: 12, y: 9 }, hint: 'CATALOG' },
+    // On the wall, which is solid already: it adds no solid tile.
+    { id: 'board', kind: 'board', tiles: { x: 5, y: 1, w: 1, h: 1 }, solid: false, interact: { x: 5, y: 2 }, hint: 'ORDER' },
     { id: 'cot', kind: 'cot', tiles: { x: 19, y: 9, w: 2, h: 1 }, solid: true, interact: { x: 18, y: 9 }, hint: 'SLEEP' },
     { id: 'exit', kind: 'exit', tiles: { x: 7, y: 11, w: 1, h: 1 }, solid: false, interact: { x: 7, y: 10 }, hint: 'CLOSE SHOP FIRST' },
   ],

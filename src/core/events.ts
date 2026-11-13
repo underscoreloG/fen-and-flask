@@ -1,6 +1,6 @@
 // Core -> render/audio. A tick where nothing happened returns an empty array; there is
 // deliberately no per-tick event. Positions are world px (feet centers).
-import type { CatalogId, CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
+import type { CatalogId, CreatureId, ItemId, NodeId, PotionId, StructureKind } from '../data/content';
 import type { Reaction } from './shop';
 import type { Area, Facing } from './state';
 import type { StationKind } from './stations';
@@ -20,7 +20,9 @@ export type UiRequest =
   | { ui: 'toast'; text: string }
   // plot indexes state.plots.
   | { ui: 'buyPlotConfirm'; plot: number }
-  | { ui: 'catalog' };
+  | { ui: 'catalog' }
+  // The order board (specs/wp/WP09).
+  | { ui: 'order' };
 
 export type GameEvent =
   // Every swing that actually plays; targetId is null for a swing at the air, a bed's
@@ -74,4 +76,9 @@ export type GameEvent =
   | { type: 'gardenToadHarvested'; harvested: number }
   | { type: 'basketToadBrought'; items: Partial<Record<ItemId, number>> }
   // A growing bed emptied by the player; 1 unit of item went back to the inventory.
-  | { type: 'bedDugUp'; bed: number; item: ItemId };
+  | { type: 'bedDugUp'; bed: number; item: ItemId }
+  // The daily order (specs/wp/WP09): posted at each morning reset (never at game start), delivered
+  // at the board. m2GoalReached once per game, the morning every catalog item is owned.
+  | { type: 'orderPosted'; item: PotionId; qty: number; pay: number }
+  | { type: 'orderDelivered'; item: PotionId; qty: number; pay: number }
+  | { type: 'm2GoalReached' };

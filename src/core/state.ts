@@ -5,6 +5,7 @@ import { APP_VERSION } from '../data/version';
 import { refillCreatures } from './creatures';
 import { createGarden } from './garden';
 import { refillPlot } from './nodes';
+import { drawOrder, type Order } from './orders';
 import { seedRng } from './rng';
 import { createShop, type ShopState } from './shop';
 import { createStations, type Stations } from './stations';
@@ -119,12 +120,16 @@ export interface GameState {
   shop: ShopState;
   // Catalog items bought (specs/wp/WP07): pending ones arrive at the next morning reset.
   catalog: { owned: CatalogId[]; pending: CatalogId[] };
+  // Today's order on the board (specs/wp/WP09).
+  order: Order;
   flags: Flags;
 }
 
 export interface Flags {
   // The first Ember Elixir has been paid for (M1 goal).
   m1Goal: boolean;
+  // Every catalog item owned (M2 goal, specs/wp/WP09).
+  m2Goal: boolean;
 }
 
 export function createInitialState(seed: number): GameState {
@@ -166,7 +171,9 @@ export function createInitialState(seed: number): GameState {
     stations: createStations(),
     shop: createShop(),
     catalog: { owned: [], pending: [] },
-    flags: { m1Goal: false },
+    // Drawn below, once the world is filled (so the day-1 layout does not depend on it).
+    order: { item: 'tonic', qty: 1, pay: 0, done: true },
+    flags: { m1Goal: false, m2Goal: false },
   };
   // Nodes first: mudlets then keep clear of them.
   state.plots.forEach((p, i) => {
@@ -175,6 +182,7 @@ export function createInitialState(seed: number): GameState {
   state.plots.forEach((p, i) => {
     if (p.owned) refillCreatures(state, i);
   });
+  state.order = drawOrder(state);
   return state;
 }
 

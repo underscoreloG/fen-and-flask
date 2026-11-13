@@ -442,7 +442,31 @@ export const INTERIOR_TILES: Record<string, readonly string[]> = {
   hearth_glow: glow(),
 };
 
+// The order board (specs/wp/WP09), 16x24: a cork board in a wooden frame hung on the back wall,
+// the day's note pinned on it (lines of writing and a coin for the pay). Its lower rows stay clear
+// so it hangs above the wainscot.
+function orderBoard(): string[] {
+  const g = grid(16, 24);
+  rect(g, 1, 1, 14, 13, 'o');
+  rect(g, 2, 2, 12, 11, 'u');
+  for (const [x, y] of [
+    [3, 3],
+    [11, 11],
+    [12, 4],
+  ] as const) {
+    put(g, x, y, 'p');
+  }
+  rect(g, 4, 3, 8, 9, 'b');
+  for (let y = 5; y < 10; y += 2) rect(g, 5, y, 4 + (y % 3), 1, 'p');
+  put(g, 10, 10, '$');
+  put(g, 7, 3, 'h');
+  put(g, 1, 1, 'O');
+  put(g, 14, 1, 'O');
+  return toRows(g);
+}
+
 export const INTERIOR_STRUCTURES: Record<string, readonly string[]> = {
+  order_board: orderBoard(),
   shelf: TABLE,
   counter: counter(),
   sign_open: sign(true),
@@ -457,7 +481,8 @@ export const BACK_WALL: readonly string[] = [
   'wall_jars',
   'wall_lantern',
   'wall_herbs',
-  'wall_window',
+  // The order board hangs here (specs/wp/WP09).
+  'wall_plain',
   'wall_jars',
   'wall_plaque',
   'wall_window',
