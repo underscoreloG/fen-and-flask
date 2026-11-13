@@ -93,8 +93,16 @@ describe('save', () => {
     const b = deserialize(serialize(s, APP_VERSION), APP_VERSION)!;
     expect(b).toEqual(s);
     expect(b.catalog).toEqual({ owned: ['shelf5', 'sickle'], pending: ['shelf6'] });
-    expect(APP_VERSION).toBe('0.3.0');
+    expect(APP_VERSION).toBe('0.3.1');
     expect(deserialize(serialize(createInitialState(1), '0.2.1'), APP_VERSION)).toBeNull();
+  });
+
+  it('a 0.3.0 save loads in 0.3.1 as it is, helpers included, and steps', () => {
+    const s = played();
+    s.catalog = { owned: ['shelf5', 'gardenToad', 'counterToad'], pending: ['basketToad'] };
+    const b = deserialize(serialize(s, '0.3.0'), APP_VERSION)!;
+    expect(b).toEqual(s);
+    expect(() => step(b, neutralFrame())).not.toThrow();
   });
 
   it('fillDefaults restores a missing key from a fresh state and keeps loaded arrays as they are', () => {

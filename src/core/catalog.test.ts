@@ -64,8 +64,9 @@ function expectRejected(s: GameState, c: Command): void {
 const shopTile = (x: number, y: number): [number, number] => [tileAt(x) - SHOP_TX, tileAt(y) - SHOP_TY];
 
 describe('catalog table', () => {
-  it('holds exactly the 9 items of WP07 with their prices and requirements', () => {
-    expect(CATALOG.map((d) => [d.id, d.name, d.price, d.requires ?? null])).toEqual([
+  it('holds the 9 items of WP07 with their prices and requirements, then the 5 helpers of WP08: 14 in all', () => {
+    expect(CATALOG).toHaveLength(14);
+    expect(CATALOG.slice(0, 9).map((d) => [d.id, d.name, d.price, d.requires ?? null])).toEqual([
       ['stoneMortar', 'STONE MORTAR', 90, null],
       ['sickle', 'COPPER SICKLE', 120, null],
       ['beds2', 'TWO GARDEN BEDS', 150, null],
@@ -75,6 +76,13 @@ describe('catalog table', () => {
       ['deepShelves', 'DEEP TABLES', 360, null],
       ['shelf6', 'SIXTH TABLE', 380, 'shelf5'],
       ['lanternSign', 'LANTERN SIGN', 480, 'signboard'],
+    ]);
+    expect(CATALOG.slice(9).map((d) => [d.id, d.name, d.price, d.requires ?? null])).toEqual([
+      ['gardenToad', 'GARDEN TOAD', 280, null],
+      ['counterToad', 'COUNTER TOAD', 320, null],
+      ['basketToad', 'BASKET TOAD', 420, null],
+      ['counterToad2', 'TRAINED COUNTER TOAD', 450, 'counterToad'],
+      ['basketToad2', 'BIGGER BASKET', 520, 'basketToad'],
     ]);
     // The panel footer is one line inside a 220 px panel.
     for (const d of CATALOG) expect(d.effect.length, d.id).toBeLessThanOrEqual(34);

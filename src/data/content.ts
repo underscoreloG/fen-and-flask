@@ -188,7 +188,12 @@ export type CatalogId =
   | 'cauldron2'
   | 'deepShelves'
   | 'shelf6'
-  | 'lanternSign';
+  | 'lanternSign'
+  | 'gardenToad'
+  | 'counterToad'
+  | 'basketToad'
+  | 'counterToad2'
+  | 'basketToad2';
 
 export interface CatalogDef {
   id: CatalogId;
@@ -212,7 +217,21 @@ export const CATALOG: readonly CatalogDef[] = [
   { id: 'deepShelves', name: 'DEEP TABLES', price: 360, effect: 'TABLES HOLD 8, SOME BUY TWO' },
   { id: 'shelf6', name: 'SIXTH TABLE', price: 380, requires: 'shelf5', customers: 2, effect: 'A 6TH TABLE, 2 MORE CUSTOMERS' },
   { id: 'lanternSign', name: 'LANTERN SIGN', price: 480, requires: 'signboard', customers: 3, effect: '3 MORE CUSTOMERS EACH EVENING' },
+  // Helper toads (specs/wp/WP08).
+  { id: 'gardenToad', name: 'GARDEN TOAD', price: 280, effect: 'HARVESTS AND REPLANTS EACH MORNING' },
+  { id: 'counterToad', name: 'COUNTER TOAD', price: 320, effect: 'RINGS UP AFTER 8 SECONDS' },
+  { id: 'basketToad', name: 'BASKET TOAD', price: 420, effect: 'BRINGS 5 INGREDIENTS EACH MORNING' },
+  { id: 'counterToad2', name: 'TRAINED COUNTER TOAD', price: 450, requires: 'counterToad', effect: 'RINGS UP AFTER 3 SECONDS' },
+  { id: 'basketToad2', name: 'BIGGER BASKET', price: 520, requires: 'basketToad', effect: 'BRINGS 9 INGREDIENTS EACH MORNING' },
 ];
+
+// Where the helper toads sit (specs/wp/WP08): drawn only, never solid, never a target. Tiles are
+// plot-local on the home plot ('world') or shop-local ('shop').
+export const TOAD_SPOTS: Readonly<Record<'counter' | 'garden' | 'basket', { area: 'world' | 'shop'; x: number; y: number }>> = {
+  counter: { area: 'shop', x: 2, y: 8 },
+  garden: { area: 'world', x: 5, y: 3 },
+  basket: { area: 'shop', x: 15, y: 10 },
+};
 
 // --- Structures --------------------------------------------------------
 

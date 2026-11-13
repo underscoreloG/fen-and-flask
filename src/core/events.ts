@@ -64,4 +64,10 @@ export type GameEvent =
   | { type: 'goalReached' }
   | { type: 'plotBought'; plot: number }
   // At the morning reset, once per catalog item delivered (before morning).
-  | { type: 'upgradeArrived'; id: CatalogId };
+  | { type: 'upgradeArrived'; id: CatalogId }
+  // Helper toads (specs/wp/WP08). toadRang comes right before the sale it rings up; the garden
+  // toad's harvest (total units, only when a bed was ready) and the basket (a count per item id)
+  // once per morning reset.
+  | { type: 'toadRang' }
+  | { type: 'gardenToadHarvested'; harvested: number }
+  | { type: 'basketToadBrought'; items: Partial<Record<ItemId, number>> };

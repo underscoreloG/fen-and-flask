@@ -20,6 +20,7 @@ import { ticks, TUNING } from '../data/tuning';
 import { startEvening } from './clock';
 import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
+import { counterDelay } from './helpers';
 import { refillPlot } from './nodes';
 import { nextFloat, nextInt, nextRange } from './rng';
 import type { Facing, GameState } from './state';
@@ -252,9 +253,26 @@ export function ringUp(state: GameState, events: GameEvent[]): void {
   if (targetKind(state) !== 'counter') return;
   const c = sh.customers.find((o) => o.spot === 0 && o.mode === 'queued');
   if (!c) return;
+  checkout(state, c, events);
+}
+
+// A ring-up, by hand or by the counter toad: the customer at spot 1 pays and leaves, the queue
+// steps forward.
+function checkout(state: GameState, c: Customer, events: GameEvent[]): void {
   pay(state, c, events);
   leave(state, c);
   advanceQueue(state);
+}
+
+// The counter toad (specs/wp/WP08): a customer waiting at spot 1 for at least its delay is rung
+// up, wherever the player is. Checked right after the wait counts up (before the patience) and on
+// the tick a customer reaches spot 1, so one who stepped up already past the delay pays at once.
+function counterToad(state: GameState, c: Customer, events: GameEvent[]): boolean {
+  const delay = counterDelay(state);
+  if (delay === null || state.shop.phase !== 'open' || c.spot !== 0 || c.mode !== 'queued' || c.waited < delay) return false;
+  events.push({ type: 'toadRang' });
+  checkout(state, c, events);
+  return true;
 }
 
 function finish(state: GameState, events: GameEvent[]): void {
@@ -449,6 +467,7 @@ function leaveUnpaid(state: GameState, c: Customer, events: GameEvent[]): void {
 function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void {
   if (c.holding && c.waited >= 0) {
     c.waited += 1;
+    if (counterToad(state, c, events)) return;
     if (c.waited >= PATIENCE_TICKS) {
       leaveUnpaid(state, c, events);
       return;
@@ -477,6 +496,7 @@ function stepCustomer(state: GameState, c: Customer, events: GameEvent[]): void 
         c.waited = 0;
         events.push({ type: 'customerQueued', item: c.item! });
       }
+      counterToad(state, c, events);
       break;
     case 'queued':
       break;
