@@ -6,7 +6,7 @@ import { neutralFrame, type Command, type Frame } from './commands';
 import type { GameEvent } from './events';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
-import { plotTileCenter } from './world';
+import { plotTileCenter, shopTileCenter } from './world';
 
 const cmd = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
 
@@ -34,8 +34,15 @@ function standAt(s: GameState, tx: number, ty: number, facing: GameState['player
   step(s, neutralFrame());
 }
 
-const atDoor = (s: GameState): void => standAt(s, 2, 3, 'up');
-const atStall = (s: GameState): void => standAt(s, 9, 10, 'down');
+// Indoors on a shop-local tile.
+function inside(s: GameState, tx: number, ty: number, facing: GameState['player']['facing']): void {
+  const at = shopTileCenter(tx, ty);
+  Object.assign(s.player, { area: 'shop', x: at.x, y: at.y, facing });
+  step(s, neutralFrame());
+}
+
+const atCot = (s: GameState): void => inside(s, 18, 9, 'right');
+const atSign = (s: GameState): void => inside(s, 9, 9, 'down');
 
 // The command is rejected when the state ends exactly like a twin that got no command.
 function expectRejected(s: GameState, c: Command): void {
@@ -71,10 +78,10 @@ describe('day clock', () => {
 });
 
 describe('CallItADay', () => {
-  it('at the stall during the day jumps to evening with one eveningStarted, never a second', () => {
+  it('at the shop sign during the day jumps to evening with one eveningStarted, never a second', () => {
     const s = quiet();
-    atStall(s);
-    expect(s.player.interactTarget).toBe('stall');
+    atSign(s);
+    expect(s.player.interactTarget).toBe('sign');
     const ev = step(s, cmd({ type: 'CallItADay' }));
     expect(s.phase).toBe('evening');
     expect(count(ev, 'eveningStarted')).toBe(1);
@@ -84,13 +91,13 @@ describe('CallItADay', () => {
 
   it('is rejected in the evening', () => {
     const s = quiet();
-    atStall(s);
+    atSign(s);
     step(s, cmd({ type: 'CallItADay' }));
     expect(s.phase).toBe('evening');
     expectRejected(s, { type: 'CallItADay' });
   });
 
-  it('is rejected away from the stall', () => {
+  it('is rejected away from the sign', () => {
     const s = quiet();
     standAt(s, 5, 7, 'down');
     expect(s.player.interactTarget).toBeNull();
@@ -109,17 +116,17 @@ describe('CallItADay', () => {
 });
 
 describe('Sleep', () => {
-  it('at the door: day 2, t 0, nodes and mudlets refilled, hearts full, pickups kept, one morning', () => {
+  it('at the cot: day 2, t 0, nodes and mudlets refilled, hearts full, pickups kept, one morning', () => {
     const s = createInitialState(3);
-    atDoor(s);
-    expect(s.player.interactTarget).toBe('hut');
+    atCot(s);
+    expect(s.player.interactTarget).toBe('cot');
     // Break some nodes, kill a mudlet, take damage, leave a drop lying far away.
     const broken = s.nodes.filter((n) => n.type === 'mintbush' || n.type === 'stump').slice(0, 5);
     s.nodes = s.nodes.filter((n) => !broken.includes(n));
     s.creatures = s.creatures.slice(1);
     s.player.hearts = 2;
     const far = plotTileCenter(0, 0, 17, 9);
-    s.pickups.push({ id: s.nextId++, item: 'reed', x: far.x, y: far.y, fromX: far.x, fromY: far.y, landing: 0 });
+    s.pickups.push({ id: s.nextId++, item: 'reed', area: 'world', x: far.x, y: far.y, fromX: far.x, fromY: far.y, landing: 0 });
     expect(s.creatures.length).toBe(1);
     const ev = step(s, cmd({ type: 'Sleep' }));
     expect(s.day).toBe(2);
@@ -137,15 +144,15 @@ describe('Sleep', () => {
   it('works in the evening too', () => {
     const s = quiet();
     setPhase(s, 'evening');
-    atDoor(s);
+    atCot(s);
     step(s, cmd({ type: 'Sleep' }));
     expect(s.day).toBe(2);
     expect(s.phase).toBe('day');
   });
 
-  it('is rejected away from the door', () => {
+  it('is rejected away from the cot', () => {
     const s = quiet();
-    atStall(s);
+    atSign(s);
     expectRejected(s, { type: 'Sleep' });
     expect(s.day).toBe(1);
   });
@@ -197,7 +204,7 @@ describe('determinism', () => {
     const play = (): string => {
       const s = createInitialState(42);
       s.creatures = [];
-      atDoor(s);
+      atCot(s);
       const events: GameEvent[] = [];
       for (let i = 0; i < 600; i++) events.push(...step(s, script(i)));
       expect(s.day).toBe(2);

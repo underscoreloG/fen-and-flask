@@ -6,7 +6,7 @@ import { refillCreatures } from './creatures';
 import { createGarden } from './garden';
 import { refillPlot } from './nodes';
 import { seedRng } from './rng';
-import { createStall, type StallState } from './stall';
+import { createShop, type ShopState } from './shop';
 import { createStations, type Stations } from './stations';
 import { plotTileCenter } from './world';
 
@@ -14,10 +14,14 @@ export type Facing = 'down' | 'up' | 'left' | 'right';
 
 export type Phase = 'day' | 'evening';
 
+// Outdoors on the plots, or inside the shop (which sits in the same px space, below the world).
+export type Area = 'world' | 'shop';
+
 export interface PlayerState {
   // Center of the feet, in world px.
   x: number;
   y: number;
+  area: Area;
   facing: Facing;
   hearts: number;
   moving: boolean;
@@ -75,6 +79,8 @@ export interface CreatureState {
 export interface PickupState {
   id: number;
   item: ItemId;
+  // Only the player in the same area collects it.
+  area: Area;
   x: number;
   y: number;
   // Where it was dropped from, so the renderer can draw the arc out.
@@ -110,12 +116,12 @@ export interface GameState {
   pickups: PickupState[];
   garden: BedState[];
   stations: Stations;
-  stall: StallState;
+  shop: ShopState;
   flags: Flags;
 }
 
 export interface Flags {
-  // The first Ember Elixir has been sold (M1 goal).
+  // The first Ember Elixir has been paid for (M1 goal).
   m1Goal: boolean;
 }
 
@@ -135,6 +141,7 @@ export function createInitialState(seed: number): GameState {
     player: {
       x: pos.x,
       y: pos.y,
+      area: 'world',
       facing: 'down',
       hearts: TUNING.player.hearts,
       moving: false,
@@ -155,7 +162,7 @@ export function createInitialState(seed: number): GameState {
     pickups: [],
     garden: createGarden(),
     stations: createStations(),
-    stall: createStall(),
+    shop: createShop(),
     flags: { m1Goal: false },
   };
   // Nodes first: mudlets then keep clear of them.

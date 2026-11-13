@@ -6,12 +6,71 @@ import { creatureDef, hitCreature, touchingCreature } from './creatures';
 import type { GameEvent } from './events';
 import { bedIndex, harvest, interactBed, readyBeds, type ReadyBed } from './garden';
 import { hitNode } from './nodes';
-import type { CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
-import { moveAxis, structureStands, WORLD_STRUCTURES, type WorldStructure } from './world';
+import { ringUp, shelfIndex, stockedShelves } from './shop';
+import type { Area, CreatureState, Facing, GameState, NodeState, PlayerState } from './state';
+import {
+  DOOR_OUTSIDE,
+  DOOR_TILE,
+  ENTRY_TILE,
+  EXIT_TILE,
+  moveAxis,
+  structureStands,
+  TILE,
+  tileAt,
+  WORLD_STRUCTURES,
+  type WorldStructure,
+} from './world';
 
 const P = TUNING.player;
 const STEP = P.speed / TUNING.sim.tickRate;
 const HURT = TUNING.hurt;
+
+// Each door: the tile that takes you through, the tile in front of it (from where you push
+// into it), the push direction, and where you arrive.
+interface Door {
+  from: Area;
+  tile: { x: number; y: number };
+  front: { x: number; y: number };
+  push: Facing;
+  to: Area;
+  land: { x: number; y: number };
+  face: Facing;
+}
+
+const DOORS: readonly Door[] = [
+  { from: 'world', tile: DOOR_TILE, front: DOOR_OUTSIDE, push: 'up', to: 'shop', land: ENTRY_TILE, face: 'up' },
+  { from: 'shop', tile: EXIT_TILE, front: ENTRY_TILE, push: 'down', to: 'world', land: DOOR_OUTSIDE, face: 'down' },
+];
+
+const center = (t: { x: number; y: number }): { x: number; y: number } => ({ x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE });
+
+// Pushing into a doorway from just beside its center slides the player in line with it, so a
+// one-tile gap never snags on its corners.
+function doorNudge(state: GameState, mx: number, my: number): number {
+  const p = state.player;
+  for (const d of DOORS) {
+    if (d.from !== p.area || tileAt(p.x) !== d.front.x || tileAt(p.y) !== d.front.y) continue;
+    const pushing = d.push === 'up' ? my < 0 : my > 0;
+    if (!pushing || Math.abs(mx) >= Math.abs(my)) continue;
+    const dx = center(d.front).x - p.x;
+    return Math.sign(dx) * Math.min(Math.abs(dx), STEP);
+  }
+  return 0;
+}
+
+// Feet center on a door tile: through to the other side, at the center of the landing tile one
+// step away from the door there, so holding the same direction carries on and never bounces back.
+export function updateDoors(state: GameState, events: GameEvent[]): void {
+  const p = state.player;
+  const d = DOORS.find((o) => o.from === p.area && tileAt(p.x) === o.tile.x && tileAt(p.y) === o.tile.y);
+  if (!d) return;
+  const at = center(d.land);
+  p.area = d.to;
+  p.x = at.x;
+  p.y = at.y;
+  p.facing = d.face;
+  events.push({ type: 'areaChanged', area: d.to });
+}
 
 export function updatePlayer(state: GameState, frame: Frame): void {
   const p = state.player;
@@ -36,7 +95,7 @@ export function updatePlayer(state: GameState, frame: Frame): void {
   p.moving = len > 0;
   if (!p.moving) return;
   p.facing = faceToward(p.facing, mx, my);
-  moveAxis(state, p, mx * STEP, 'x', P.hitboxW, P.hitboxH);
+  moveAxis(state, p, mx * STEP + doorNudge(state, mx, my), 'x', P.hitboxW, P.hitboxH);
   moveAxis(state, p, my * STEP, 'y', P.hitboxW, P.hitboxH);
 }
 
@@ -103,6 +162,8 @@ type SwingTarget =
 // the assist radius around the feet.
 function findSwingTarget(state: GameState): SwingTarget | null {
   const p = state.player;
+  // Creatures, nodes and beds all live outdoors: a swing indoors hits nothing.
+  if (p.area !== 'world') return null;
   const beds = readyBeds(state);
   for (const assist of [false, true]) {
     const creature = nearestInReach(p, TUNING.swing, state.creatures, (c) => c, assist);
@@ -115,11 +176,23 @@ function findSwingTarget(state: GameState): SwingTarget | null {
   return null;
 }
 
+// Structures with an interact tile in the player's area, on an owned plot. The exit is only a
+// target while the shop is open, to say why it does not let you out.
+function usableStructures(state: GameState): WorldStructure[] {
+  const open = state.shop.phase === 'open';
+  return WORLD_STRUCTURES.filter(
+    (s) =>
+      s.def.interact !== undefined &&
+      s.area === state.player.area &&
+      (s.def.kind !== 'exit' || open) &&
+      structureStands(state, s) &&
+      state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned),
+  );
+}
+
 function findInteractTarget(state: GameState): { s: WorldStructure; assist: boolean } | null {
   const p = state.player;
-  const usable = WORLD_STRUCTURES.filter(
-    (s) => structureStands(state, s) && state.plots.some((pl) => pl.gx === s.plot.gx && pl.gy === s.plot.gy && pl.owned),
-  );
+  const usable = usableStructures(state);
   for (const assist of [false, true]) {
     const s = nearestInReach(p, TUNING.interact, usable, (w) => ({ x: w.interactX, y: w.interactY }), assist);
     if (s) return { s, assist };
@@ -157,14 +230,24 @@ export function interact(state: GameState, events: GameEvent[]): void {
     s = findInteractTarget(state)?.s ?? s;
   }
   events.push({ type: 'interact', kind: s.def.kind, structureId: s.def.id });
+  const shop = state.shop;
   switch (s.def.kind) {
-    case 'hut':
+    case 'cot':
       events.push({ type: 'uiRequest', ui: 'sleepConfirm' });
       break;
-    case 'stall':
-      if (state.phase === 'day') events.push({ type: 'uiRequest', ui: 'callItADayConfirm' });
-      else if (state.stall.openedToday) events.push({ type: 'uiRequest', ui: 'toast', text: 'STALL IS DONE FOR TODAY' });
-      else events.push({ type: 'uiRequest', ui: 'stall' });
+    case 'sign':
+      if (shop.phase === 'open') events.push({ type: 'uiRequest', ui: 'closeShopConfirm' });
+      else if (state.phase === 'day') events.push({ type: 'uiRequest', ui: 'callItADayConfirm' });
+      else if (shop.openedToday) events.push({ type: 'uiRequest', ui: 'toast', text: 'SHOP IS DONE FOR TODAY' });
+      else if (stockedShelves(state).length === 0) events.push({ type: 'uiRequest', ui: 'toast', text: 'STOCK A SHELF FIRST' });
+      else events.push({ type: 'uiRequest', ui: 'openShopConfirm' });
+      break;
+    case 'shelf':
+      events.push({ type: 'uiRequest', ui: 'shelf', shelf: shelfIndex(s.def.id) });
+      break;
+    case 'counter':
+      // No panel: the press rings up whoever waits at spot 1.
+      ringUp(state, events);
       break;
     case 'signpost': {
       const plot = PLOTS.findIndex((p) => p.id === s.def.sells);
@@ -186,8 +269,7 @@ export function interact(state: GameState, events: GameEvent[]): void {
 // Contact with a mudlet: one heart, knockback away from it, then a spell of invulnerability.
 export function updateHurt(state: GameState, events: GameEvent[]): void {
   const p = state.player;
-  // Held at the open stall, the player cannot be hurt or pushed.
-  if (p.invulnerable > 0 || state.stall.phase === 'open') return;
+  if (p.invulnerable > 0) return;
   const c = touchingCreature(state);
   if (!c) return;
   p.hearts = Math.max(0, p.hearts - creatureDef(c.type).contactDamage);
@@ -211,20 +293,11 @@ export function updateHurt(state: GameState, events: GameEvent[]): void {
   if (p.hearts <= 0) faint(state, events);
 }
 
-const HUT_DOOR = WORLD_STRUCTURES.find((s) => s.def.kind === 'hut')!;
-
+// The morning reset puts the player in bed, indoors.
 function faint(state: GameState, events: GameEvent[]): void {
   const p = state.player;
   events.push({ type: 'playerFainted', x: p.x, y: p.y });
   p.hearts = P.hearts;
-  p.x = HUT_DOOR.interactX;
-  p.y = HUT_DOOR.interactY;
-  p.facing = 'down';
-  p.moving = false;
-  p.knockTicks = 0;
-  p.knockX = 0;
-  p.knockY = 0;
-  // After the move, so the respawn distance rule is measured from where the player wakes.
   morningReset(state, events);
 }
 

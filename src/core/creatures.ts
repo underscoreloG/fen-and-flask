@@ -76,8 +76,8 @@ export function updateCreatures(state: GameState): void {
     const dx = p.x - c.x;
     const dy = p.y - c.y;
     const d = Math.hypot(dx, dy);
-    // While the stall is open for business mudlets only wander.
-    if (d <= def.aggroRadius && state.stall.phase !== 'open') {
+    // A player indoors is out of their world: they only wander.
+    if (d <= def.aggroRadius && p.area === 'world') {
       c.mode = 'chase';
       const s = Math.min(def.hopSpeed / RATE, d);
       if (d > 0) move(state, c, def, (dx / d) * s, (dy / d) * s);
@@ -136,9 +136,10 @@ export function hitCreature(state: GameState, c: CreatureState, events: GameEven
   c.stun = ticks(def.stun);
 }
 
-// The first creature whose feet box overlaps the player's.
+// The first creature whose feet box overlaps the player's (only outdoors, where creatures live).
 export function touchingCreature(state: GameState): CreatureState | undefined {
   const p = state.player;
+  if (p.area !== 'world') return undefined;
   const { hitboxW, hitboxH } = TUNING.player;
   return state.creatures.find((c) => {
     const def = creatureDef(c.type);

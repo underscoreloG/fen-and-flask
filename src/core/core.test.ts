@@ -103,9 +103,10 @@ describe('world', () => {
     expect(isTileBlocked(s, 0, 0)).toBe(true);
     expect(isTileBlocked(s, 23, 8)).toBe(true); // east plot, locked
     expect(isTileBlocked(s, 3 + 2, 3 + 1)).toBe(true); // hut
+    expect(isTileBlocked(s, 3 + 1, 3 + 2)).toBe(true); // hut, beside the door
+    expect(isTileBlocked(s, 3 + 2, 3 + 2)).toBe(false); // the hut's doorway
     expect(isTileBlocked(s, 3 + 6, 3 + 2)).toBe(false); // soil bed
     expect(isTileBlocked(s, 3 + 9, 3 + 13)).toBe(false); // road
-    expect(isTileBlocked(s, 3 + 9, 3 + 11)).toBe(true); // stall
     s.plots[1]!.owned = true;
     expect(isTileBlocked(s, 23, 8)).toBe(false);
     // Touching an edge is not overlapping.
@@ -143,8 +144,9 @@ describe('player movement', () => {
     expect(s.player.facing).toBe('left');
   });
 
-  it('cannot enter the hut: walking up stops flush under it', () => {
+  it('cannot enter the hut walls: walking up beside the door stops flush under it', () => {
     const s = quiet(1);
+    s.player.x -= TILE;
     const hut = { x: (3 + 1) * TILE, y: (3 + 1) * TILE, w: 3 * TILE, h: 2 * TILE };
     run(s, move(0, -1), 600, () => expect(feetOverlap(s, hut.x, hut.y, hut.w, hut.h)).toBe(false));
     expect(s.player.y).toBe(hut.y + hut.h + TUNING.player.hitboxH / 2);

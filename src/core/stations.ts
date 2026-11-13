@@ -13,7 +13,7 @@ import { ticks, TUNING } from '../data/tuning';
 import type { GameEvent } from './events';
 import { spawnPickup } from './pickups';
 import type { GameState } from './state';
-import { targetStructure, TILE, WORLD_STRUCTURES, type WorldStructure } from './world';
+import { structureOfKind, targetStructure, type WorldStructure } from './world';
 
 export type StationKind = 'mortar' | 'cauldron';
 
@@ -41,15 +41,10 @@ export const UNIT_TICKS: Readonly<Record<StationKind, number>> = {
 
 const C = TUNING.cauldron;
 
-function structureOf(kind: StationKind): WorldStructure {
-  const s = WORLD_STRUCTURES.find((w) => w.def.kind === kind);
-  if (!s) throw new Error(`no ${kind} in the plot layouts`);
-  return s;
-}
-
+// Both stand in the shop's back room.
 export const STATION_STRUCTURES: Readonly<Record<StationKind, WorldStructure>> = {
-  mortar: structureOf('mortar'),
-  cauldron: structureOf('cauldron'),
+  mortar: structureOfKind('mortar'),
+  cauldron: structureOfKind('cauldron'),
 };
 
 export function grindRecipe(input: ItemId): GrindRecipe | undefined {
@@ -105,14 +100,13 @@ export function startBrew(state: GameState, potion: PotionId, qty: number, event
   startJob(state, 'cauldron', r.potion, qty, events);
 }
 
-// One unit out: a pickup on the tile below the station, arcing from the station itself.
+// One unit out: an indoor pickup on the station's interact tile, arcing from the station itself.
 function produce(state: GameState, kind: StationKind, job: Job, events: GameEvent[]): void {
   const s = STATION_STRUCTURES[kind];
-  const cx = s.x + s.w / 2;
   job.remaining -= 1;
   job.progress = 0;
   events.push({ type: 'jobUnitDone', station: kind, item: job.recipe });
-  spawnPickup(state, job.recipe, cx, s.y + s.h + TILE / 2, cx, s.y + s.h / 2, events);
+  spawnPickup(state, job.recipe, 'shop', s.interactX, s.interactY, s.x + s.w / 2, s.y + s.h / 2, events);
   if (job.remaining > 0) return;
   state.stations[kind] = null;
   events.push({ type: 'jobFinished', station: kind });

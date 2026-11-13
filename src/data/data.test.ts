@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BREW_RECIPES, CREATURES, CROPS, GRIND_RECIPES, ITEMS, NODES, PLOTS, PLOT_LAYOUTS } from './content';
+import { CREATURES, CROPS, GRIND_RECIPES, ITEMS, NODES, PLOTS, PLOT_LAYOUTS, SHOP_LAYOUT } from './content';
 import { PALETTE, hex } from './palette';
 import { ticks, TUNING } from './tuning';
 
@@ -40,8 +40,22 @@ describe('content', () => {
   it('holds the tables of specs/content.md', () => {
     expect(ITEMS.length).toBe(13);
     expect(PLOTS.find((p) => p.id === 'east')!.price).toBe(150);
-    const base = Object.fromEntries(BREW_RECIPES.map((r) => [r.potion, r.baseValue]));
-    expect(base).toEqual({ tonic: 14, salve: 18, glowdraught: 24, emberelixir: 60 });
+    // Potion values from content.md; raw and ground values from specs/wp/WP06.
+    expect(Object.fromEntries(ITEMS.map((i) => [i.id, i.value]))).toEqual({
+      mint: 2,
+      reed: 2,
+      bogwood: 1,
+      glowcap: 4,
+      mudgel: 4,
+      emberroot: 12,
+      mintpaste: 3,
+      glowdust: 6,
+      emberpowder: 18,
+      tonic: 14,
+      salve: 18,
+      glowdraught: 24,
+      emberelixir: 60,
+    });
     const targets = Object.fromEntries(NODES.map((n) => [n.id, n.targets]));
     expect(targets).toEqual({
       mintbush: { home: 6, east: 0 },
@@ -58,11 +72,37 @@ describe('content', () => {
 
   it('lays out the home plot structures', () => {
     const s = PLOT_LAYOUTS.home.structures;
-    expect(s.map((x) => x.kind).sort()).toEqual(['bed', 'bed', 'bed', 'bed', 'cauldron', 'hut', 'mortar', 'signpost', 'stall']);
+    expect(s.map((x) => x.kind).sort()).toEqual(['bed', 'bed', 'bed', 'bed', 'hut', 'signpost']);
     const hut = s.find((x) => x.kind === 'hut')!;
-    expect(hut).toMatchObject({ tiles: { x: 1, y: 1, w: 3, h: 2 }, solid: true, interact: { x: 2, y: 3 }, hint: 'SLEEP' });
+    expect(hut).toMatchObject({ tiles: { x: 1, y: 1, w: 3, h: 2 }, solid: true, open: [{ x: 2, y: 2 }] });
+    expect(hut.interact).toBeUndefined();
+    expect(PLOT_LAYOUTS.home.door).toEqual({ tile: { x: 2, y: 2 }, outside: { x: 2, y: 3 } });
     expect(s.find((x) => x.kind === 'signpost')).toMatchObject({ tiles: { x: 19, y: 6 }, interact: { x: 18, y: 6 }, hint: 'BUY PLOT' });
     expect(s.filter((x) => x.kind === 'bed').every((b) => !b.solid && b.hint === 'PLANT' && b.hintReady === 'HARVEST')).toBe(true);
     expect(PLOT_LAYOUTS.home.playerStart).toEqual({ x: 2, y: 4 });
+  });
+
+  it('lays out the shop interior of specs/wp/WP06', () => {
+    const L = SHOP_LAYOUT;
+    expect([L.w, L.h, L.partitionX, L.partitionDoorY]).toEqual([22, 12, 14, 6]);
+    expect([L.entry, L.exit]).toEqual([
+      { x: 7, y: 10 },
+      { x: 7, y: 11 },
+    ]);
+    expect(L.queue).toEqual([
+      { x: 3, y: 9 },
+      { x: 4, y: 9 },
+    ]);
+    const at = (id: string) => L.structures.find((x) => x.id === id)!;
+    for (const [i, x] of [3, 6, 9, 12].entries()) {
+      expect(at('shelf' + i)).toMatchObject({ kind: 'shelf', tiles: { x, y: 4, w: 1, h: 1 }, solid: true, interact: { x, y: 5 }, hint: 'SHELF' });
+    }
+    expect(at('counter')).toMatchObject({ tiles: { x: 2, y: 8, w: 3, h: 1 }, solid: true, interact: { x: 3, y: 7 } });
+    expect(at('sign')).toMatchObject({ tiles: { x: 9, y: 10, w: 1, h: 1 }, solid: true, interact: { x: 9, y: 9 } });
+    expect(at('mortar')).toMatchObject({ tiles: { x: 16, y: 3 }, solid: true, interact: { x: 16, y: 4 }, hint: 'GRIND' });
+    expect(at('cauldron')).toMatchObject({ tiles: { x: 18, y: 3 }, solid: true, interact: { x: 18, y: 4 }, hint: 'BREW' });
+    expect(at('cot')).toMatchObject({ tiles: { x: 19, y: 9, w: 2, h: 1 }, solid: true, interact: { x: 18, y: 9 }, hint: 'SLEEP' });
+    expect(TUNING.shop).toMatchObject({ shelfCapacity: 5, maxIndoors: 2, customerSpeed: 40 });
+    expect([ticks(TUNING.shop.enterGap), ticks(TUNING.shop.patience), ticks(TUNING.stall.reactionTime)]).toEqual([150, 1800, 48]);
   });
 });

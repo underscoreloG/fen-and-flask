@@ -24,8 +24,8 @@ export type SoundId =
 
 type EventOf<T extends GameEvent['type']> = Extract<GameEvent, { type: T }>;
 
-// An event type, optionally narrowed by its payload.
-export type Trigger = { [T in GameEvent['type']]: { event: T; when?: (e: EventOf<T>) => boolean } }[GameEvent['type']];
+// An event type, optionally narrowed by its payload; volume overrides the sound's base volume.
+export type Trigger = { [T in GameEvent['type']]: { event: T; when?: (e: EventOf<T>) => boolean; volume?: number } }[GameEvent['type']];
 
 export interface SoundDef {
   id: SoundId;
@@ -47,8 +47,14 @@ export const SOUNDS: readonly SoundDef[] = [
   { id: 'bubble', file: 'bubble.ogg', volume: 0.6, on: [{ event: 'jobStarted', when: (e) => e.station === 'cauldron' }] },
   { id: 'potion_done', file: 'potion_done.ogg', volume: 0.8, on: [{ event: 'jobUnitDone', when: (e) => e.station === 'cauldron' }] },
   { id: 'coin', file: 'coin.ogg', volume: 1.0, on: [{ event: 'sale' }] },
-  { id: 'refuse', file: 'refuse.ogg', volume: 0.4, on: [{ event: 'customerReacted', when: (e) => e.reaction === 'refuses' }] },
-  { id: 'bell', file: 'bell.ogg', volume: 1.0, on: [{ event: 'stallOpened' }] },
+  {
+    id: 'refuse',
+    file: 'refuse.ogg',
+    volume: 0.4,
+    on: [{ event: 'customerReacted', when: (e) => e.reaction === 'refuses' }, { event: 'customerLeftUnpaid' }],
+  },
+  // A softer ring each time a customer reaches the counter.
+  { id: 'bell', file: 'bell.ogg', volume: 1.0, on: [{ event: 'stallOpened' }, { event: 'customerQueued', volume: 0.4 }] },
   { id: 'hurt', file: 'hurt.ogg', volume: 0.45, on: [{ event: 'playerHurt' }] },
   { id: 'sleep', file: 'sleep.ogg', volume: 0.6, on: [{ event: 'morning' }] },
   { id: 'ui_move', file: 'ui_move.ogg', volume: 0.4, on: [] },
@@ -59,9 +65,17 @@ export const SOUNDS: readonly SoundDef[] = [
 const matches = (t: Trigger, e: GameEvent): boolean =>
   t.event === e.type && (t.when === undefined || (t.when as (x: GameEvent) => boolean)(e));
 
-// The sounds one core event plays (empty for events without a sound).
-export function soundsFor(e: GameEvent): SoundId[] {
-  return SOUNDS.filter((s) => s.on.some((t) => matches(t, e))).map((s) => s.id);
+export interface Play {
+  id: SoundId;
+  volume: number;
+}
+
+// The sounds one core event plays, at their volume (empty for events without a sound).
+export function soundsFor(e: GameEvent): Play[] {
+  return SOUNDS.flatMap((s) => {
+    const t = s.on.find((x) => matches(x, e));
+    return t ? [{ id: s.id, volume: t.volume ?? s.volume }] : [];
+  });
 }
 
 // At most one play of the same id per gapMs; a dropped play does not push the window.

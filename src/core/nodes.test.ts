@@ -6,7 +6,7 @@ import type { GameEvent } from './events';
 import { isNearStructure, nodeDef } from './nodes';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
-import { plotOrigin, plotTileCenter, tileAt, tileKind } from './world';
+import { plotOrigin, plotTileCenter, shopTileCenter, tileAt, tileKind } from './world';
 
 const SWING: Frame = { ...neutralFrame(), swing: true };
 
@@ -203,18 +203,24 @@ describe('gathering', () => {
 });
 
 describe('interact', () => {
-  it('at the hut door facing up, interact emits the hut and the target is exposed', () => {
+  it('at the cot facing it, interact emits the cot and the target is exposed', () => {
     const s = scene();
-    const door = plotTileCenter(0, 0, 2, 3);
-    s.player.x = door.x;
-    s.player.y = door.y;
-    s.player.facing = 'up';
+    const bed = shopTileCenter(18, 9);
+    Object.assign(s.player, { area: 'shop', x: bed.x, y: bed.y, facing: 'right' });
     const ev = step(s, { ...neutralFrame(), interact: true });
     expect(ev).toEqual([
-      { type: 'interact', kind: 'hut', structureId: 'hut' },
+      { type: 'interact', kind: 'cot', structureId: 'cot' },
       { type: 'uiRequest', ui: 'sleepConfirm' },
     ]);
-    expect(s.player.interactTarget).toBe('hut');
+    expect(s.player.interactTarget).toBe('cot');
+  });
+
+  it('the hut itself is never an interact target', () => {
+    const s = scene();
+    const door = plotTileCenter(0, 0, 2, 3);
+    Object.assign(s.player, { x: door.x, y: door.y, facing: 'up' });
+    expect(step(s, { ...neutralFrame(), interact: true })).toEqual([]);
+    expect(s.player.interactTarget).toBeNull();
   });
 
   it('interact with nothing near emits nothing', () => {

@@ -21,6 +21,9 @@ export const TUNING = {
     gridW: 2,
     gridH: 1,
     roadRow: 13,
+    // The shop interior lives in the same px space, this many tiles below the world, so nothing
+    // indoors can ever overlap anything outdoors.
+    shopGap: 4,
   },
   player: {
     speed: 90,
@@ -87,7 +90,6 @@ export const TUNING = {
   stall: {
     customersBase: 6,
     customersPerExtraPlot: 2,
-    walkIn: 2,
     reactionTime: 0.8,
     firstPriceFactor: 0.7,
     priceStep: 1,
@@ -98,6 +100,16 @@ export const TUNING = {
     grumbleDemandPenalty: 0.05,
     personalMin: 0.95,
     personalMax: 1.05,
+  },
+  // The shop interior (specs/wp/WP06).
+  shop: {
+    shelfCapacity: 5,
+    maxIndoors: 2,
+    // 150 ticks between two customers coming in.
+    enterGap: 2.5,
+    customerSpeed: 40,
+    // A queued customer leaves without paying after this long.
+    patience: 30,
   },
   demand: {
     start: 1.0,
@@ -244,15 +256,17 @@ export const TUNING = {
     pendingAlpha: 0.35,
     clockGap: 2,
     clockHandPx: 3,
-    // Sale: coins fly from the customer to the coin counter, "+N" rises over the customer.
+    // Sale: coins fly from the counter to the coin counter, "+N" rises over the till.
     saleCoins: 3,
     saleCoinStaggerMs: 70,
     saleCoinMs: 520,
     saleArcPx: 28,
     plusRisePx: 14,
-    // "+N" and the coins start this far above the customer's feet.
-    saleLiftPx: 28,
+    // "+N" and the coins start this far above the counter's interact tile center.
+    saleLiftPx: 12,
     plusMs: 900,
+    // The OPEN tag under the clock.
+    openTagGap: 2,
   },
   // Toast (top-center one-liners) and the M1 goal banner.
   toast: {
@@ -264,20 +278,30 @@ export const TUNING = {
     padX: 5,
     padY: 3,
   },
-  // Stall: customers in the world, the open view's left column.
-  stallView: {
+  // Shop: customers, their bubbles, the shelves' wares.
+  shopView: {
     bubbleLiftPx: 2,
-    // Share of the walk out during which the reaction bubble stays up, fading.
-    bubbleLingers: 0.4,
     popScale: 1.6,
     popMs: 180,
     walkFrameTicks: 10,
-    // Fade-in / out at the plot edge, as a share of the walk.
-    edgeFade: 0.1,
-    columnX: 4,
-    columnTop: 30,
-    // Width kept for prices and counts in the stall rows, in characters.
-    priceChars: 3,
-    countChars: 3,
+    // The carried item bobs over the head.
+    carryLiftPx: 3,
+    carryBobMs: 200,
+    // Patience bar under the waiting bubble; it turns ember in the last third.
+    patienceBarH: 2,
+    patienceWarn: 1 / 3,
+    // Fade in / out on the entry tile, in ticks of walking.
+    edgeFadeTicks: 12,
+    // A shelf's ware sits this far above the table's footprint top; pips under it.
+    wareLiftPx: 3,
+    pipGap: 1,
+    // The back room's floor glows warm around a lit cauldron.
+    glowAlpha: 0.35,
+    glowPulseMs: 420,
+  },
+  // The shelf panel's fields.
+  shelfPanel: {
+    labelChars: 9,
+    historyGap: 6,
   },
 } as const;

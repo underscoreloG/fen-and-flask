@@ -1,21 +1,38 @@
-// Autoplay policy (specs/wp/WP04): state -> Frame, a pure function, so a run is as deterministic as
-// the sim. It plays the whole loop with movement, swings and commands only; it never presses
-// interact, and sends a command only once the previous tick's interact target is the structure
-// that command needs. Pathing is a BFS over world tiles (nodes and solid structures block).
+// Autoplay policy (specs/wp/WP04, WP06): state -> Frame, a pure function, so a run is as
+// deterministic as the sim. It plays the whole loop with movement, swings and commands only; it
+// never presses interact, and sends a command only once the previous tick's interact target is
+// the structure that command needs. Pathing is a BFS over the tiles of the player's area (the
+// world: nodes and solid structures block; the shop: walls and furniture), through the doors.
 import { GRIND_RECIPES, PLOTS, type ItemId, type PotionId } from '../data/content';
 import { TUNING } from '../data/tuning';
 import { DAY_TICKS } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import { BED_IDS, isReady } from './garden';
-import { potionsInStock, WALK_TICKS } from './stall';
+import { SHELVES } from './shop';
 import type { CreatureState, Facing, GameState } from './state';
 import { brewRecipe, maxBrew, maxGrind, STATION_KINDS, STATION_STRUCTURES } from './stations';
-import { isTileBlocked, tileAt, TILE, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W, type WorldStructure } from './world';
+import {
+  DOOR_OUTSIDE,
+  DOOR_TILE,
+  EXIT_TILE,
+  isTileBlocked,
+  SHOP_H,
+  SHOP_TX,
+  SHOP_TY,
+  SHOP_W,
+  structureOfKind,
+  tileAt,
+  TILE,
+  WORLD_STRUCTURES,
+  WORLD_TILES_H,
+  WORLD_TILES_W,
+  type WorldStructure,
+} from './world';
 
 const B = TUNING.bot;
-const W = WORLD_TILES_W;
-const H = WORLD_TILES_H;
 const STEP = TUNING.player.speed / TUNING.sim.tickRate;
+const CAP = TUNING.shop.shelfCapacity;
+// Highest value first: the brew order and the stocking order.
 const BREW_ORDER: readonly PotionId[] = ['emberelixir', 'glowdraught', 'salve', 'tonic'];
 // Bed i grows this crop (bed 3 switches to emberroot once the east plot is owned).
 const BED_CROPS: readonly ItemId[] = ['glowcap', 'glowcap', 'mint', 'mint'];
@@ -27,41 +44,55 @@ const BED_STAND: readonly { dx: number; dy: number; face: Facing }[] = [
   { dx: 0, dy: 1, face: 'up' },
 ];
 
-const byKind = (kind: WorldStructure['def']['kind']): WorldStructure => WORLD_STRUCTURES.find((s) => s.def.kind === kind)!;
-const HUT = byKind('hut');
-const STALL = byKind('stall');
+const SIGN = structureOfKind('sign');
+const COUNTER = structureOfKind('counter');
+const COT = structureOfKind('cot');
 const BEDS = WORLD_STRUCTURES.filter((s) => s.def.kind === 'bed');
 const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
-  hut: 'up',
   mortar: 'up',
   cauldron: 'up',
-  stall: 'down',
+  shelf: 'up',
+  counter: 'down',
+  sign: 'down',
+  cot: 'right',
   signpost: 'right',
 };
 
+// A goal tile, in world tiles (the shop sits in the same tile space).
 interface Goal {
   tx: number;
   ty: number;
   face?: Facing;
 }
 
+// A BFS over one area's tiles, indexed locally from (ox, oy).
 interface Ctx {
   state: GameState;
+  ox: number;
+  oy: number;
+  w: number;
+  h: number;
   grid: Uint8Array;
   dist: Int32Array;
   parent: Int32Array;
   start: number;
 }
 
-// Blocked tiles depend only on which plots are owned: memoized per ownership pattern.
+// Blocked tiles depend only on which plots are owned (outdoors) or whether the shop is open
+// (indoors, the exit closes): memoized per pattern.
 const STATIC = new Map<string, Uint8Array>();
 
-function staticGrid(state: GameState): Uint8Array {
-  const key = state.plots.map((p) => (p.owned ? '1' : '0')).join('');
+function staticGrid(state: GameState, indoors: boolean): Uint8Array {
+  const key = indoors ? `shop${state.shop.phase === 'open'}` : state.plots.map((p) => (p.owned ? '1' : '0')).join('');
   let g = STATIC.get(key);
   if (!g) {
-    g = new Uint8Array(W * H);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) g[y * W + x] = isTileBlocked(state, x, y) ? 1 : 0;
+    if (indoors) {
+      g = new Uint8Array(SHOP_W * SHOP_H);
+      for (let y = 0; y < SHOP_H; y++) for (let x = 0; x < SHOP_W; x++) g[y * SHOP_W + x] = isTileBlocked(state, SHOP_TX + x, SHOP_TY + y) ? 1 : 0;
+    } else {
+      g = new Uint8Array(WORLD_TILES_W * WORLD_TILES_H);
+      for (let y = 0; y < WORLD_TILES_H; y++) for (let x = 0; x < WORLD_TILES_W; x++) g[y * WORLD_TILES_W + x] = isTileBlocked(state, x, y) ? 1 : 0;
+    }
     STATIC.set(key, g);
   }
   return g;
@@ -69,12 +100,12 @@ function staticGrid(state: GameState): Uint8Array {
 
 // The player's tile, unless that is a node's tile (standing flush on top of a node puts the feet
 // center on the tile's top edge): then the free neighbour whose center is nearest.
-function startTile(state: GameState, grid: Uint8Array): number {
-  const { x, y } = state.player;
-  const tx = tileAt(x);
-  const ty = tileAt(y);
-  if (grid[ty * W + tx] !== 1) return ty * W + tx;
-  let best = ty * W + tx;
+function startTile(ctx: Omit<Ctx, 'start' | 'dist' | 'parent'>, x: number, y: number): number {
+  const { w, h, ox, oy, grid } = ctx;
+  const tx = tileAt(x) - ox;
+  const ty = tileAt(y) - oy;
+  if (grid[ty * w + tx] !== 1) return ty * w + tx;
+  let best = ty * w + tx;
   let bestD = Infinity;
   for (const [dx, dy] of [
     [0, -1],
@@ -84,33 +115,39 @@ function startTile(state: GameState, grid: Uint8Array): number {
   ] as const) {
     const nx = tx + dx;
     const ny = ty + dy;
-    if (nx < 0 || ny < 0 || nx >= W || ny >= H || grid[ny * W + nx] === 1) continue;
-    const c = center(nx, ny);
+    if (nx < 0 || ny < 0 || nx >= w || ny >= h || grid[ny * w + nx] === 1) continue;
+    const c = center(nx + ox, ny + oy);
     const d = Math.hypot(c.x - x, c.y - y);
     if (d < bestD) {
-      best = ny * W + nx;
+      best = ny * w + nx;
       bestD = d;
     }
   }
   return best;
 }
 
-function plan(state: GameState): Ctx {
-  const grid = staticGrid(state).slice();
-  for (const n of state.nodes) grid[tileAt(n.y) * W + tileAt(n.x)] = 1;
-  const dist = new Int32Array(W * H).fill(-1);
-  const parent = new Int32Array(W * H).fill(-1);
-  const start = startTile(state, grid);
-  const queue = new Int32Array(W * H);
+// BFS over the area the player is in, or over the world from (x, y) when given (to ask, from
+// indoors, whether anything outside is reachable from the door).
+function plan(state: GameState, from?: { x: number; y: number }): Ctx {
+  const indoors = from === undefined && state.player.area === 'shop';
+  const base = indoors
+    ? { state, ox: SHOP_TX, oy: SHOP_TY, w: SHOP_W, h: SHOP_H, grid: staticGrid(state, true).slice() }
+    : { state, ox: 0, oy: 0, w: WORLD_TILES_W, h: WORLD_TILES_H, grid: staticGrid(state, false).slice() };
+  if (!indoors) for (const n of state.nodes) base.grid[tileAt(n.y) * base.w + tileAt(n.x)] = 1;
+  const { w, h, grid } = base;
+  const dist = new Int32Array(w * h).fill(-1);
+  const parent = new Int32Array(w * h).fill(-1);
+  const start = startTile(base, from?.x ?? state.player.x, from?.y ?? state.player.y);
+  const queue = new Int32Array(w * h);
   let head = 0;
   let tail = 0;
   dist[start] = 0;
   queue[tail++] = start;
   while (head < tail) {
     const i = queue[head++]!;
-    const x = i % W;
-    const y = (i - x) / W;
-    const next = [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1];
+    const x = i % w;
+    const y = (i - x) / w;
+    const next = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1];
     for (const j of next) {
       if (j < 0 || dist[j]! >= 0 || grid[j] === 1) continue;
       dist[j] = dist[i]! + 1;
@@ -118,7 +155,7 @@ function plan(state: GameState): Ctx {
       queue[tail++] = j;
     }
   }
-  return { state, grid, dist, parent, start };
+  return { ...base, dist, parent, start };
 }
 
 const center = (tx: number, ty: number): { x: number; y: number } => ({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE });
@@ -139,8 +176,10 @@ function toward(state: GameState, x: number, y: number): Frame {
 const FACE_VEC: Record<Facing, [number, number]> = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
 
 function goalDist(ctx: Ctx, g: Goal): number {
-  if (g.tx < 0 || g.ty < 0 || g.tx >= W || g.ty >= H) return -1;
-  return ctx.dist[g.ty * W + g.tx]!;
+  const x = g.tx - ctx.ox;
+  const y = g.ty - ctx.oy;
+  if (x < 0 || y < 0 || x >= ctx.w || y >= ctx.h) return -1;
+  return ctx.dist[y * ctx.w + x]!;
 }
 
 function nearestGoal(ctx: Ctx, goals: readonly Goal[]): { goal: Goal; d: number } | null {
@@ -160,9 +199,9 @@ function goTo(ctx: Ctx, goals: readonly Goal[]): { frame: Frame; arrived: boolea
   const { goal, d } = found;
   const s = ctx.state;
   if (d > 0) {
-    let cur = goal.ty * W + goal.tx;
+    let cur = (goal.ty - ctx.oy) * ctx.w + goal.tx - ctx.ox;
     while (ctx.parent[cur] !== ctx.start) cur = ctx.parent[cur]!;
-    const c = center(cur % W, Math.floor(cur / W));
+    const c = center((cur % ctx.w) + ctx.ox, Math.floor(cur / ctx.w) + ctx.oy);
     return { frame: toward(s, c.x, c.y), arrived: false };
   }
   const c = center(goal.tx, goal.ty);
@@ -177,11 +216,21 @@ function goTo(ctx: Ctx, goals: readonly Goal[]): { frame: Frame; arrived: boolea
 const send = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
 const SWING: Frame = { ...neutralFrame(), swing: true };
 
-// Walk to a structure's interact tile, face it, and once it is the interact target send `c`.
-function useStructure(ctx: Ctx, s: WorldStructure, c: Command, face = FACE_AT[s.def.kind]): Frame | null {
-  if (ctx.state.player.interactTarget === s.def.id) return send(c);
-  const g = goTo(ctx, [{ tx: tileAt(s.interactX), ty: tileAt(s.interactY), face }]);
-  return g ? g.frame : null;
+// Through the door to the other area: onto the doorway (outside) or the exit gap (inside).
+function goThroughDoor(ctx: Ctx): Frame | null {
+  const t = ctx.state.player.area === 'world' ? DOOR_TILE : EXIT_TILE;
+  return goTo(ctx, [{ tx: t.x, ty: t.y }])?.frame ?? null;
+}
+
+const standAt = (s: WorldStructure, face = FACE_AT[s.def.kind]): Goal => ({ tx: tileAt(s.interactX), ty: tileAt(s.interactY), face });
+
+// Walk to a structure's interact tile (through the door if it is in the other area), face it,
+// and once it is the interact target send `c`.
+function useStructure(ctx: Ctx, s: WorldStructure, c: Command): Frame | null {
+  const st = ctx.state;
+  if (st.player.interactTarget === s.def.id) return send(c);
+  if (s.area !== st.player.area) return goThroughDoor(ctx);
+  return goTo(ctx, [standAt(s)])?.frame ?? null;
 }
 
 const tilesAround = (tx: number, ty: number): Goal[] => [
@@ -218,7 +267,7 @@ function engage(ctx: Ctx, c: CreatureState, d: number): Frame | null {
   return goTo(ctx, [{ tx: tileAt(c.x), ty: tileAt(c.y) }])?.frame ?? null;
 }
 
-// --- Day work ------------------------------------------------------------------
+// --- Outdoor work --------------------------------------------------------------
 
 function bedCrop(state: GameState, i: number): ItemId {
   if (i === BED_CROPS.length - 1 && state.plots[1]?.owned && state.inventory.emberroot >= B.emberSeedMin) return 'emberroot';
@@ -239,6 +288,17 @@ function bedGoal(i: number): Goal {
   const st = BED_STAND[i]!;
   return { tx: tileAt(s.interactX) + st.dx, ty: tileAt(s.interactY) + st.dy, face: st.face };
 }
+
+const harvestGoals = (s: GameState): Goal[] => s.garden.flatMap((b, i) => (isReady(b) ? [bedGoal(i)] : []));
+const plantGoals = (s: GameState): Goal[] =>
+  s.garden.flatMap((b, i) => (b.crop === null && s.inventory[bedCrop(s, i)] >= 1 ? [bedGoal(i)] : []));
+const nodeGoals = (s: GameState): Goal[] => s.nodes.flatMap((n) => tilesAround(tileAt(n.x), tileAt(n.y)));
+const pickupGoals = (s: GameState): Goal[] =>
+  s.pickups.flatMap((k) => {
+    const tx = tileAt(k.x);
+    const ty = tileAt(k.y);
+    return [{ tx, ty }, ...tilesAround(tx, ty).map(({ tx: x, ty: y }) => ({ tx: x, ty: y }))];
+  });
 
 function harvestFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
@@ -262,6 +322,70 @@ function plantFrame(ctx: Ctx): Frame | null {
   }
   return null;
 }
+
+function nodeFrame(ctx: Ctx): Frame | null {
+  const s = ctx.state;
+  const p = s.player;
+  if (typeof p.swingTarget === 'number' && s.nodes.some((n) => n.id === p.swingTarget)) {
+    return p.swingCooldown === 0 ? SWING : neutralFrame();
+  }
+  return goTo(ctx, nodeGoals(s))?.frame ?? null;
+}
+
+function pickupFrame(ctx: Ctx, maxTiles: number): Frame | null {
+  const goals = pickupGoals(ctx.state);
+  const found = nearestGoal(ctx, goals);
+  if (!found || found.d > maxTiles) return null;
+  return goTo(ctx, goals)?.frame ?? null;
+}
+
+const affordablePlot = (s: GameState): number =>
+  PLOTS.findIndex((p, i) => p.price > 0 && !s.plots[i]?.owned && s.coins >= p.price);
+
+// The signpost selling the plot the bot can afford now, if any.
+function plotSign(s: GameState): { sign: WorldStructure; plot: number } | null {
+  const plot = affordablePlot(s);
+  const id = PLOTS[plot]?.id;
+  const sign = id === undefined ? undefined : WORLD_STRUCTURES.find((w) => w.def.sells === id);
+  return sign ? { sign, plot } : null;
+}
+
+function buyFrame(ctx: Ctx): Frame | null {
+  const b = plotSign(ctx.state);
+  return b ? useStructure(ctx, b.sign, { type: 'BuyPlot', plot: b.plot }) : null;
+}
+
+// Everything worth going out for, as goal tiles in the world.
+function outdoorGoals(s: GameState): Goal[] {
+  const b = plotSign(s);
+  return [
+    ...pickupGoals(s),
+    ...s.creatures.map((c) => ({ tx: tileAt(c.x), ty: tileAt(c.y) })),
+    ...harvestGoals(s),
+    ...plantGoals(s),
+    ...nodeGoals(s),
+    ...(b ? [standAt(b.sign)] : []),
+  ];
+}
+
+function outdoorFrame(ctx: Ctx): Frame | null {
+  const foe = nearestCreature(ctx.state);
+  if (foe && foe.d <= B.fightRadius) {
+    const f = engage(ctx, foe.c, foe.d);
+    if (f) return f;
+  }
+  return (
+    pickupFrame(ctx, B.nearPickupTiles) ??
+    (foe ? engage(ctx, foe.c, foe.d) : null) ??
+    harvestFrame(ctx) ??
+    plantFrame(ctx) ??
+    nodeFrame(ctx) ??
+    pickupFrame(ctx, Infinity) ??
+    buyFrame(ctx)
+  );
+}
+
+// --- Back room ---------------------------------------------------------------------
 
 function grindFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
@@ -293,90 +417,89 @@ function brewFrame(ctx: Ctx): Frame | null {
   return null;
 }
 
-function nodeFrame(ctx: Ctx): Frame | null {
-  const s = ctx.state;
-  const p = s.player;
-  if (typeof p.swingTarget === 'number' && s.nodes.some((n) => n.id === p.swingTarget)) {
-    return p.swingCooldown === 0 ? SWING : neutralFrame();
-  }
-  const goals = s.nodes.flatMap((n) => tilesAround(tileAt(n.x), tileAt(n.y)));
-  return goTo(ctx, goals)?.frame ?? null;
-}
-
-function pickupFrame(ctx: Ctx, maxTiles: number): Frame | null {
-  const s = ctx.state;
-  const goals = s.pickups.flatMap((k) => {
-    const tx = tileAt(k.x);
-    const ty = tileAt(k.y);
-    return [{ tx, ty }, ...tilesAround(tx, ty).map(({ tx: x, ty: y }) => ({ tx: x, ty: y }))];
-  });
-  const found = nearestGoal(ctx, goals);
-  if (!found || found.d > maxTiles) return null;
-  return goTo(ctx, goals)?.frame ?? null;
-}
-
 // While a station still works, wait at its output tile (the cauldron first).
 function waitFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
   for (const kind of [...STATION_KINDS].reverse()) {
     if (!s.stations[kind]) continue;
-    const st = STATION_STRUCTURES[kind];
-    return goTo(ctx, [{ tx: tileAt(st.interactX), ty: tileAt(st.interactY) }])?.frame ?? neutralFrame();
+    return goTo(ctx, [standAt(STATION_STRUCTURES[kind])])?.frame ?? neutralFrame();
   }
   return null;
 }
 
-function buyFrame(ctx: Ctx): Frame | null {
+// --- The shop ------------------------------------------------------------------------
+
+// Potions only, highest value first: top up a shelf that holds it, else fill an empty one.
+function stockFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
-  for (const sign of WORLD_STRUCTURES) {
-    const plot = PLOTS.findIndex((p) => p.id === sign.def.sells);
-    if (plot < 0 || s.plots[plot]?.owned || s.coins < PLOTS[plot]!.price) continue;
-    return useStructure(ctx, sign, { type: 'BuyPlot', plot });
+  const shelves = s.shop.shelves;
+  for (const potion of BREW_ORDER) {
+    const have = s.inventory[potion];
+    if (have < 1) continue;
+    let i = shelves.findIndex((sl) => sl.item === potion && sl.count < CAP);
+    if (i < 0) i = shelves.findIndex((sl) => sl.item === null);
+    if (i < 0) continue;
+    const qty = Math.min(have, CAP - shelves[i]!.count);
+    return useStructure(ctx, SHELVES[i]!, { type: 'StockShelf', shelf: i, item: potion, qty });
   }
   return null;
 }
 
-// --- Stall -----------------------------------------------------------------------
-
-// On the tick a customer has just reacted, nudge that potion's price (at least 1 coin).
-function stallFrame(state: GameState): Frame {
-  const c = state.stall.customer;
-  if (!c || c.t !== WALK_TICKS || !c.potion || !c.reaction) return neutralFrame();
-  const raw = Math.round(c.price * B.priceAfter[c.reaction]);
-  const up = c.reaction === 'delighted' || c.reaction === 'happy';
-  const price = Math.max(TUNING.stall.priceMin, up ? Math.max(raw, c.price + 1) : Math.min(raw, c.price - 1));
-  return send({ type: 'SetPrice', potion: c.potion, price });
+// The WP04 rule, one step per reaction: up after a sale, down after a refusal or a grumble.
+function nudged(price: number, reaction: keyof typeof B.priceAfter): number {
+  const raw = Math.round(price * B.priceAfter[reaction]);
+  const up = reaction === 'delighted' || reaction === 'happy';
+  return Math.max(TUNING.stall.priceMin, up ? Math.max(raw, price + 1) : Math.min(raw, price - 1));
 }
 
-function endOfDayFrame(ctx: Ctx): Frame {
-  const s = ctx.state;
-  if (s.phase === 'day') return useStructure(ctx, STALL, { type: 'CallItADay' }) ?? neutralFrame();
-  const st = s.stall;
-  if (st.phase === 'closed' && !st.openedToday && potionsInStock(s).length > 0) {
-    return useStructure(ctx, STALL, { type: 'OpenStall' }) ?? neutralFrame();
+// A customer reacted to the price still on the tag: that price is due a nudge (read from state,
+// so once it is sent the price differs and the nudge is done).
+function pendingNudge(s: GameState): { item: ItemId; price: number } | null {
+  for (const c of s.shop.customers) {
+    if (c.item === null || c.reaction === null || s.shop.prices[c.item] !== c.price) continue;
+    const price = nudged(c.price, c.reaction);
+    if (price !== c.price) return { item: c.item, price };
   }
-  return useStructure(ctx, HUT, { type: 'Sleep' }) ?? neutralFrame();
+  return null;
+}
+
+// Open for business: ring up at once, nudge prices at the nearest shelf between customers, else
+// wait behind the counter.
+function openFrame(ctx: Ctx): Frame {
+  const s = ctx.state;
+  if (s.shop.customers.some((c) => c.spot === 0 && c.mode === 'queued')) {
+    return useStructure(ctx, COUNTER, { type: 'RingUp' }) ?? neutralFrame();
+  }
+  const nudge = pendingNudge(s);
+  if (nudge) {
+    const at = s.player.interactTarget;
+    if (at !== null && SHELVES.some((sh) => sh.def.id === at)) return send({ type: 'SetPrice', item: nudge.item, price: nudge.price });
+    return goTo(ctx, SHELVES.map((sh) => standAt(sh)))?.frame ?? neutralFrame();
+  }
+  return goTo(ctx, [standAt(COUNTER)])?.frame ?? neutralFrame();
+}
+
+// Indoors with nothing to start: out if there is outdoor work, else end the day (no waiting on
+// the stations by day, the evening has no timer), then wait for the jobs, stock, open, sleep.
+function indoorFrame(ctx: Ctx): Frame {
+  const s = ctx.state;
+  const inside = pickupFrame(ctx, Infinity) ?? grindFrame(ctx) ?? brewFrame(ctx);
+  if (inside) return inside;
+  if (nearestGoal(plan(s, center(DOOR_OUTSIDE.x, DOOR_OUTSIDE.y)), outdoorGoals(s))) return goThroughDoor(ctx) ?? neutralFrame();
+  if (s.phase === 'day') return useStructure(ctx, SIGN, { type: 'CallItADay' }) ?? neutralFrame();
+  const wait = waitFrame(ctx) ?? stockFrame(ctx);
+  if (wait) return wait;
+  const sh = s.shop;
+  if (sh.phase === 'closed' && !sh.openedToday && sh.shelves.some((sl) => sl.item !== null)) {
+    return useStructure(ctx, SIGN, { type: 'OpenStall' }) ?? neutralFrame();
+  }
+  return useStructure(ctx, COT, { type: 'Sleep' }) ?? neutralFrame();
 }
 
 export function botFrame(state: GameState): Frame {
-  if (state.stall.phase === 'open') return stallFrame(state);
   const ctx = plan(state);
-  const foe = nearestCreature(state);
-  if (foe && foe.d <= B.fightRadius) {
-    const f = engage(ctx, foe.c, foe.d);
-    if (f) return f;
-  }
-  return (
-    pickupFrame(ctx, B.nearPickupTiles) ??
-    (foe ? engage(ctx, foe.c, foe.d) : null) ??
-    harvestFrame(ctx) ??
-    plantFrame(ctx) ??
-    grindFrame(ctx) ??
-    brewFrame(ctx) ??
-    nodeFrame(ctx) ??
-    pickupFrame(ctx, Infinity) ??
-    waitFrame(ctx) ??
-    buyFrame(ctx) ??
-    endOfDayFrame(ctx)
-  );
+  if (state.shop.phase === 'open') return openFrame(ctx);
+  if (state.player.area === 'world') return outdoorFrame(ctx) ?? goThroughDoor(ctx) ?? neutralFrame();
+  return indoorFrame(ctx);
 }
+

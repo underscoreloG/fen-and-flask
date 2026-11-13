@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { neutralFrame, type Frame } from '../core/commands';
+import { setPhase } from '../core/clock';
+import { neutralFrame, type Command, type Frame } from '../core/commands';
 import { createInitialState, type GameState } from '../core/state';
 import { step } from '../core/step';
+import { shopTileCenter } from '../core/world';
 import { deserialize, serialize } from './save';
 
 const script = (i: number): Frame => ({
@@ -21,15 +23,53 @@ function played(): GameState {
   return s;
 }
 
+const cmd = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
+
+function inside(s: GameState, tx: number, ty: number, facing: GameState['player']['facing']): void {
+  const at = shopTileCenter(tx, ty);
+  Object.assign(s.player, { area: 'shop', x: at.x, y: at.y, facing });
+  step(s, neutralFrame());
+}
+
+// An open shop with a stocked shelf and a customer waiting at the counter.
+function busyShop(): GameState {
+  const s = createInitialState(7);
+  s.creatures = [];
+  s.inventory.tonic = 4;
+  setPhase(s, 'evening');
+  inside(s, 3, 5, 'up');
+  step(s, cmd({ type: 'StockShelf', shelf: 0, item: 'tonic', qty: 4 }, { type: 'SetPrice', item: 'tonic', price: 3 }));
+  inside(s, 9, 9, 'down');
+  step(s, cmd({ type: 'OpenStall' }));
+  inside(s, 3, 7, 'down');
+  for (let i = 0; i < 2000 && !s.shop.customers.some((c) => c.mode === 'queued'); i++) step(s, neutralFrame());
+  expect(s.shop.customers.some((c) => c.mode === 'queued' && c.holding)).toBe(true);
+  return s;
+}
+
 describe('save', () => {
   it('deserialize(serialize(s)) deep-equals s', () => {
     const s = played();
-    expect(deserialize(serialize(s, '0.1.0'), '0.1.0')).toEqual(s);
+    expect(deserialize(serialize(s, '0.2.0'), '0.2.0')).toEqual(s);
+  });
+
+  it('a stocked shelf and a queued customer survive the round trip, and both copies step on identically', () => {
+    const a = busyShop();
+    expect(a.shop.shelves[0]!.item).toBe('tonic');
+    const b = deserialize(serialize(a, '0.2.0'), '0.2.0')!;
+    expect(b).toEqual(a);
+    for (let i = 0; i < 600; i++) {
+      const f = i === 10 ? cmd({ type: 'RingUp' }) : neutralFrame();
+      step(a, f);
+      step(b, f);
+    }
+    expect(a.coins).toBeGreaterThan(0);
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
 
   it('a loaded state and the original, stepped through the same 600 frames, end byte-identical', () => {
     const a = played();
-    const b = deserialize(serialize(a, '0.1.0'), '0.1.0')!;
+    const b = deserialize(serialize(a, '0.2.0'), '0.2.0')!;
     for (let i = 0; i < 600; i++) {
       step(a, script(i + 1000));
       step(b, script(i + 1000));
@@ -37,37 +77,17 @@ describe('save', () => {
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
 
-  it('a save from 0.2.0 is ignored by 0.1.x; another patch of the same minor loads', () => {
+  it('a save from another major.minor is ignored (0.1.3 by 0.2.0, the outdoor-stall saves); another patch loads', () => {
     const s = createInitialState(1);
-    expect(deserialize(serialize(s, '0.2.0'), '0.1.0')).toBeNull();
-    expect(deserialize(serialize(s, '0.2.0'), '0.1.9')).toBeNull();
-    expect(deserialize(serialize(s, '1.1.0'), '0.1.0')).toBeNull();
-    expect(deserialize(serialize(s, '0.1.3'), '0.1.0')).toEqual(s);
-  });
-
-  it('a save written before stations existed loads with free stations and steps', () => {
-    const file = JSON.parse(serialize(played(), '0.1.0')) as { state: Partial<GameState> };
-    delete file.state.stations;
-    const s = deserialize(JSON.stringify(file), '0.1.0')!;
-    expect(s.stations).toEqual({ mortar: null, cauldron: null });
-    expect(() => step(s, neutralFrame())).not.toThrow();
-  });
-
-  it('a save written before the stall existed (no stall, no flags) loads with a fresh stall and steps', () => {
-    const file = JSON.parse(serialize(played(), '0.1.0')) as { state: Partial<GameState> };
-    delete file.state.stall;
-    delete file.state.flags;
-    const s = deserialize(JSON.stringify(file), '0.1.0')!;
-    expect(s.stall).toEqual(createInitialState(1).stall);
-    expect(s.flags).toEqual({ m1Goal: false });
-    expect(() => {
-      for (let i = 0; i < 60; i++) step(s, neutralFrame());
-    }).not.toThrow();
+    expect(deserialize(serialize(s, '0.1.3'), '0.2.0')).toBeNull();
+    expect(deserialize(serialize(s, '0.2.0'), '0.1.3')).toBeNull();
+    expect(deserialize(serialize(s, '1.2.0'), '0.2.0')).toBeNull();
+    expect(deserialize(serialize(s, '0.2.4'), '0.2.0')).toEqual(s);
   });
 
   it('garbage and wrong shapes return null', () => {
-    for (const bad of ['', '{', 'not json', 'null', '42', '"x"', '[]', '{"version":"0.1.0"}', '{"state":{}}', '{"version":1,"state":{}}']) {
-      expect(deserialize(bad, '0.1.0'), bad).toBeNull();
+    for (const bad of ['', '{', 'not json', 'null', '42', '"x"', '[]', '{"version":"0.2.0"}', '{"state":{}}', '{"version":1,"state":{}}']) {
+      expect(deserialize(bad, '0.2.0'), bad).toBeNull();
     }
   });
 });

@@ -1,18 +1,20 @@
 // Core -> render/audio. A tick where nothing happened returns an empty array; there is
 // deliberately no per-tick event. Positions are world px (feet centers).
-import type { CreatureId, ItemId, NodeId, PotionId, StructureKind } from '../data/content';
-import type { Facing } from './state';
-import type { Reaction } from './stall';
+import type { CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
+import type { Reaction } from './shop';
+import type { Area, Facing } from './state';
 import type { StationKind } from './stations';
 
-// What the core asks the UI to open; later WPs add members (stations, stall, buy plot).
+// What the core asks the UI to open.
 export type UiRequest =
   | { ui: 'sleepConfirm' }
   | { ui: 'callItADayConfirm' }
+  | { ui: 'openShopConfirm' }
+  | { ui: 'closeShopConfirm' }
   | { ui: 'gardenPicker'; bed: number }
   | { ui: 'station'; station: StationKind }
-  // The evening stall's price list (setup); the open view is driven by stallOpened instead.
-  | { ui: 'stall' }
+  // shelf indexes state.shop.shelves.
+  | { ui: 'shelf'; shelf: number }
   // A one-line note at the top of the screen; it never pauses the sim.
   | { ui: 'toast'; text: string }
   // plot indexes state.plots.
@@ -31,8 +33,10 @@ export type GameEvent =
   // count is the inventory count after collecting.
   | { type: 'pickupCollected'; id: number; item: ItemId; x: number; y: number; count: number }
   | { type: 'playerHurt'; x: number; y: number; hearts: number; fromX: number; fromY: number }
-  // x, y is where the player fell; the player is already at the hut door.
+  // x, y is where the player fell; the player is already in bed.
   | { type: 'playerFainted'; x: number; y: number }
+  // Through the hut door or the shop exit; area is where the player now is.
+  | { type: 'areaChanged'; area: Area }
   | { type: 'interact'; kind: StructureKind; structureId: string }
   | ({ type: 'uiRequest' } & UiRequest)
   // Once per day, whatever switched it (timer, CallItADay, debug).
@@ -44,15 +48,17 @@ export type GameEvent =
   | { type: 'jobStarted'; station: StationKind; item: ItemId; qty: number }
   | { type: 'jobUnitDone'; station: StationKind; item: ItemId }
   | { type: 'jobFinished'; station: StationKind }
-  // Stall. customerArrived fires when a traveller reaches the spot and picks a potion; the
-  // reaction, and the sale when there is one, follow on the same tick.
+  // Shop. customerArrived fires when a customer reaches a stocked shelf; the reaction follows on
+  // the same tick. A sale is a payment at the counter.
   | { type: 'stallOpened' }
-  | { type: 'customerArrived'; potion: PotionId }
-  | { type: 'customerReacted'; potion: PotionId; price: number; reaction: Reaction; sold: boolean }
-  | { type: 'sale'; potion: PotionId; price: number }
+  | { type: 'customerArrived'; item: ItemId }
+  | { type: 'customerReacted'; item: ItemId; price: number; reaction: Reaction; sold: boolean }
+  | { type: 'customerQueued'; item: ItemId }
+  | { type: 'customerLeftUnpaid'; item: ItemId }
+  | { type: 'sale'; item: ItemId; price: number }
   | { type: 'stallClosed'; soldCount: number; soldCoins: number }
   // Right after eveningStarted, only on days with a trend.
-  | { type: 'trendAnnounced'; potion: PotionId }
-  // Once per game: the first Ember Elixir sold.
+  | { type: 'trendAnnounced'; item: ItemId }
+  // Once per game: the first Ember Elixir paid for.
   | { type: 'goalReached' }
   | { type: 'plotBought'; plot: number };

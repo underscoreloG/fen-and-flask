@@ -7,7 +7,7 @@ import type { GameEvent } from './events';
 import { isNearStructure } from './nodes';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
-import { plotOrigin, plotTileCenter, TILE, tileAt, tileKind } from './world';
+import { plotOrigin, plotTileCenter, shopTileCenter, TILE, tileAt, tileKind } from './world';
 
 const SWING: Frame = { ...neutralFrame(), swing: true };
 const MUDLET = CREATURES[0]!;
@@ -160,16 +160,17 @@ describe('combat', () => {
     expect(s.player.y - y0).toBeCloseTo(TUNING.hurt.knockback, 5);
   });
 
-  it('at 0 hearts the player faints once, wakes at the hut door with full hearts', () => {
+  it('at 0 hearts the player faints once, wakes in bed indoors with full hearts', () => {
     const s = scene();
     s.player.hearts = 1;
     placeMudlet(s, s.player.x, s.player.y);
     const ev = [...step(s, neutralFrame()), ...run(s, 120)];
     expect(count(ev, 'playerFainted')).toBe(1);
     expect(ev.findIndex((e) => e.type === 'playerHurt')).toBe(ev.findIndex((e) => e.type === 'playerFainted') - 1);
-    const door = plotTileCenter(0, 0, 2, 3);
-    expect(s.player.x).toBe(door.x);
-    expect(s.player.y).toBe(door.y);
+    const bed = shopTileCenter(18, 9);
+    expect(s.player.area).toBe('shop');
+    expect(s.player.x).toBe(bed.x);
+    expect(s.player.y).toBe(bed.y);
     expect(s.player.hearts).toBe(TUNING.player.hearts);
   });
 });
