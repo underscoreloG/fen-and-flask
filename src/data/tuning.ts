@@ -294,6 +294,7 @@ export const TUNING = {
     edgeFadeTicks: 12,
     // A shelf's ware sits this far above the table's footprint top; pips under it.
     wareLiftPx: 3,
+    pipSize: 2,
     pipGap: 1,
     // The back room's floor glows warm around a lit cauldron.
     glowAlpha: 0.35,

@@ -6,7 +6,6 @@ import { PALETTE, type Token } from '../data/palette';
 import { TUNING } from '../data/tuning';
 import type { GameEvent } from '../core/events';
 import { STATION_STRUCTURES } from '../core/stations';
-import { WORLD_H } from '../core/world';
 import { ATLAS } from './sprites/generate';
 
 const F = TUNING.fx;
@@ -34,9 +33,11 @@ interface Particle {
   age: number;
 }
 
-// The scene that owns the world sprites; fx only borrows them.
+// The scene that owns the world sprites; fx only borrows them. topDepth is above everything,
+// indoors included.
 export interface FxHost {
   viewOf(id: number): Phaser.GameObjects.Image | undefined;
+  topDepth: number;
 }
 
 const rand = (min: number, max: number): number => min + Math.random() * (max - min);
@@ -145,7 +146,7 @@ export class Fx {
       const img = this.scene.add
         .image(x, y - F.particleLiftPx, ATLAS, big && i % 2 === 0 ? 'particle_l' : 'particle')
         .setTintFill(PALETTE[token])
-        .setDepth(WORLD_H);
+        .setDepth(this.host.topDepth);
       // Upward fan for hits, a full ring for breaks.
       const a = big ? rand(0, Math.PI * 2) : rand(Math.PI * F.hitFanFrom, Math.PI * F.hitFanTo);
       const s = rand(F.particleSpeedMin, F.particleSpeedMax) * (big ? F.breakSpeedBoost : 1);

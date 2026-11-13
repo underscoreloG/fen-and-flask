@@ -4,6 +4,7 @@
 import { addOutline, sprite, type SpriteDef } from './format';
 import { CREATURE_SPRITES, NODE_SPRITES } from './gathering';
 import { FX_SPRITES, ICON_SPRITES } from './icons';
+import { INTERIOR_STRUCTURES, INTERIOR_TILES } from './interior';
 import { PLAYER_SPRITES } from './player';
 import { BUBBLE_SPRITES, CUSTOMER_SPRITES } from './stall';
 import { SHADOW_SPRITES, STRUCTURE_SPRITES } from './structures';
@@ -22,9 +23,11 @@ const targetable = (src: Record<string, readonly string[]>): Record<string, Spri
 
 export const SPRITES: Readonly<Record<string, SpriteDef>> = {
   ...plain(TILE_SPRITES),
+  ...plain(INTERIOR_TILES),
   ...plain(SHADOW_SPRITES),
   ...outlined(PLAYER_SPRITES),
   ...targetable(STRUCTURE_SPRITES),
+  ...targetable(INTERIOR_STRUCTURES),
   ...targetable(NODE_SPRITES),
   ...targetable(CREATURE_SPRITES),
   ...plain(ICON_SPRITES),
