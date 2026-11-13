@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-13
-Next action: WP04 running in worktree ../fen-and-flask-wt/wp04. On report: verify, merge, browser gate (real key presses, pane shown; also ?autoplay=1&speed=16 to the M1 goal), dispatch WP05.
+Next action: WP05 running in worktree ../fen-and-flask-wt/wp05. On report: verify, merge, browser gate, then the M1 gate (SPEC section 7), then first push + Pages (user approved public repo underscoreloG/fen-and-flask).
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -26,8 +26,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP01 Gathering and combat | merged | subagent | opus high | | wp/01-gathering | verify green (60 tests); browser: 19 nodes, 2 mudlets, swing breaks a reedclump and the reed lands in inventory, no console error. CCR accepted: pickup.landTime 0.3 s |
 | WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
 | WP03 Stations, notebook | merged | subagent | opus high | | wp/03-stations | verify green (98 tests). Browser, real keys: mortar panel grinds 3 mint into 3 paste, cauldron panel starts 3 tonics for 1 bogwood, notebook page 1 shows recipes, no console error |
-| WP04 Stall, land, goal, bot | running | subagent | opus high | | | |
-| WP05 Audio, pause, Pages | todo | subagent | opus high | | | needs sound list approved by user |
+| WP04 Stall, land, goal, bot | merged | subagent | opus high | | wp/04-stall | verify green (128 tests). Health seeds 1-3: evening-1 coins 87, plot bought day 2, goal day 3, 0 faints. Browser: bot reaches the goal on day 3 (32000 ticks); with real keys the stall setup opens, tonic raised 10 -> 12 sells as happy, 6 potions sold for 79 coins, summary shown, no console error |
+| WP05 Audio, pause, Pages | running | subagent | opus high | | | needs sound list approved by user |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
