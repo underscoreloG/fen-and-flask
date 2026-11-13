@@ -65,11 +65,11 @@ No new files. `coin` on `orderDelivered`; `bell` (low volume) on `orderPosted`.
 - [ ] Vitest: with one table of tonic and one of mint stocked, 200 herbalists all browse the mint table; with only tonic stocked they browse it; a herbalist whose mint table was emptied before arrival re-picks another raw or ground table when one is stocked.
 - [ ] Vitest: at demand 1 and no trend, the first price of each of the 13 items is not refused by any type for personal 0.95 and 1.05.
 - [ ] Vitest: `met` gains a type on its first payment only, once.
-- [ ] Vitest: a new game has an order with qty 1 or 2; 300 mornings on a home-only state never order emberelixir; `pay` equals `round(1.5 x base x qty)`; `orderPosted` fires once per morning reset and never at step 0.
+- [ ] Vitest: a new game has an order with qty 1 or 2; 300 mornings on a home-only state never order emberelixir; `pay` equals `round(1.5 x base x qty)`; `orderPosted` fires once per morning reset and never from `createInitialState`.
 - [ ] Vitest: `DeliverOrder` moves potions and coins and marks the order done; it is rejected away from the board, with too few potions in the inventory (potions on a table do not count), and a second time the same day; demand, history and sold counters are unchanged by it.
 - [ ] Vitest: delivering an Ember Elixir order sets the M1 goal flag if it was not set.
 - [ ] Vitest: `m2GoalReached` fires at the first morning reset where all 14 items are owned, once; a state edited to own all 14 with the flag false fires it at its next morning.
-- [ ] Vitest health test (bot, seeds 1-3): M1 metrics hold; all 14 catalog items owned and `m2GoalReached` by day 22; the bot delivers at least half of the orders posted from day 3 on; 0 customers left unpaid once a counter toad is owned, and at most 3 before that over the whole run. Print the metrics per seed.
+- [ ] Vitest health test (bot, seeds 1-3): M1 metrics hold; all 14 catalog items owned and `m2GoalReached` by day 20; the bot delivers at least half of the orders posted from day 3 on; 0 customers left unpaid once a counter toad is owned, and at most 1 before that over the whole run. Print the metrics per seed.
 - [ ] Vitest: determinism, week robustness, performance and save round trip (with an order and `met`) pass; a 0.3.1-shaped save (no `order`, no `met`, no `m2Goal`) loads and steps.
 - [ ] Browser (run by the brain after merge, you report "not run"): read the order on the board, deliver it with test-menu potions, see the customer looks over a few evenings.
 

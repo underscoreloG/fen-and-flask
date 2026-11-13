@@ -29,21 +29,21 @@ The table lives in `data/content.ts` as `CATALOG`. Prices are first guesses (tun
 |---|---|---|---|---|
 | stoneMortar | STONE MORTAR | 90 | - | grinding takes 45 ticks per unit instead of 90 |
 | sickle | COPPER SICKLE | 120 | - | every plant and stump needs 1 hit fewer (minimum 1) |
-| deepShelves | DEEP TABLES | 120 | - | table capacity 5 -> 8 |
 | beds2 | TWO GARDEN BEDS | 150 | - | 2 more soil beds on home plot tiles (6,4) and (7,4) |
 | shelf5 | FIFTH TABLE | 200 | - | a 5th display table at indoor (9,7), interact tile (9,8); 2 more customers each evening |
 | signboard | PAINTED SIGNBOARD | 220 | - | 2 more customers each evening |
 | cauldron2 | SECOND CAULDRON | 300 | - | a second cauldron at indoor (20,3), interact tile (20,4) |
+| deepShelves | DEEP TABLES | 360 | - | table capacity 5 -> 8, and one customer in four takes two units |
 | shelf6 | SIXTH TABLE | 380 | shelf5 | a 6th display table at indoor (12,7), interact tile (12,8); 2 more customers each evening |
 | lanternSign | LANTERN SIGN | 480 | signboard | 3 more customers each evening |
 
-Customers per evening become: 6, +2 per extra owned plot (as today), +2 for each of `shelf5`, `shelf6` and `signboard`, +3 for `lanternSign`: 17 at most. Why: without more customers every other upgrade is wasted, because the shop already makes more than it can sell.
+Customers per evening become: 6, +2 per extra owned plot (as today), +2 for each of `shelf5`, `shelf6` and `signboard`, +3 for `lanternSign`: 17 at most. Why: without more customers every other upgrade is wasted, because the shop already makes more than it can sell (measured: 18 to 25 potions made a day against 7 sold).
 
 ### Effects, exactly
 
 - **Structures that arrive later**: `StructureDef` gains `requires?: CatalogId`. A structure with a requirement does not exist until that item is owned: not solid, not a target, not drawn. Everything that reads solids must read this from the state: the player's collision, the customer path search, and the bot's path grid (its cache key must change when ownership changes). No invisible obstacles before arrival, no walking through furniture after it.
 - **Tables 5 and 6**: `shop.shelves` starts with 4 entries; arrival pushes a 5th then a 6th. They follow every shelf rule. Customers choose uniformly among stocked tables and reach the new interact tiles from rows 9-10; they never step on a table tile and never on the staff row behind the counter (row 7, x 1 to 4).
-- **Deep tables**: the capacity used by `StockShelf` and the shelf panel becomes 8; the world view shows counts above 5 legibly.
+- **Deep tables**: the capacity used by `StockShelf` and the shelf panel becomes 8; the world view shows counts above 5 legibly. Also, when a customer's reaction sells and its table holds at least 2 units, it takes **two** with probability `shop.doubleChance` 0.25 (one state RNG roll, made only when deep tables are owned and the table holds 2 or more). It then carries 2 units at the same unit price: ringing up pays twice the price, the demand drop applies per unit (the grumbling extra once), `soldCount` rises by 2, and `sale` carries `qty`. If it leaves unpaid both units go back (table first, the rest to the inventory).
 - **Signboard, lantern sign**: `customersFor` adds as above; the hut outside shows the painted board, then a lantern on it.
 - **Stone mortar**: a unit that starts after arrival takes 45 ticks; the mortar sprite changes.
 - **Second cauldron**: `StationKind` gains `'cauldron2'` and `state.stations.cauldron2`. `StartGrind` and `StartBrew` act on the station the player targets (the command carries no station; the target decides), and `uiRequest`, `jobStarted`, `jobUnitDone` and `jobFinished` carry the station id. Same recipes, fuel cost and panel as the first cauldron; outputs appear on its own interact tile.
@@ -61,9 +61,10 @@ Customers per evening become: 6, +2 per extra owned plot (as today), +2 for each
 
 ## Bot
 
-- After the east plot is bought, when indoors with nothing else to start and coins cover the cheapest buyable item, it walks to the stand and buys it (cheapest first).
+- After the east plot is bought, when indoors with nothing else to start and coins cover the cheapest buyable item, it walks to the stand and buys it (cheapest first; ties in `CATALOG` order).
 - It stocks tables 5 and 6, fills deep tables to 8, uses the second cauldron, and plants beds 5 and 6.
-- It keeps one table per potion type it holds before doubling up, so no potion sits unsold in the inventory while two tables hold the same one.
+- It keeps one table per potion type it holds before doubling up; a table left over goes to the potion it holds the most units of.
+- It plants emberroot in beds 5 and 6 when it holds at least 3, otherwise the same crops as the other beds.
 
 ## Interface
 
@@ -77,16 +78,16 @@ Customers per evening become: 6, +2 per extra owned plot (as today), +2 for each
 - [ ] Vitest: `CATALOG` holds exactly the 9 items above with these prices and requirements.
 - [ ] Vitest: `BuyUpgrade` takes the coins and lists the id as pending; it is rejected (state unchanged) away from the stand, without enough coins, for an owned id, a pending id, an unknown id, and for `shelf6` while `shelf5` is only pending.
 - [ ] Vitest: nothing changes until the morning reset; then `upgradeArrived` fires once per pending id, before `morning`, and the item acts that same morning.
-- [ ] Vitest: before `shelf5` arrives the player walks freely across indoor tile (9,7) and no structure is targeted from (9,8) facing up; after it, (9,7) is solid and `StockShelf` works from (9,8).
+- [ ] Vitest: before `shelf5` arrives the player walks freely across indoor tile (9,7) and the interact target from (9,8) facing up is not a table (the sign below may be picked by the assist); after it, (9,7) is solid, the target there is the fifth table and `StockShelf` works from (9,8).
 - [ ] Vitest: with tables 5 and 6 owned and all six stocked, over 200 customers every table is browsed at least once and no customer ever stands on (9,7), (12,7), or on row 7 with x <= 4.
 - [ ] Vitest: customers per evening: 6 at start; 8 with `shelf5`; 10 with `shelf5` and `signboard`; 17 with two plots and all four of `shelf5`, `shelf6`, `signboard`, `lanternSign`.
-- [ ] Vitest: with `deepShelves`, stocking 8 works and 9 is rejected; without it 6 is rejected.
+- [ ] Vitest: with `deepShelves`, stocking 8 works and 9 is rejected; without it 6 is rejected. With the double roll forced to succeed, a happy customer takes 2 units, pays twice the price at ring-up, demand drops by 0.08, `sale` has `qty: 2`; forced to fail, or on a table holding 1 unit, or without `deepShelves`, it takes 1. Over 2000 buying customers on full tables the share of doubles is within 3 points of 25%. A double that leaves unpaid returns both units.
 - [ ] Vitest: with `stoneMortar`, grinding 3 mint emits `jobUnitDone` at ticks 45, 90 and 135.
-- [ ] Vitest: with `cauldron2`, two brew jobs run at once, each costing 1 bogwood, each dropping its outputs on its own interact tile and naming its own station in its events; before it arrives, tile (20,3) is walkable and nothing is targeted from (20,4).
+- [ ] Vitest: with `cauldron2`, two brew jobs run at once, each costing 1 bogwood, each dropping its outputs on its own interact tile and naming its own station in its events; before it arrives, tile (20,3) is walkable and nothing is targeted from (20,4) facing up.
 - [ ] Vitest: with `sickle`, a reedclump breaks on hit 1, a stump on hit 2, a mintbush still on hit 1; a stump hit once before arrival breaks on its next hit.
 - [ ] Vitest: with `beds2`, the garden has 6 beds, a node placed on tile (6,4) before arrival is gone after it, and over seeds 1-20 no node ever spawns on or next to the new bed tiles.
 - [ ] Vitest: save round trip with owned and pending ids; a 0.2.1 save returns null; `fillDefaults` restores a deleted `catalog` key and keeps a 5-entry `shelves` array at 5.
-- [ ] Vitest health test (bot, seeds 1-3, live mudlets): the M1 metrics still hold (evening-1 coins 40-130, `plotBought` by day 4, `goalReached` by day 6); the bot owns all 9 items by day 15; from the day `lanternSign` arrives, average coins per evening over the next 5 days are at least 1.4 times the average of days 3-5; no potion type has more than 30 units in the inventory at the end of the run. Print per seed the arrival day of each item and the two averages.
+- [ ] Vitest health test (bot, seeds 1-3, live mudlets): the M1 metrics still hold (evening-1 coins 40-130, `plotBought` by day 4, `goalReached` by day 6); the bot owns all 9 items by day 15; with L the arrival day of `lanternSign`, the run lasts until day L+4, and over evenings L to L+4 the average coins per evening are at least 1.5 times the average of evenings 3 to 5 and the average units sold per evening are at least 12. Print per seed the arrival day of each item and those averages.
 - [ ] Vitest: week robustness, determinism and performance tests still pass.
 - [ ] Browser (run by the brain after merge, you report "not run"): buy an item with test-menu coins, sleep, see it arrive.
 

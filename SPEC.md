@@ -37,7 +37,7 @@ Audience: the user (adult, desktop). In-game text: English, short.
 ### M2 shop progression (build this next; approved direction 2026-11-13)
 
 The user picked "Shop progression" after playing v0.2.1: things to spend coins on and reasons to come back tomorrow. No new land in this milestone.
-- WP07 (v0.3.0): a catalog in the shop, delivery next morning; upgrades for the shop floor (tables 5 and 6, deeper tables, signboard), the workshop (stone mortar, second cauldron) and gathering (copper sickle, two garden beds).
+- WP07 (v0.3.0): a catalog in the shop, delivery next morning; upgrades for the shop floor (tables 5 and 6, deep tables, signboard, lantern sign: up to 17 customers an evening), the workshop (stone mortar, second cauldron) and gathering (copper sickle, two garden beds).
 - WP08 (v0.3.1): incremental automation through three helper toads ordered from the catalog (till, garden, basket), two of them with a second tier.
 - WP09 (v0.3.2): four customer types and a daily order; the milestone goal is owning the whole catalog.
 

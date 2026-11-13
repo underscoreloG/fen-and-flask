@@ -54,7 +54,7 @@ Buys the helpers like any catalog item (cheapest buyable first). With a counter 
 - [ ] Vitest: with `gardenToad`, a ready mint bed gives +3 mint then -1 for the replant at the morning, the bed is growing mint again, and `gardenToadHarvested { harvested: 3 }` fires once; with no ready bed the event does not fire; a bed still growing is left alone.
 - [ ] Vitest: with `basketToad`, each morning adds exactly 5 items (9 with `basketToad2`); over 300 mornings on a home-only state only mint, glowcap, reed and bogwood come, each at least once, never emberroot or mud gel; with the east plot owned emberroot does come; the node list is unchanged by the draw.
 - [ ] Vitest: an item that arrives in the morning acts that morning (a `basketToad` bought yesterday brings 5 items today).
-- [ ] Vitest health test (bot, seeds 1-3): M1 metrics hold; the 9 WP07 items are owned by day 15 and all 14 by day 22; 0 customers left unpaid over the whole run. Print per seed the arrival day of each item.
+- [ ] Vitest health test (bot, seeds 1-3): M1 metrics hold; all 14 items are owned by day 22 (buying cheapest first across all 14, the lantern sign comes late, so the WP07 day-15 target no longer applies here); 0 customers left unpaid over the whole run. Print per seed the arrival day of each item.
 - [ ] Vitest: determinism (a run with all helpers owned replays byte-identical), week robustness and performance tests pass.
 - [ ] Vitest: sprite tests cover the toad sprites.
 - [ ] Browser (run by the brain after merge, you report "not run"): buy the toads with test-menu coins, watch the counter toad ring a customer up.
