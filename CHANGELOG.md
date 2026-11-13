@@ -15,6 +15,6 @@ First playable slice (M1).
 - Goal: sell your first Ember Elixir; a banner says so and play continues.
 - Save to the browser every morning; title screen with Continue / New game.
 - Pause menu (Esc or Start): resume, mute, new game.
-- Sound: 16 CC0 recordings and a marsh ambience loop; M mutes anywhere, the setting is remembered.
+- Sound: 15 CC0 sound effects and a marsh ambience loop; M mutes anywhere, the setting is remembered.
 - Keyboard and gamepad.
 - Deployed to GitHub Pages; `version.json` next to the game holds the build's version.
