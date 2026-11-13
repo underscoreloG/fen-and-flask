@@ -64,7 +64,7 @@ export function stationPanel(scene: Phaser.Scene, state: GameState, station: Sta
   let qty = recipes[0]?.max ?? 0;
   const show = (): void => {
     const max = recipes[list.selected]?.max ?? 0;
-    if (max < 1) list.setFooter(SHORT, 'heart');
+    if (max < 1) list.setFooter(SHORT);
     else list.setFooter(qtyText(qty));
   };
   show();

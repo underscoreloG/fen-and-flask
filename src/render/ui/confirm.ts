@@ -3,7 +3,7 @@
 // is open and sends the commands a panel returns on the first tick after it closes.
 import Phaser from 'phaser';
 import type { Command } from '../../core/commands';
-import { PALETTE, type Token } from '../../data/palette';
+import { PALETTE } from '../../data/palette';
 import { TUNING } from '../../data/tuning';
 import type { UiIntents } from '../../input/input';
 import { addText } from '../font';
@@ -122,8 +122,8 @@ export class ListPanel {
     this.drawCursor();
   }
 
-  setFooter(text: string, token: Token = 'bone'): void {
-    this.footerText?.setText(text.toUpperCase()).setTintFill(PALETTE[token]);
+  setFooter(text: string): void {
+    this.footerText?.setText(text.toUpperCase());
   }
 
   update(intents: UiIntents): 'confirm' | 'back' | null {

@@ -182,6 +182,8 @@ describe('stations', () => {
       }
       standAt(s, 2, 3, 'up');
       events.push(...step(s, cmd({ type: 'Sleep' })));
+      // The morning respawned mudlets; clear them again before more time passes.
+      s.creatures = [];
       for (let i = 0; i < 300; i++) events.push(...step(s, neutralFrame()));
       expect(s.day).toBe(2);
       expect(events.some((e) => e.type === 'jobFinished' && e.station === 'cauldron')).toBe(true);
