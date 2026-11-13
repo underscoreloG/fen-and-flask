@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 3   Size: M   Milestone: M2 shop progression   Updated: 2026-11-13
-Next action: plan review of WP07-WP09 is running (fresh reviewer). On its report: save as specs/REVIEW-2026-11-13.md, fix, show the plan to the user and get approval BEFORE dispatching WP07.
+Next action: recheck of the M2 review fixes is running (same reviewer, with its economy model). On its report: apply, then show the plan to the user and get approval BEFORE dispatching WP07.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -60,3 +60,4 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 - Small leftovers seen in the gate: favicon.ico 404; the road at the bottom of the plot has no use now that customers appear at the shop door; the title hint still says only "C OR ENTER TO START".
 - 2026-11-13 v0.2.1 (user): the sign has one action, OPEN SHOP, which also ends the day; the CallItADay command and its confirm are removed (the bot now waits for its jobs by day and opens). Hidden test menu on F2 (command Cheat: coinsSmall, coinsBig, items, hearts, evening, morning, land; numbers in TUNING.cheat). The F2 key is read by UIScene directly, outside the input layer, on purpose. favicon 404 fixed with an empty data icon. Gate: 205 tests, health unchanged, headless Edge with real keys (F2 menu rows, open by day -> evening + open, next morning).
 - 2026-11-13 M2 chosen by the user: "Shop progression". Answers: upgrade groups Shop floor + Workshop + Gathering, "also some kind of automation but we should do something that is kinda incremental and fit to the game"; delivery next morning; customer types plus a daily order; no new land yet ("Not yet"). Brain design: catalog stand with 13 items (2740 coins in total), automation = three helper toads with tiers, four customer types, order board, M2 goal = whole catalog owned. Ships as 0.3.0, 0.3.1, 0.3.2 with saves kept inside 0.3.x (fillDefaults). The user never answered the fun gate in words; they keep steering, which the brain reads as engaged, not as a yes.
+- 2026-11-13 M2 plan review: 2 blockers, 15 rework, 5 nits, all applied (specs/REVIEW-2026-11-13.md). Design change from it: the shop was customer-capped, so tables 5/6 and the signboard each add 2 customers and a lantern sign adds 3 (max 17); catalog is now 14 items for 4050 coins; names fixed (BuyUpgrade, catalog.pending, upgradeArrived, m2GoalReached).
