@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
 Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-13
-Next action: WP03 running in worktree ../fen-and-flask-wt/wp03. On report: verify, merge, browser gate (real key presses, pane shown), dispatch WP04.
+Next action: WP04 running in worktree ../fen-and-flask-wt/wp04. On report: verify, merge, browser gate (real key presses, pane shown; also ?autoplay=1&speed=16 to the M1 goal), dispatch WP05.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -25,8 +25,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP00 Foundation | merged | subagent | opus high | | wp/00-foundation | verify green (35 tests), browser: x 88 -> 178, no console error. CCRs accepted: clearLatches(latch), input/session.ts holds the loop |
 | WP01 Gathering and combat | merged | subagent | opus high | | wp/01-gathering | verify green (60 tests); browser: 19 nodes, 2 mudlets, swing breaks a reedclump and the reed lands in inventory, no console error. CCR accepted: pickup.landTime 0.3 s |
 | WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
-| WP03 Stations, notebook | running | subagent | opus high | | | |
-| WP04 Stall, land, goal, bot | todo | subagent | opus high | | | |
+| WP03 Stations, notebook | merged | subagent | opus high | | wp/03-stations | verify green (98 tests). Browser, real keys: mortar panel grinds 3 mint into 3 paste, cauldron panel starts 3 tonics for 1 bogwood, notebook page 1 shows recipes, no console error |
+| WP04 Stall, land, goal, bot | running | subagent | opus high | | | |
 | WP05 Audio, pause, Pages | todo | subagent | opus high | | | needs sound list approved by user |
 
 ## Helper agents (not WPs)
