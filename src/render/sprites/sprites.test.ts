@@ -156,6 +156,37 @@ describe('sprites', () => {
     }
   });
 
+  it('has the WP08 helper toads: 2-frame idles in green and brown only, outlined all around, and the till flash', () => {
+    const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
+    const looks: [string, number, number][] = [
+      ['counter', 16, 14],
+      ['counter2', 16, 16],
+      ['garden', 16, 16],
+      ['basket', 26, 16],
+      ['basket2', 26, 16],
+    ];
+    for (const [k, w, h] of looks) {
+      const f0 = SPRITES[`toad_${k}_0`]!;
+      const f1 = SPRITES[`toad_${k}_1`]!;
+      expect(size(`toad_${k}_0`), k).toEqual([w, h]);
+      expect(size(`toad_${k}_1`), k).toEqual([w, h]);
+      expect(f0.rows, k).not.toEqual(f1.rows);
+      for (const s of [f0, f1]) {
+        // Ink outline, then moss, grass, grasslight (green) and peat, mud, sand, wood, woodlight (brown).
+        expect(s.rows.join('').replace(/[.kmgGpusoO]/g, ''), k).toBe('');
+        const edge = [s.rows[0]!, s.rows[s.h - 1]!, ...s.rows.map((r) => r[0]! + r[s.w - 1]!)].join('');
+        expect(edge.replace(/[.k]/g, ''), k).toBe('');
+        expect(s.rows.join('').includes('k'), k).toBe(true);
+      }
+    }
+    // The trained toad wears a cap; the bigger basket is visibly bigger.
+    expect(SPRITES.toad_counter2_0!.rows.join('')).toContain('o');
+    expect(SPRITES.toad_counter_0!.rows.join('')).not.toContain('o');
+    const wood = (k: string): number => SPRITES[k]!.rows.join('').replace(/[^oO]/g, '').length;
+    expect(wood('toad_basket2_0')).toBeGreaterThan(wood('toad_basket_0') * 2);
+    expect(size('till_flash')).toEqual([10, 5]);
+  });
+
   it('node and mudlet outlines are complete (their art keeps a 1 px clear margin)', () => {
     for (const [name, s] of Object.entries(SPRITES)) {
       if (!/^(node_|mudlet_)/.test(name)) continue;

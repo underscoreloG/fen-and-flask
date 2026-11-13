@@ -121,6 +121,14 @@ export const TUNING = {
     // A queued customer leaves without paying after this long.
     patience: 30,
   },
+  // Helper toads (specs/wp/WP08): the counter toad rings up a customer who waited this long at
+  // spot 1 (480 ticks; 180 trained); the basket toad brings this many ingredients each morning.
+  helpers: {
+    counterDelay: 8,
+    counterDelayTrained: 3,
+    basketItems: 5,
+    basketItemsBigger: 9,
+  },
   demand: {
     start: 1.0,
     perSale: 0.04,
@@ -156,10 +164,10 @@ export const TUNING = {
     evening1CoinsMax: 130,
     plotBoughtMaxDay: 4,
     goalMaxDay: 6,
-    // M2 (specs/wp/WP07): every catalog item owned by this day; then, over the lantern sign's
-    // arrival day and the 4 after it, coins per evening at least this times evenings 3-5, and
-    // at least this many units sold per evening.
-    catalogAllMaxDay: 15,
+    // M2 (specs/wp/WP07, WP08): every catalog item owned by this day (all 14 with the helpers);
+    // then, over the lantern sign's arrival day and the 4 after it, coins per evening at least
+    // this times evenings 3-5, and at least this many units sold per evening.
+    catalogAllMaxDay: 22,
     lateEveningsAfter: 4,
     lateCoinsRatio: 1.5,
     lateUnitsMin: 12,
@@ -323,6 +331,13 @@ export const TUNING = {
     glowAlpha: 0.35,
     glowPulseMs: 420,
     glowPulseAmp: 0.25,
+    // Helper toads: idle frame time; the counter toad's hop and the till flash when it rings up;
+    // the counter toad's feet sit this far above the counter's footprint bottom.
+    toadIdleMs: 700,
+    toadHopMs: 240,
+    toadHopPx: 3,
+    tillFlashMs: 300,
+    toadOnCounterPx: 13,
   },
   // The shelf panel's fields.
   shelfPanel: {

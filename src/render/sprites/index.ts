@@ -10,6 +10,7 @@ import { PLAYER_SPRITES } from './player';
 import { BUBBLE_SPRITES, CUSTOMER_SPRITES } from './stall';
 import { SHADOW_SPRITES, STRUCTURE_SPRITES } from './structures';
 import { TILE_SPRITES } from './tiles';
+import { TILL_FLASH, TOAD_SPRITES } from './toads';
 
 const outlined = (src: Record<string, readonly string[]>): Record<string, SpriteDef> =>
   Object.fromEntries(Object.entries(src).map(([k, rows]) => [k, sprite(addOutline(rows, 'k'))]));
@@ -38,6 +39,8 @@ export const SPRITES: Readonly<Record<string, SpriteDef>> = {
   ...plain(FX_SPRITES),
   ...outlined(CUSTOMER_SPRITES),
   ...plain(BUBBLE_SPRITES),
+  ...outlined(TOAD_SPRITES),
+  ...plain(TILL_FLASH),
 };
 
 export { addOutline, flipX, LEGEND, type SpriteDef } from './format';

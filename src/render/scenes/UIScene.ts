@@ -25,6 +25,14 @@ import { SIM_EVENTS } from './GameScene';
 // The shop summary is opened by the UI itself (on stallClosed), not by a core uiRequest.
 type ShopSummary = { ui: 'shopSummary'; soldCount: number; soldCoins: number };
 
+// The morning's one-liners, shown one after another: arrivals and what the helper toads did.
+function morningToast(e: GameEvent): string | null {
+  if (e.type === 'upgradeArrived') return `ARRIVED: ${CATALOG.find((d) => d.id === e.id)?.name ?? e.id}`;
+  if (e.type === 'gardenToadHarvested') return `GARDEN TOAD: +${e.harvested}`;
+  if (e.type === 'basketToadBrought') return `BASKET TOAD: +${Object.values(e.items).reduce((a, b) => a + b, 0)}`;
+  return null;
+}
+
 // HUD, screen tints and the panel host; the version label only in debug.
 // Panel host: a uiRequest opens one panel and sets the session's pause switch; the panel reads
 // session.intents each frame; when it returns commands, it closes and they reach the next tick.
@@ -145,11 +153,14 @@ export class UIScene extends Phaser.Scene {
         case 'plotBought':
           this.toasts.toast(`THE ${(PLOTS[e.plot]?.id ?? '').toUpperCase()} PLOT IS YOURS`);
           break;
-        case 'upgradeArrived': {
-          // One toast per item: a toast replaces the one showing, so later ones wait their turn.
-          const name = CATALOG.find((d) => d.id === e.id)?.name ?? e.id;
-          const n = events.slice(0, i).filter((o) => o.type === 'upgradeArrived').length;
-          this.time.delayedCall(n * TUNING.toast.ms, () => this.toasts.toast(`ARRIVED: ${name}`));
+        case 'upgradeArrived':
+        case 'gardenToadHarvested':
+        case 'basketToadBrought': {
+          // One toast per arrival, then the toads' work: a toast replaces the one showing, so later
+          // ones wait their turn.
+          const text = morningToast(e);
+          const n = events.slice(0, i).filter((o) => morningToast(o) !== null).length;
+          if (text) this.time.delayedCall(n * TUNING.toast.ms, () => this.toasts.toast(text));
           break;
         }
         case 'stallClosed':

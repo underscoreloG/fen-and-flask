@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SHOP_LAYOUT, type StructureKind } from '../../data/content';
+import { SHOP_LAYOUT, TOAD_SPOTS, type StructureKind } from '../../data/content';
 import type { GameEvent } from '../../core/events';
 import { creatureDef } from '../../core/creatures';
 import type { Area, CreatureState, NodeState, PickupState } from '../../core/state';
@@ -9,11 +9,13 @@ import {
   ENTRY_TILE,
   plotAtTile,
   plotOrigin,
+  plotTileCenter,
   SHOP_H,
   SHOP_TX,
   SHOP_TY,
   SHOP_W,
   shopTileCenter,
+  structureOfKind,
   structureStands,
   TILE,
   WORLD_H,
@@ -32,6 +34,8 @@ import { Fx } from '../fx';
 import { ATLAS } from '../sprites/generate';
 import { BACK_WALL } from '../sprites/interior';
 import { CUSTOMER_LOOKS } from '../sprites/stall';
+import { SPRITES } from '../sprites/index';
+import { TILL_KEYS_AT } from '../sprites/toads';
 import { pump, type Session } from '../../input/session';
 
 // Draw order: flat ground layers below everything that stands; standing things sort by their
@@ -76,6 +80,7 @@ const R = TUNING.render;
 const ICON = 8;
 const FEET = TUNING.player.hitboxH / 2;
 const CAULDRONS = STATION_KINDS.filter(isCauldron);
+const COUNTER = structureOfKind('counter');
 
 interface View {
   img: Phaser.GameObjects.Image;
@@ -118,6 +123,11 @@ export class GameScene extends Phaser.Scene {
   // The delivery crate by the door, from a morning something arrived until the player passes it.
   private crate!: Phaser.GameObjects.Image;
   private cameraArea: Area | null = null;
+  // The helper toads (specs/wp/WP08), shown once owned; the counter toad hops and the till flashes
+  // when it rings someone up.
+  private toads: { spot: keyof typeof TOAD_SPOTS; img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image | null; y: number }[] = [];
+  private tillFlash!: Phaser.GameObjects.Image;
+  private toadRangAt = -Infinity;
 
   constructor(session: Session, reader: DeviceReader) {
     super('game');
@@ -135,6 +145,7 @@ export class GameScene extends Phaser.Scene {
     const crate = shopTileCenter(SHOP_LAYOUT.crate.x, SHOP_LAYOUT.crate.y);
     this.crate = this.add.image(crate.x, crate.y + TILE / 2, ATLAS, 'crate').setOrigin(0.5, 1).setDepth(crate.y + TILE / 2).setVisible(false);
     this.wares = SHELVES.map(() => this.add.image(0, 0, ATLAS, 'icon_tonic').setOrigin(0.5, 1).setVisible(false));
+    this.drawToads();
 
     this.playerShadow = this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(R.shadowAlpha).setDepth(DEPTH.shadow);
     this.player = this.add.image(0, 0, ATLAS, 'player_down_0').setOrigin(0.5, 1);
@@ -157,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     this.syncEntities();
     this.syncWorld();
     this.syncShop();
+    this.syncToads();
     this.fx.update(delta);
   }
 
@@ -166,6 +178,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of events) {
       if (e.type === 'swing') this.swingUntil = this.time.now + TUNING.fx.swingPoseMs;
       else if (e.type === 'upgradeArrived') this.crate.setVisible(true);
+      else if (e.type === 'toadRang') this.toadRangAt = this.time.now;
     }
     this.fx.play(events);
     this.game.events.emit(SIM_EVENTS, events);
@@ -438,6 +451,43 @@ export class GameScene extends Phaser.Scene {
       const owned = state.plots.find((p) => p.gx === f.gx && p.gy === f.gy)?.owned ?? false;
       f.rect.setVisible(!owned);
     }
+  }
+
+  // The counter toad sits on the counter's left end, its feet on the top; the garden and basket
+  // toads stand on their tiles with a shadow. None of them is solid or a target.
+  private drawToads(): void {
+    const cy = COUNTER.y + COUNTER.h;
+    for (const spot of ['counter', 'garden', 'basket'] as const) {
+      const t = TOAD_SPOTS[spot];
+      const c = t.area === 'shop' ? shopTileCenter(t.x, t.y) : plotTileCenter(0, 0, t.x, t.y);
+      const onCounter = spot === 'counter';
+      const y = onCounter ? cy - V.toadOnCounterPx : c.y + TILE / 2;
+      const img = this.add.image(c.x, y, ATLAS, `toad_${spot}_0`).setOrigin(0.5, 1).setDepth(onCounter ? cy + 1 : y).setVisible(false);
+      const shadow = onCounter ? null : this.add.image(c.x, y - 1, ATLAS, 'shadow_s').setAlpha(R.shadowAlpha).setDepth(DEPTH.shadow).setVisible(false);
+      this.toads.push({ spot, img, shadow, y });
+    }
+    // The counter's art stands taller than its footprint; the till keys sit in that art.
+    const top = cy - SPRITES.counter!.h;
+    this.tillFlash = this.add
+      .image(COUNTER.x + TILL_KEYS_AT.x, top + TILL_KEYS_AT.y, ATLAS, 'till_flash')
+      .setOrigin(0, 0)
+      .setDepth(cy + 1)
+      .setVisible(false);
+  }
+
+  private syncToads(): void {
+    const state = this.session.state;
+    const now = this.time.now;
+    const idle = Math.floor(now / V.toadIdleMs) % 2;
+    const hopping = now - this.toadRangAt < V.toadHopMs;
+    const owned = { counter: owns(state, 'counterToad'), garden: owns(state, 'gardenToad'), basket: owns(state, 'basketToad') };
+    const look = { counter: owns(state, 'counterToad2') ? 'counter2' : 'counter', garden: 'garden', basket: owns(state, 'basketToad2') ? 'basket2' : 'basket' };
+    for (const t of this.toads) {
+      const lift = t.spot === 'counter' && hopping ? V.toadHopPx : 0;
+      t.img.setVisible(owned[t.spot]).setFrame(`toad_${look[t.spot]}_${hopping && t.spot === 'counter' ? 1 : idle}`).setY(t.y - lift);
+      t.shadow?.setVisible(owned[t.spot]);
+    }
+    this.tillFlash.setVisible(now - this.toadRangAt < V.tillFlashMs);
   }
 
   // The crate goes once the player walks past it (within a tile of it, indoors).

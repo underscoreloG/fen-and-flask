@@ -13,7 +13,8 @@ const HEALTH = TUNING.health;
 // A stuck bot must fail the test, never hang it: the evening has no timer.
 const MAX_DAYS = 8;
 const TICK_CAP = MAX_DAYS * (DAY_TICKS + 20000);
-// The M2 run: until the lantern sign has worked for its 5 evenings, or this day at the latest.
+// The M2 run: until every catalog item has arrived and the lantern sign has worked for its 5
+// evenings, or this day at the latest.
 const M2_MAX_DAYS = HEALTH.catalogAllMaxDay + HEALTH.lateEveningsAfter + 2;
 
 interface Metrics {
@@ -24,6 +25,8 @@ interface Metrics {
   faints: number;
   unpaid: number;
   ticks: number;
+  // Coins held when the run ends.
+  coins: number;
   // Day each catalog item arrived; coins and units sold per evening, by day.
   arrivals: Partial<Record<CatalogId, number>>;
   evenings: Record<number, { coins: number; units: number }>;
@@ -31,9 +34,10 @@ interface Metrics {
 
 function runBot(seed: number): Metrics {
   const s = createInitialState(seed);
-  const m: Metrics = { seed, evening1Coins: null, plotDay: null, goalDay: null, faints: 0, unpaid: 0, ticks: 0, arrivals: {}, evenings: {} };
+  const m: Metrics = { seed, evening1Coins: null, plotDay: null, goalDay: null, faints: 0, unpaid: 0, ticks: 0, coins: 0, arrivals: {}, evenings: {} };
   const tickCap = M2_MAX_DAYS * (DAY_TICKS + 20000);
-  const lastDay = (): number => Math.min(M2_MAX_DAYS, (m.arrivals.lanternSign ?? M2_MAX_DAYS) + HEALTH.lateEveningsAfter);
+  const allDay = (): number => (CATALOG.every((d) => m.arrivals[d.id] !== undefined) ? Math.max(...CATALOG.map((d) => m.arrivals[d.id]!)) : M2_MAX_DAYS);
+  const lastDay = (): number => Math.min(M2_MAX_DAYS, Math.max(allDay(), (m.arrivals.lanternSign ?? M2_MAX_DAYS) + HEALTH.lateEveningsAfter));
   for (let i = 0; i < tickCap && s.day <= lastDay(); i++) {
     const day = s.day;
     for (const e of step(s, botFrame(s))) {
@@ -48,6 +52,7 @@ function runBot(seed: number): Metrics {
     }
     m.ticks = i + 1;
   }
+  m.coins = s.coins;
   return m;
 }
 
@@ -68,7 +73,7 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
       const span = HEALTH.lateEveningsAfter;
       const late = L === null ? null : { coins: avg(m, L, L + span, 'coins'), units: avg(m, L, L + span, 'units') };
       console.log(
-        `[health] seed ${seed}: evening-1 coins ${m.evening1Coins}, plotBought day ${m.plotDay}, goalReached day ${m.goalDay}, faints ${m.faints}, left unpaid ${m.unpaid}, ticks ${m.ticks}\n` +
+        `[health] seed ${seed}: evening-1 coins ${m.evening1Coins}, plotBought day ${m.plotDay}, goalReached day ${m.goalDay}, faints ${m.faints}, left unpaid ${m.unpaid}, ticks ${m.ticks}, coins at the end ${m.coins}\n` +
           `[health] seed ${seed}: arrivals ${arrivals}\n` +
           `[health] seed ${seed}: avg coins evenings 3-5 ${early.toFixed(1)}; L ${L}: avg coins ${late?.coins.toFixed(1)}, avg units ${late?.units.toFixed(1)} (ratio ${late ? (late.coins / early).toFixed(2) : '-'})\n` +
           `[health] seed ${seed}: evenings ${JSON.stringify(m.evenings)}`,
@@ -80,7 +85,8 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
       expect(m.plotDay!).toBeLessThanOrEqual(HEALTH.plotBoughtMaxDay);
       expect(m.goalDay).not.toBeNull();
       expect(m.goalDay!).toBeLessThanOrEqual(HEALTH.goalMaxDay);
-      // The bot rings up at once: nobody waits out their patience.
+      // The bot rings up at once (and the counter toad when it is away): nobody waits out their
+      // patience, over the whole run.
       expect(m.unpaid).toBe(0);
       for (const d of CATALOG) {
         expect(m.arrivals[d.id], d.id).toBeDefined();

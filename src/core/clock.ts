@@ -4,6 +4,7 @@ import { arriveUpgrades } from './catalog';
 import { refillCreatures } from './creatures';
 import type { GameEvent } from './events';
 import { growNight } from './garden';
+import { basketToad, gardenToad } from './helpers';
 import { refillPlot } from './nodes';
 import { closeShop, morningShop } from './shop';
 import { finishJobs } from './stations';
@@ -69,7 +70,8 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
   arriveUpgrades(state, events);
   // 5.
   growNight(state);
-  // 6. garden toad (WP08)
+  // 6.
+  gardenToad(state, events);
   // 7.
   state.plots.forEach((p, i) => {
     if (p.owned) refillPlot(state, i);
@@ -78,7 +80,8 @@ export function morningReset(state: GameState, events: GameEvent[]): void {
   state.plots.forEach((p, i) => {
     if (p.owned) refillCreatures(state, i);
   });
-  // 9. basket toad (WP08)
+  // 9.
+  basketToad(state, events);
   // 10.
   p.hearts = TUNING.player.hearts;
   // 11.
