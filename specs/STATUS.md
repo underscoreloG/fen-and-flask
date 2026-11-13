@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
-Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-13
-Next action: WP05 running in worktree ../fen-and-flask-wt/wp05. On report: verify, merge, browser gate, then the M1 gate (SPEC section 7), then first push + Pages (user approved public repo underscoreloG/fen-and-flask).
+Phase: 5   Size: M   Milestone: M1   Updated: 2026-11-13
+Next action: the user plays v0.1.0 and answers the fun gate: "After reaching the Ember Elixir goal (about 20 minutes), do you want to keep playing another day?" No M2 scope before a yes; feel feedback becomes a tuning WP first.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -27,7 +27,7 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 | WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
 | WP03 Stations, notebook | merged | subagent | opus high | | wp/03-stations | verify green (98 tests). Browser, real keys: mortar panel grinds 3 mint into 3 paste, cauldron panel starts 3 tonics for 1 bogwood, notebook page 1 shows recipes, no console error |
 | WP04 Stall, land, goal, bot | merged | subagent | opus high | | wp/04-stall | verify green (128 tests). Health seeds 1-3: evening-1 coins 87, plot bought day 2, goal day 3, 0 faints. Browser: bot reaches the goal on day 3 (32000 ticks); with real keys the stall setup opens, tonic raised 10 -> 12 sells as happy, 6 potions sold for 79 coins, summary shown, no console error |
-| WP05 Audio, pause, Pages | running | subagent | opus high | | | needs sound list approved by user |
+| WP05 Audio, pause, Pages | merged | subagent | opus high | | wp/05-audio | verify green (160 tests). Browser: 16 audio files load (200), pause menu and mute work, no console error or warning |
 
 ## Helper agents (not WPs)
 | Task | When | Model | Effort |
@@ -43,3 +43,6 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 - WP02 gate finding of 2026-11-12 was a test artifact: synthetic KeyboardEvents plus __game.frames(n) do not drive the UI reliably. For UI flows use the computer tool (real key presses) with the preview pane shown; the loop then runs (8+ ticks/s is enough). __game.step() stays reliable for sim state.
 - Brain wiring fix on main: __game.frames(n) drives render frames by hand, because the hidden browser pane throttles requestAnimationFrame (about 1 tick per second).
 - 2026-11-13 user FYI: pixel-mcp and Pillow are both installed for graphics. Pick the better one when the real-art milestone (M3) is planned; M1 stays code-drawn.
+- M1 gate PASSED 2026-11-13: verify green (160 tests, dist JS 1.29 MB); bot health seeds 1-3 = evening-1 coins 87, plot bought day 2, goal day 3, 0 faints; browser full day with real key presses (swing breaks a mintbush, grind 5, brew 3 tonics, plant glowcap, stall sells 3 for 30 coins, sleep to day 2 with regrow and a trend); gamepad covered by input unit tests only (no real pad tried).
+- Not judged by anyone yet: how the sounds and their volumes actually sound, hit feel, 60 fps on the real window (user at the fun gate).
+- Known for M2 planning: evening 1 is identical on every seed (87 coins, first prices always sell); potions pile up after day 3 (6-8 customers cap); no spending choices after the plot; repo has no LICENSE file.

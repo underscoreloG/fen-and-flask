@@ -8,35 +8,7 @@ Cozy top-down pixel game in the browser: you run a potion stall at the edge of a
 
 ## Where the build stands
 
-| Job | State |
-|---|---|
-| Spec, 6 work packages, two plan reviews | done, all findings applied |
-| 16 CC0 sounds | downloaded, trimmed, in `public/audio/` (not listened to yet) |
-| WP00 Foundation | merged, verified in the browser |
-| WP01 Gathering and combat | merged, verified in the browser |
-| WP02 Day, sleep, garden, save, title | merged, verified in the browser |
-| WP03 Stations and notebook | not started |
-| WP04 Stall, land, goal, bot | not started |
-| WP05 Audio, pause, GitHub Pages | not started |
-| M1 gate, then push to GitHub + Pages | not started (nothing has been pushed; no remote exists yet) |
-
-`main` is at "Debug frames helper, ledger: paused at WP02 browser gate". `npm run verify` is green there: 87 tests, build 1.26 MB.
-
-## WP02 browser gate: closed 2026-11-13
-
-Sleeping and planting both work with real key presses. The doubt of 2026-11-12 came from the test method (synthetic key events and hand-stepped frames in a hidden pane). For UI checks, show the preview pane and use real key presses; `__game.step()` stays reliable for sim state.
-
-## Then continue the build
-
-For each of WP03, WP04, WP05, in order: create a worktree (`git worktree add ../fen-and-flask-wt/wpNN -b wp/NN-name main`), dispatch one opus worker with the brief pattern used so far (see the WP00-WP02 dispatches; the template is in the game-forge skill's `references/orchestration.md`), then check the diff, merge with `--no-ff`, run `npm run verify` on `main`, and run the browser checks yourself.
-
-Facts each next brief must carry (not all are in the spec files):
-- The sim loop is `pump()` in `src/input/session.ts`. Panels: add a `UiRequest` member and a case in `UIScene.makePanel` returning a `Panel` whose `update(intents)` gives `null` while open or `Command[]` on close. `ListPanel` in `src/render/ui/confirm.ts` draws a box with rows and a cursor. `openPanel(session)` / `closePanel(session, cmds)` is the only pause switch.
-- New command: add a case in `step.ts` `applyCommand` and check `targetStructure(state)?.def.kind`. Morning hooks go at the numbered comment in `clock.ts` `morningReset` (WP03 jobs = step 2, WP04 demand, trend and stall = step 6).
-- WP04: the stall's open view must not use `openPanel` (the sim keeps running); `UIScene` must ignore `uiRequest` while `session.botOn`; the stall guard (no hurt, mudlets only wander) goes in `updateHurt` and the chase branch of `updateCreatures`.
-- WP05: `main.ts` has `audio: { noAudio: true }`, turn audio on. Sim events are re-emitted on `game.events` as `SIM_EVENTS` (exported from `GameScene.ts`). Base volumes are in the WP05 file.
-- A WP02 save has no station or stall fields: default missing fields on load or bump the save key.
-- Workers do no browser checks; the brain does them after each merge.
+M1 (v0.1.0) is built: all six work packages are merged, the M1 gate passed on 2026-11-13 (160 tests, bot health, full day in the browser), and the ledger `specs/STATUS.md` holds the details. Next is the fun gate: the user plays it and says whether the loop is fun. No new scope before a yes; feel feedback becomes a tuning job first.
 
 ## Commands
 
