@@ -29,6 +29,16 @@ Prices are first guesses (tune). Buying, arrival and requirements follow WP07 wi
 - **Basket toad**: morning reset step 9: `helpers.basketItems` 5 (9 with the bigger basket) items go into the inventory. Each is one draw from this pool, weighted by the morning node targets of the owned plots: home plot - mint 6, glowcap 4, reed 6, bogwood 3; the east plot adds glowcap 3, reed 3, bogwood 2, emberroot 4. Build the pool from the node tables, do not hard-code it. Mud gel never comes (it is not a node drop). The draw takes nothing from the world. Event `basketToadBrought { items }` (a count per item id) once; the UI toasts "BASKET TOAD: +N".
 - Draws use the state RNG, at the step given in WP07's morning reset order.
 
+## Dig up (added 2026-11-13 after the first build, from the worker's CCR)
+
+With a garden toad a bed is never empty or ready while the player is awake, so its crop could never be changed. Fix, valid with or without a toad:
+
+- Interacting with a **growing** bed (a crop and `nightsLeft > 0`) opens a confirm "DIG UP <CROP>?"; hint `DIG UP`.
+- Command `DigUpBed { bed: number }`, valid when that bed is the interact target and is growing: the bed becomes empty and 1 unit of the crop goes back to the inventory. Event `bedDugUp { bed, item }`. Rejected (state unchanged) on an empty or ready bed, or away from the bed.
+- The garden toad leaves an empty bed alone and carries on with whatever the player plants next.
+- The bot does not use it.
+- Tests: the command's valid and rejected cases; after a dig up and a new planting, the garden toad harvests and replants the new crop.
+
 ## Look
 
 - Counter toad: sits on the counter at indoor tile (2,8); hops and the till flashes when it rings someone up. The trained toad wears a tiny cap.
