@@ -1,6 +1,6 @@
 # Fen & Flask (working title) - status
-Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-12
-Next action: PAUSED by the user (gone to sleep, 2026-11-12). Resume with the WP02 browser gate (see Open), then dispatch WP03. Do not start WP03 before the gate is settled.
+Phase: 4   Size: M   Milestone: M1   Updated: 2026-11-13
+Next action: WP03 running in worktree ../fen-and-flask-wt/wp03. On report: verify, merge, browser gate (real key presses, pane shown), dispatch WP04.
 
 Idea: a cozy top-down pixel game where you run a potion stall at the edge of a marsh: gather, brew, sell at your own prices, sleep, buy more land.
 
@@ -24,8 +24,8 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 |---|---|---|---|---|---|---|
 | WP00 Foundation | merged | subagent | opus high | | wp/00-foundation | verify green (35 tests), browser: x 88 -> 178, no console error. CCRs accepted: clearLatches(latch), input/session.ts holds the loop |
 | WP01 Gathering and combat | merged | subagent | opus high | | wp/01-gathering | verify green (60 tests); browser: 19 nodes, 2 mudlets, swing breaks a reedclump and the reed lands in inventory, no console error. CCR accepted: pickup.landTime 0.3 s |
-| WP02 Day, sleep, garden, save | merged, browser gate OPEN | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. NOT confirmed: see Open |
-| WP03 Stations, notebook | todo | subagent | opus high | | | |
+| WP02 Day, sleep, garden, save | merged | subagent | opus high | | wp/02-day-garden | verify green (87 tests). Browser: title renders, evening tint and clock show, sleep confirm panel opens and pauses the sim, no console error. Gate closed 2026-11-13 with real key presses: C at the door then YES gives day 2; C on a bed opens the picker and plants mint (garden bed1 mint:1, mint 2 -> 1) |
+| WP03 Stations, notebook | running | subagent | opus high | | | |
 | WP04 Stall, land, goal, bot | todo | subagent | opus high | | | |
 | WP05 Audio, pause, Pages | todo | subagent | opus high | | | needs sound list approved by user |
 
@@ -40,6 +40,6 @@ Idea: a cozy top-down pixel game where you run a potion stall at the edge of a m
 - Workers do no browser checks; the brain runs them after each merge. Preview entry fen-and-flask (port 5345) is in ../.claude/launch.json and serves the main checkout.
 - Git identity is repo-local (GitHub noreply address, as in sibling repos).
 - Recheck 2026-11-12: no blocker, 10 rework items, all applied (latch clearing around panels, stall open view not pausing, sprite and test file creation allowed, WP04 idle-test rule, event payloads, clock formula in ticks, WP05 base volumes, browser lines are the brain's, faint moves the player before the reset). WP00 worker told about clearLatches by message.
-- WP02 browser gate, open finding: driving the UI with synthetic key events and __game.frames(n), pressing C on the SLEEP? panel did not advance the day (day stayed 1, clock ran on), and C on a bed did not show the garden picker or plant. Not yet known whether this is a real bug or an artifact of the manual frame stepping (5 frames gave only 3 ticks). The core paths pass in Vitest (Sleep and Plant commands). Next: read UIScene.sleepThen and confirm.ts, check which row is selected by default and whether the fade timers advance under frames(); if real, send it back to the WP02 worker (agent id in the session transcript) or fix as a WP02b job.
+- WP02 gate finding of 2026-11-12 was a test artifact: synthetic KeyboardEvents plus __game.frames(n) do not drive the UI reliably. For UI flows use the computer tool (real key presses) with the preview pane shown; the loop then runs (8+ ticks/s is enough). __game.step() stays reliable for sim state.
 - Brain wiring fix on main: __game.frames(n) drives render frames by hand, because the hidden browser pane throttles requestAnimationFrame (about 1 tick per second).
-- Worktree ../fen-and-flask-wt/wp02 and branch wp/02-day-garden still exist (merged); remove them when the gate closes.
+- 2026-11-13 user FYI: pixel-mcp and Pillow are both installed for graphics. Pick the better one when the real-art milestone (M3) is planned; M1 stays code-drawn.

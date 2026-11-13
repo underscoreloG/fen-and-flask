@@ -1,4 +1,4 @@
-# Fen & Flask - handoff (2026-11-12, evening)
+# Fen & Flask - handoff (written 2026-11-12, updated 2026-11-13)
 
 Paused by the user mid-build. To resume: open a session in `Downloads/Claude`, say "resume fen-and-flask", and have the agent read this file, then `specs/STATUS.md` (the ledger), then follow the game-forge skill from Phase 4.
 
@@ -14,7 +14,7 @@ Cozy top-down pixel game in the browser: you run a potion stall at the edge of a
 | 16 CC0 sounds | downloaded, trimmed, in `public/audio/` (not listened to yet) |
 | WP00 Foundation | merged, verified in the browser |
 | WP01 Gathering and combat | merged, verified in the browser |
-| WP02 Day, sleep, garden, save, title | merged, tests green, **browser gate still open** (see below) |
+| WP02 Day, sleep, garden, save, title | merged, verified in the browser |
 | WP03 Stations and notebook | not started |
 | WP04 Stall, land, goal, bot | not started |
 | WP05 Audio, pause, GitHub Pages | not started |
@@ -22,18 +22,9 @@ Cozy top-down pixel game in the browser: you run a potion stall at the edge of a
 
 `main` is at "Debug frames helper, ledger: paused at WP02 browser gate". `npm run verify` is green there: 87 tests, build 1.26 MB.
 
-## First thing to do tomorrow: close the WP02 browser gate
+## WP02 browser gate: closed 2026-11-13
 
-Confirmed in the browser: the title screen renders, the HUD clock and evening tint show, walking to the hut door and pressing interact opens the "SLEEP? YES / NO" panel and pauses the sim, no console errors.
-
-**Not confirmed:** driving the UI with synthetic key events, pressing C on the sleep panel did not advance the day (day stayed 1 and the clock kept running), and pressing C on a soil bed did not show the garden picker or plant anything. The same actions pass in Vitest at the command level (`Sleep`, `Plant`), so the doubt is in the UI layer or in my test method.
-
-How to settle it:
-1. Simplest: play it for real. `npm run dev`, open `http://localhost:5345/?nosave=1`, walk up to the hut door, press C, choose YES. Then stand on a soil bed holding some mint and press C. If both work, the finding was a test artifact.
-2. If it fails for real: read `src/render/scenes/UIScene.ts` (`sleepThen`, `makePanel`) and `src/render/ui/confirm.ts` (default selected row, how `update(intents)` returns commands), fix or send it back as a small WP02b job, add a test.
-3. Then remove the merged worktree: `git worktree remove ../fen-and-flask-wt/wp02` and `git branch -d wp/02-day-garden`.
-
-Why my test is suspect: the browser pane was hidden, which throttles `requestAnimationFrame` to about one frame per second. I added `__game.frames(n)` to drive render frames by hand, but 5 manual frames produced only 3 sim ticks, so timing under it is not trustworthy yet.
+Sleeping and planting both work with real key presses. The doubt of 2026-11-12 came from the test method (synthetic key events and hand-stepped frames in a hidden pane). For UI checks, show the preview pane and use real key presses; `__game.step()` stays reliable for sim state.
 
 ## Then continue the build
 
