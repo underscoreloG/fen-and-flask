@@ -12,7 +12,7 @@ import { refillPlot } from './nodes';
 import { PATIENCE_TICKS } from './shop';
 import { createInitialState, type GameState } from './state';
 import { step } from './step';
-import { shopTileCenter } from './world';
+import { plotTileCenter, shopTileCenter } from './world';
 
 const cmd = (...commands: Command[]): Frame => ({ ...neutralFrame(), commands });
 const count = (ev: GameEvent[], type: GameEvent['type']): number => ev.filter((e) => e.type === type).length;
@@ -201,6 +201,38 @@ describe('garden toad', () => {
     expect(count(ev, 'gardenToadHarvested')).toBe(0);
     expect(s.inventory).toEqual(inv);
     expect(s.garden[2]).toEqual({ crop: 'emberroot', nightsLeft: 1 });
+  });
+
+  it('after a dig up and a planting of another crop, the toad harvests and replants the new crop', () => {
+    const s = quiet();
+    own(s, 'gardenToad');
+    s.garden[0] = { crop: 'mint', nightsLeft: 1 };
+    s.inventory.glowcap = 1;
+    s.player.area = 'world';
+    Object.assign(s.player, plotTileCenter(0, 0, 5, 2), { facing: 'right' });
+    step(s, neutralFrame());
+    expect(s.player.interactTarget).toBe('bed0');
+    step(s, cmd({ type: 'DigUpBed', bed: 0 }));
+    expect(s.garden[0]).toEqual({ crop: null, nightsLeft: 0 });
+    expect(s.inventory.mint).toBe(1);
+    // An empty bed is left alone by the toad.
+    const ev0: GameEvent[] = [];
+    morningReset(s, ev0);
+    expect(s.garden[0]).toEqual({ crop: null, nightsLeft: 0 });
+    expect(count(ev0, 'gardenToadHarvested')).toBe(0);
+    s.player.area = 'world';
+    Object.assign(s.player, plotTileCenter(0, 0, 5, 2), { facing: 'right' });
+    step(s, neutralFrame());
+    step(s, cmd({ type: 'Plant', bed: 0, item: 'glowcap' }));
+    expect(s.garden[0]).toEqual({ crop: 'glowcap', nightsLeft: 1 });
+    for (let m = 0; m < 2; m++) {
+      const ev: GameEvent[] = [];
+      morningReset(s, ev);
+      expect(ev.filter((e) => e.type === 'gardenToadHarvested')).toEqual([{ type: 'gardenToadHarvested', harvested: 3 }]);
+      expect(s.garden[0]).toEqual({ crop: 'glowcap', nightsLeft: 1 });
+    }
+    expect(s.inventory.glowcap).toBe(4);
+    expect(s.inventory.mint).toBe(1);
   });
 
   it('without the toad a ready bed waits for the player', () => {

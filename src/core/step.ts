@@ -4,7 +4,7 @@ import { sleep, updateClock } from './clock';
 import type { Command, Frame } from './commands';
 import { updateCreatures } from './creatures';
 import type { GameEvent } from './events';
-import { plant } from './garden';
+import { digUpBed, plant } from './garden';
 import { updatePickups } from './pickups';
 import { interact, swing, updateDoors, updateHurt, updatePlayer, updateTargets } from './player';
 import { buyPlot, clearShelf, closeStall, openShop, ringUp, setPrice, stockShelf, updateShop } from './shop';
@@ -19,6 +19,9 @@ function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
       break;
     case 'Plant':
       plant(state, c.bed, c.item);
+      break;
+    case 'DigUpBed':
+      digUpBed(state, c.bed, events);
       break;
     case 'StartGrind':
       startGrind(state, c.input, c.qty, events);

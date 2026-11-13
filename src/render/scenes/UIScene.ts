@@ -192,6 +192,11 @@ export class UIScene extends Phaser.Scene {
         return confirmPanel(this, 'CLOSE SHOP?', [{ type: 'CloseStall' }]);
       case 'gardenPicker':
         return gardenPicker(this, this.session.state, req.bed);
+      case 'digUpConfirm': {
+        const crop = state.garden[req.bed]?.crop;
+        const name = ITEMS.find((i) => i.id === crop)?.name.toUpperCase() ?? '';
+        return confirmPanel(this, `DIG UP ${name}?`, [{ type: 'DigUpBed', bed: req.bed }]);
+      }
       case 'station':
         return stationPanel(this, this.session.state, req.station);
       case 'catalog':

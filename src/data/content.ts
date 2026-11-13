@@ -257,8 +257,9 @@ export interface StructureDef {
   // Without one the structure is never an interact target.
   interact?: { x: number; y: number };
   hint: string;
-  // Beds switch hint once a crop is ready.
+  // Beds switch hint once a crop is ready, and while one grows.
   hintReady?: string;
+  hintGrowing?: string;
   // A signpost sells this plot and is gone once it is owned.
   sells?: PlotId;
   // Does not exist (not solid, not a target, not drawn) until this catalog item is owned.
@@ -280,6 +281,7 @@ const bed = (id: string, x: number, y: number, requires?: CatalogId): StructureD
   interact: { x, y },
   hint: 'PLANT',
   hintReady: 'HARVEST',
+  hintGrowing: 'DIG UP',
   ...(requires ? { requires } : {}),
 });
 

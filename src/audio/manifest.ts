@@ -39,7 +39,7 @@ const PLANTS: readonly NodeId[] = ['mintbush', 'glowcaps', 'reedclump', 'emberpl
 
 export const SOUNDS: readonly SoundDef[] = [
   { id: 'swing', file: 'swing.ogg', volume: 0.8, on: [{ event: 'swing' }] },
-  { id: 'hit_plant', file: 'hit_plant.ogg', volume: 0.6, on: [{ event: 'nodeHit', when: (e) => PLANTS.includes(e.nodeType) }] },
+  { id: 'hit_plant', file: 'hit_plant.ogg', volume: 0.6, on: [{ event: 'nodeHit', when: (e) => PLANTS.includes(e.nodeType) }, { event: 'bedDugUp' }] },
   { id: 'hit_wood', file: 'hit_wood.ogg', volume: 0.45, on: [{ event: 'nodeHit', when: (e) => e.nodeType === 'stump' }] },
   { id: 'squish', file: 'squish.ogg', volume: 1.0, on: [{ event: 'creatureHit' }, { event: 'creatureDied' }] },
   { id: 'pickup', file: 'pickup.ogg', volume: 0.5, on: [{ event: 'pickupCollected' }] },

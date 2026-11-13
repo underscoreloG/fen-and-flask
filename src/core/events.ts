@@ -11,6 +11,8 @@ export type UiRequest =
   | { ui: 'openShopConfirm' }
   | { ui: 'closeShopConfirm' }
   | { ui: 'gardenPicker'; bed: number }
+  // A growing bed: dig it up?
+  | { ui: 'digUpConfirm'; bed: number }
   | { ui: 'station'; station: StationKind }
   // shelf indexes state.shop.shelves.
   | { ui: 'shelf'; shelf: number }
@@ -70,4 +72,6 @@ export type GameEvent =
   // once per morning reset.
   | { type: 'toadRang' }
   | { type: 'gardenToadHarvested'; harvested: number }
-  | { type: 'basketToadBrought'; items: Partial<Record<ItemId, number>> };
+  | { type: 'basketToadBrought'; items: Partial<Record<ItemId, number>> }
+  // A growing bed emptied by the player; 1 unit of item went back to the inventory.
+  | { type: 'bedDugUp'; bed: number; item: ItemId };

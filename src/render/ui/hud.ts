@@ -30,6 +30,9 @@ const HINTS: Readonly<Record<string, string>> = Object.fromEntries(WORLD_STRUCTU
 const READY_HINTS: Readonly<Record<string, string | undefined>> = Object.fromEntries(
   WORLD_STRUCTURES.map((s) => [s.def.id, s.def.hintReady]),
 );
+const GROWING_HINTS: Readonly<Record<string, string | undefined>> = Object.fromEntries(
+  WORLD_STRUCTURES.map((s) => [s.def.id, s.def.hintGrowing]),
+);
 // The dial is a 12-hour face with 12 at the top.
 const DIAL_HOURS = 12;
 
@@ -132,7 +135,7 @@ export class Hud {
     }
   }
 
-  // Beds: PLANT when empty, HARVEST when ready, nothing while growing. The sign says what it
+  // Beds: PLANT when empty, HARVEST when ready, DIG UP while growing. The sign says what it
   // will do now; the counter only speaks when someone waits.
   private hintFor(id: string): string | undefined {
     const state = this.session.state;
@@ -143,7 +146,7 @@ export class Hud {
     const bed = state.garden[i];
     if (!bed) return undefined;
     if (bed.crop === null) return HINTS[id];
-    return isReady(bed) ? READY_HINTS[id] : undefined;
+    return isReady(bed) ? READY_HINTS[id] : GROWING_HINTS[id];
   }
 
   // Only items you own, in the item table order, centered at the bottom.
