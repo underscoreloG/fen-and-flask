@@ -195,7 +195,7 @@ export class UIScene extends Phaser.Scene {
       case 'digUpConfirm': {
         const crop = state.garden[req.bed]?.crop;
         const name = ITEMS.find((i) => i.id === crop)?.name.toUpperCase() ?? '';
-        return confirmPanel(this, `DIG UP ${name}?`, [{ type: 'DigUpBed', bed: req.bed }]);
+        return confirmPanel(this, `DIG UP ${name}?`, [{ type: 'DigUpBed', bed: req.bed }], true);
       }
       case 'station':
         return stationPanel(this, this.session.state, req.station);

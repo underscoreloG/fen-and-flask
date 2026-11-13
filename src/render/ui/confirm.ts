@@ -141,6 +141,11 @@ export class ListPanel {
     for (const p of this.parts) p.destroy();
   }
 
+  select(i: number): void {
+    this.selected = i;
+    this.drawCursor();
+  }
+
   // Row under a point in view pixels, or null (mouse clicks on the title menu).
   rowAt(x: number, y: number): number | null {
     if (x < this.x0 || x >= this.x0 + this.w) return null;
@@ -155,9 +160,11 @@ export class ListPanel {
   }
 }
 
-// Yes / no; Yes sends `commands`, No and back send nothing.
-export function confirmPanel(scene: Phaser.Scene, question: string, commands: readonly Command[]): Panel {
+// Yes / no; Yes sends `commands`, No and back send nothing. `startOnNo` puts the cursor on No
+// (for actions that undo progress, so a double press of confirm does nothing).
+export function confirmPanel(scene: Phaser.Scene, question: string, commands: readonly Command[], startOnNo = false): Panel {
   const list = new ListPanel(scene, question, [{ label: 'YES' }, { label: 'NO' }]);
+  if (startOnNo) list.select(1);
   return {
     update(intents) {
       const r = list.update(intents);
