@@ -171,3 +171,5 @@ Reaction, with `value = base x demand[potion] x trend x personal` and `r = price
 ## Save
 
 localStorage key `fenflask.save.v1`: the whole `GameState` as JSON plus the game version, written at each morning reset. A save whose version major.minor differs from the game's is ignored (New game only). Mute and volume live in `fenflask.settings.v1`.
+
+> v0.3.4 override (WP11): the counter is rung up from indoor tile (3,9) facing up; customers queue on (3,7) and (4,7). The counter is the one structure that is not a target from across its own footprint, whatever the reach radius says.
