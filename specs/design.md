@@ -2,7 +2,7 @@
 
 ## Look
 
-- Top-down 3/4 pixel art: you see the top and the front of things. 16 px tiles, internal 480x270, integer scaling only.
+- Top-down 3/4 pixel art: you see the top and the front of things. 16 px tiles, internal 480x270, scaled to fill the window (see SPEC section 5).
 - Sprites are drawn in code for M1: each sprite is an array of strings, one character per pixel, with a legend that maps characters to palette tokens (`.` = transparent). BootScene turns them into textures. No image files in M1.
 - Everything that stands up is y-sorted by its feet and has a soft oval shadow.
 - Mood: damp, green, lantern-warm. Day is neutral, evening is a warm tint, the night fade is blue.

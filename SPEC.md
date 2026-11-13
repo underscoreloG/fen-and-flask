@@ -61,7 +61,7 @@ Decisions and why:
 
 ```
 src/
-  main.ts              Phaser config, integer scaling, scene list
+  main.ts              Phaser config, window-filling scaling, scene list
   core/                pure deterministic sim: no Phaser, no DOM
     state.ts           GameState + createInitialState(seed)
     step.ts            step(state, frame): advances one tick, returns GameEvent[]
@@ -115,7 +115,7 @@ Rule 1 is checked by script (imports and forbidden globals). Rules 2-4 are check
 - Units: pixels and seconds. x right, y down. Tile = 16 px. Plot-local tile coordinates start at the plot's top-left.
 - Time in core is counted in **integer ticks**, never in accumulated float seconds: every duration from the data tables is converted once with `ticks = round(seconds x 60)` and timers count ticks. A cooldown of N ticks allows the next action N ticks after the previous one.
 - Sizes: 1 KB = 1000 bytes, 1 MB = 1000 KB.
-- Internal resolution 480x270, scaled by the largest integer zoom that fits the window, centered, `pixelArt: true`, `roundPixels: true`.
+- Internal resolution 480x270, scaled to fill the window while keeping 16:9, centered, `pixelArt: true`, `roundPixels: true`. A whole-number zoom is used when it covers at least 92% of the fitted size; otherwise the zoom is fractional (the user asked for the game to fill the screen, 2026-11-13).
 - Named exports only. Comments say why, not what. Plain `-` only, never em or en dashes, in code, comments and docs.
 - Tests live next to code as `*.test.ts`. Core logic is tested headless; never test through Phaser.
 - Version comes from `package.json`, injected with Vite `define`, shown on the title and pause screens.

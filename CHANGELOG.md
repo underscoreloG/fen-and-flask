@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.3 - 2026-11-13
+
+- The game now fills the window instead of stopping at the largest whole-number zoom.
+
 ## v0.1.2 - 2026-11-13
 
 - The key hint on the title screen is now bright enough to read.

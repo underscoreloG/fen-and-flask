@@ -31,9 +31,15 @@ const audio = new GameAudio(params.nosave);
 // scene switch keeps its held state.
 const reader = createDeviceReader(window);
 
-// Largest integer zoom that fits the window, so pixels stay square and crisp.
+// Fill the window (keeping 16:9). A whole-number zoom keeps every pixel the same size, so it is
+// used when it already covers most of the window; otherwise the view is stretched to fit, on a
+// whole number of screen pixels.
+const INTEGER_ZOOM_MIN_COVER = 0.92;
 function fitZoom(): number {
-  return Math.max(1, Math.floor(Math.min(window.innerWidth / viewW, window.innerHeight / viewH)));
+  const fit = Math.min(window.innerWidth / viewW, window.innerHeight / viewH);
+  const whole = Math.floor(fit);
+  if (whole >= 1 && whole / fit >= INTEGER_ZOOM_MIN_COVER) return whole;
+  return Math.max(1, Math.floor(viewW * fit)) / viewW;
 }
 
 const game = new Phaser.Game({
