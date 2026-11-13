@@ -1,5 +1,7 @@
 # Fen & Flask - content and numbers
 
+> **v0.2.0 override:** the outdoor stall, the outdoor mortar and cauldron, and sleeping at the hut door are replaced by the shop interior. `specs/wp/WP06-shop-interior.md` is the truth for the shop, shelves, prices per item, checkout with patience, the back room and the bed; where this file disagrees with it, WP06 wins.
+
 Every value here lives in `src/data/tuning.ts` or `src/data/content.ts` under the name given. Values marked (tune) are first guesses.
 
 ## World

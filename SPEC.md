@@ -17,6 +17,8 @@ Audience: the user (adult, desktop). In-game text: English, short.
 ## 2. Scope
 
 ### M1 vertical slice (build this)
+> **v0.2.0 override:** the outdoor stall, the outdoor mortar and cauldron, and sleeping at the hut door are replaced by the shop interior. `specs/wp/WP06-shop-interior.md` is the truth for the shop, shelves, prices per item, checkout with patience, the back room and the bed; where this file disagrees with it, WP06 wins.
+
 - One home plot, one buyable east plot (150 coins).
 - Gathering: 5 node types hit with one swing button; drops fly to the player; unlimited inventory.
 - Light combat: 1 creature (mudlet), 5 hearts, fainting skips to next morning with nothing lost.

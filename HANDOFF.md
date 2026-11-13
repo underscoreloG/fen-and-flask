@@ -8,7 +8,14 @@ Cozy top-down pixel game in the browser: you run a potion stall at the edge of a
 
 ## Where the build stands
 
-M1 (v0.1.0) is built: all six work packages are merged, the M1 gate passed on 2026-11-13 (160 tests, bot health, full day in the browser), and the ledger `specs/STATUS.md` holds the details. Next is the fun gate: the user plays it and says whether the loop is fun. No new scope before a yes; feel feedback becomes a tuning job first.
+v0.2.0 is live at https://underscorelog.github.io/fen-and-flask/ (public repo underscoreloG/fen-and-flask, Pages via GitHub Actions, deploys on every push to main).
+
+- v0.1.0 to v0.1.3: the first slice (gather, fight, garden, grind, brew, sell, sleep, buy land, Ember Elixir goal), then fixes from the first play: Enter confirms, title menu clickable, readable hint, the game fills the window.
+- v0.2.0: the hut is a building you walk into. Shop room with 4 shelves you stock and price (any item), customers browse, queue at the counter and leave unpaid after 30 s; back room with mortar, cauldron and bed. The outdoor stall and stations are gone. Spec: `specs/wp/WP06-shop-interior.md`.
+
+Next: the user's fun-gate verdict or more one-line feedback. The ledger `specs/STATUS.md` has every decision, gate result and open leftover.
+
+Browser checks: the in-app browser pane only works while this session is open in a window; otherwise use a headless Edge over the DevTools protocol (see the ledger).
 
 ## Commands
 

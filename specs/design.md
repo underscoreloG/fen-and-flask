@@ -1,5 +1,7 @@
 # Fen & Flask - design
 
+> **v0.2.0 override:** the outdoor stall, the outdoor mortar and cauldron, and sleeping at the hut door are replaced by the shop interior. `specs/wp/WP06-shop-interior.md` is the truth for the shop, shelves, prices per item, checkout with patience, the back room and the bed; where this file disagrees with it, WP06 wins.
+
 ## Look
 
 - Top-down 3/4 pixel art: you see the top and the front of things. 16 px tiles, internal 480x270, scaled to fill the window (see SPEC section 5).
