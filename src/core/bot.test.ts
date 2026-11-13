@@ -144,8 +144,9 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
       }
       expect(late).not.toBeNull();
       expect(m.evenings[L! + span], 'the run reaches evening L+4').toBeDefined();
-      // WP07's coins ratio (late.coins >= lateCoinsRatio x early) is printed, no longer asserted: with
-      // orders and customer types (specs/wp/WP09) seed 3 measures 1.43 (see the WP09 report).
+      // The coins ratio counts order pay too: orders move income from the tables to the board, so
+      // evening coins alone no longer measure a busier shop (seed 3: 1.43 without, 1.73 with).
+      expect(ratioWithOrders!).toBeGreaterThanOrEqual(HEALTH.lateCoinsRatio);
       expect(late!.units).toBeGreaterThanOrEqual(HEALTH.lateUnitsMin);
     }, 180000);
   }
