@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.0 - 2026-11-13
+
+The shop moves indoors.
+
+- Walk into the hut through its door: a shop room with four display tables, a counter with a till and a sign by the door, and a back room with the mortar, the cauldron and your bed. The hut outside has an awning and a hanging sign.
+- Shelves: put any item on a table (up to 5), set its price there, top it up or take it back, at any time of day. Every item has a value, so raw herbs sell too; first prices always sell.
+- Evening: open the shop from the sign. Customers walk in, browse a table, react to the price, take one and queue at the counter. Press C at the counter to ring them up; after about 30 s of waiting they leave without paying and the item goes back.
+- The outdoor stall and the outdoor stations are gone; you sleep in the back room and wake there, and mudlets leave you alone indoors.
+- Saves from 0.1.x are not loaded (New game only).
+
 ## v0.1.3 - 2026-11-13
 
 - The game now fills the window instead of stopping at the largest whole-number zoom.

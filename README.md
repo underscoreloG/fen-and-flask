@@ -1,6 +1,6 @@
 # Fen & Flask
 
-A cozy top-down pixel game in the browser: gather marsh herbs, grind and brew potions, set your own prices at the evening stall, sleep, and buy the next plot of marsh.
+A cozy top-down pixel game in the browser: gather marsh herbs, brew potions in the back room of your shop, put them on the shelves at your own prices, ring up the evening's customers, sleep, and buy the next plot of marsh.
 
 Controls: arrows move, X swing (or back in panels), C or Enter interact / confirm, V notebook, Esc pause, M mute. Gamepad: stick or d-pad, X swing, A confirm, B back, Y notebook, Start pause.
 

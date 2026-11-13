@@ -265,20 +265,18 @@ function rug(): string[] {
   rect(g, 3, 3, 42, 26, 'e');
   rect(g, 5, 5, 38, 22, 'h');
   rect(g, 6, 6, 36, 20, 'e');
+  // A row of emberhot diamonds with heart-red hearts, and a stitched line through them.
+  rect(g, 7, 15, 34, 2, 'h');
   for (let i = 0; i < 4; i++) {
     const cx = 10 + i * 9;
-    for (let d = 0; d <= 4; d++) {
-      for (const [x, y] of [
-        [cx - d, 16 - (4 - d)],
-        [cx + d, 16 - (4 - d)],
-        [cx - d, 15 + (4 - d)],
-        [cx + d, 15 + (4 - d)],
-      ] as const) {
-        put(g, x, y, d === 4 ? 'E' : 'e');
-      }
+    for (let d = 0; d <= 5; d++) {
+      const half = 5 - d;
+      rect(g, cx - half, 10 + d, half * 2 + 1, 1, 'E');
+      rect(g, cx - half, 21 - d, half * 2 + 1, 1, 'E');
     }
-    put(g, cx, 15, 'E');
-    put(g, cx, 16, 'E');
+    rect(g, cx - 1, 14, 3, 4, 'h');
+    put(g, cx, 13, 'h');
+    put(g, cx, 18, 'h');
   }
   for (let y = 4; y < 28; y += 3) {
     put(g, 1, y, 'b');

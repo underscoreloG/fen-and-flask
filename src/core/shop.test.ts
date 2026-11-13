@@ -563,6 +563,53 @@ describe('customers', () => {
     expect(z.shop.customers).toEqual([]);
   });
 
+  it('two in the queue: ring up spot 1, spot 2 steps forward still counting its patience, then rings up too', () => {
+    const s = openShop([
+      ['tonic', 5, 1],
+      ['tonic', 5, 1],
+    ]);
+    s.shop.customersLeft = 1;
+    for (let i = 0; i < 5000 && s.shop.customers.filter((c) => c.waited >= 0).length < 2; i++) step(s, neutralFrame());
+    const second = s.shop.customers.find((c) => c.spot === 1)!;
+    expect(second.mode).toBe('queued');
+    const waited = second.waited;
+    expect(count(step(s, cmd({ type: 'RingUp' })), 'sale')).toBe(1);
+    expect(second.spot).toBe(0);
+    expect(second.mode).toBe('toQueue');
+    // Not yet at spot 1: RingUp does nothing.
+    expectRejected(s, { type: 'RingUp' });
+    for (let i = 0; i < 200 && second.mode !== 'queued'; i++) step(s, neutralFrame());
+    expect(second.mode).toBe('queued');
+    expect(second.waited).toBeGreaterThan(waited);
+    expect(count(step(s, cmd({ type: 'RingUp' })), 'sale')).toBe(1);
+    expect(s.coins).toBe(2);
+  });
+
+  it('a customer whose shelf was emptied on the way goes to another stocked shelf, or leaves when there is none', () => {
+    const s = openShop([
+      ['tonic', 1, 1],
+      ['salve', 1, 1],
+    ]);
+    s.shop.customersLeft = 0;
+    const c = s.shop.customers[0]!;
+    const other = 1 - c.shelf;
+    atShelf(s, c.shelf);
+    step(s, cmd({ type: 'ClearShelf', shelf: c.shelf }));
+    atCounter(s);
+    const ev = until(s, 'customerArrived');
+    expect(ev).toContainEqual({ type: 'customerArrived', item: other === 0 ? 'tonic' : 'salve' });
+
+    const t = openShop([['tonic', 1, 1]]);
+    t.shop.customersLeft = 0;
+    atShelf(t, 0);
+    step(t, cmd({ type: 'ClearShelf', shelf: 0 }));
+    atCounter(t);
+    const tev = run(t, 1500);
+    expect(count(tev, 'customerArrived')).toBe(0);
+    expect(t.shop.customers).toEqual([]);
+    expect(t.shop.phase).toBe('done');
+  });
+
   it('history keeps only the last 3 entries per item', () => {
     const s = openShop([['tonic', 5, 2]]);
     const ev = serve(s);
