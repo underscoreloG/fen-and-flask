@@ -1,6 +1,7 @@
 // localStorage save (specs/content.md, Save): the whole GameState plus the game version.
 // Called from the render side only; ?nosave=1 is checked by the callers.
 import type { GameState } from '../core/state';
+import { createStall } from '../core/stall';
 import { createStations } from '../core/stations';
 import { SAVE_KEY } from '../data/content';
 import { APP_VERSION } from '../data/version';
@@ -37,6 +38,8 @@ export function deserialize(json: string, version: string): GameState | null {
 function withDefaults(state: GameState): GameState {
   const s = state as Partial<GameState>;
   if (s.stations === undefined) s.stations = createStations();
+  if (s.stall === undefined) s.stall = createStall();
+  if (s.flags === undefined) s.flags = { m1Goal: false };
   return state;
 }
 

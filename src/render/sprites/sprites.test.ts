@@ -63,6 +63,19 @@ describe('sprites', () => {
     expect(size('clock_dial')).toEqual([8, 8]);
   });
 
+  it('has the WP04 customers (3 looks, 2-frame walk) and 4 reaction bubbles, world and icon', () => {
+    const size = (k: string): [number, number] => [SPRITES[k]!.w, SPRITES[k]!.h];
+    for (const v of [0, 1, 2]) for (const f of [0, 1]) expect(size(`customer_${v}_${f}`)).toEqual([16, 24]);
+    const fills = new Set<string>();
+    for (const r of ['delighted', 'happy', 'grumbling', 'refuses']) {
+      expect(size(`bubble_${r}`)).toEqual([12, 12]);
+      expect(size(`react_${r}`)).toEqual([8, 8]);
+      // The fill is the pixel just inside the left edge of the box.
+      fills.add(SPRITES[`bubble_${r}`]!.rows[2]![1]!);
+    }
+    expect(fills.size).toBe(4);
+  });
+
   it('node and mudlet outlines are complete (their art keeps a 1 px clear margin)', () => {
     for (const [name, s] of Object.entries(SPRITES)) {
       if (!/^(node_|mudlet_)/.test(name)) continue;

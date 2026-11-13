@@ -1,7 +1,8 @@
 // Core -> render/audio. A tick where nothing happened returns an empty array; there is
 // deliberately no per-tick event. Positions are world px (feet centers).
-import type { CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
+import type { CreatureId, ItemId, NodeId, PotionId, StructureKind } from '../data/content';
 import type { Facing } from './state';
+import type { Reaction } from './stall';
 import type { StationKind } from './stations';
 
 // What the core asks the UI to open; later WPs add members (stations, stall, buy plot).
@@ -9,7 +10,13 @@ export type UiRequest =
   | { ui: 'sleepConfirm' }
   | { ui: 'callItADayConfirm' }
   | { ui: 'gardenPicker'; bed: number }
-  | { ui: 'station'; station: StationKind };
+  | { ui: 'station'; station: StationKind }
+  // The evening stall's price list (setup); the open view is driven by stallOpened instead.
+  | { ui: 'stall' }
+  // A one-line note at the top of the screen; it never pauses the sim.
+  | { ui: 'toast'; text: string }
+  // plot indexes state.plots.
+  | { ui: 'buyPlotConfirm'; plot: number };
 
 export type GameEvent =
   // Every swing that actually plays; targetId is null for a swing at the air, a bed's
@@ -36,4 +43,16 @@ export type GameEvent =
   // jobFinished on the tick of the last one.
   | { type: 'jobStarted'; station: StationKind; item: ItemId; qty: number }
   | { type: 'jobUnitDone'; station: StationKind; item: ItemId }
-  | { type: 'jobFinished'; station: StationKind };
+  | { type: 'jobFinished'; station: StationKind }
+  // Stall. customerArrived fires when a traveller reaches the spot and picks a potion; the
+  // reaction, and the sale when there is one, follow on the same tick.
+  | { type: 'stallOpened' }
+  | { type: 'customerArrived'; potion: PotionId }
+  | { type: 'customerReacted'; potion: PotionId; price: number; reaction: Reaction; sold: boolean }
+  | { type: 'sale'; potion: PotionId; price: number }
+  | { type: 'stallClosed'; soldCount: number; soldCoins: number }
+  // Right after eveningStarted, only on days with a trend.
+  | { type: 'trendAnnounced'; potion: PotionId }
+  // Once per game: the first Ember Elixir sold.
+  | { type: 'goalReached' }
+  | { type: 'plotBought'; plot: number };

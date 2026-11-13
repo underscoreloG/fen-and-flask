@@ -1,6 +1,7 @@
 // Notebook (specs/design.md Screens), opened with V / pad Y from the world: page 1 the grind and
 // brew recipes, page 2 the prices. Left/right turns the page; back or V again closes it.
 import type Phaser from 'phaser';
+import { POTION_IDS } from '../../core/stall';
 import type { GameState } from '../../core/state';
 import { BREW_RECIPES, CAULDRON_FUEL, GRIND_RECIPES, ITEMS, type ItemId } from '../../data/content';
 import type { Token } from '../../data/palette';
@@ -37,9 +38,21 @@ function recipesPage(): NoteLine[] {
   ];
 }
 
-// Page 2. WP04 replaces this body with the price history and today's trend.
-export function pricesPage(_state: GameState): NoteLine[] {
-  return [[{ text: 'PRICES: AFTER YOUR FIRST SALE' }]];
+// Page 2: per potion owned or ever offered, its last prices with the reaction each got, then
+// today's trend ("-" on day 1).
+export function pricesPage(state: GameState): NoteLine[] {
+  const st = state.stall;
+  const shown = POTION_IDS.filter((p) => state.inventory[p] > 0 || st.history[p].length > 0);
+  const lines: NoteLine[] = [[{ text: 'PRICES', token: 'coin' }]];
+  if (shown.length === 0) lines.push([{ text: 'NO POTIONS YET' }]);
+  for (const p of shown) {
+    const h = st.history[p];
+    const entries: NotePart[] = h.flatMap((e) => [{ text: String(e.price), token: 'coin' as const }, { icon: `react_${e.reaction}` }]);
+    lines.push([icon(p), { text: itemName(p) }, ...(entries.length > 0 ? entries : [{ text: '-' }])]);
+  }
+  const trend: NotePart[] = st.trend ? [icon(st.trend), { text: itemName(st.trend) }] : [{ text: '-' }];
+  lines.push([{ text: 'IN DEMAND TODAY:', token: 'coin' }, ...trend]);
+  return lines;
 }
 
 const partW = (p: NotePart): number => ('icon' in p ? ICON : p.text.length * CHAR_W);

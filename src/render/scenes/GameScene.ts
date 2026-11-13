@@ -5,11 +5,23 @@ import { creatureDef } from '../../core/creatures';
 import type { CreatureState, NodeState, PickupState } from '../../core/state';
 import { PALETTE } from '../../data/palette';
 import { ticks, TUNING } from '../../data/tuning';
-import { plotAtTile, plotOrigin, TILE, WORLD_H, WORLD_STRUCTURES, WORLD_TILES_H, WORLD_TILES_W, WORLD_W } from '../../core/world';
+import {
+  plotAtTile,
+  plotOrigin,
+  structureStands,
+  TILE,
+  WORLD_H,
+  WORLD_STRUCTURES,
+  WORLD_TILES_H,
+  WORLD_TILES_W,
+  WORLD_W,
+  type WorldStructure,
+} from '../../core/world';
 import { bedIndex, isReady } from '../../core/garden';
 import { STATION_KINDS, UNIT_TICKS } from '../../core/stations';
 import type { DeviceReader } from '../../input/devices';
 import { Fx } from '../fx';
+import { StallCrowd } from '../ui/stallPanel';
 import { ATLAS } from '../sprites/generate';
 import { pump, type Session } from '../../input/session';
 
@@ -56,7 +68,8 @@ export class GameScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Image;
   private waterTiles: Phaser.GameObjects.Image[] = [];
-  private structures: { id: string; kind: StructureKind; img: Phaser.GameObjects.Image }[] = [];
+  private structures: { s: WorldStructure; id: string; kind: StructureKind; img: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image | null }[] = [];
+  private crowd!: StallCrowd;
   private nodeViews = new Map<number, View>();
   private creatureViews = new Map<number, View>();
   private pickupViews = new Map<number, View>();
@@ -81,6 +94,7 @@ export class GameScene extends Phaser.Scene {
     const r = TUNING.render;
     this.playerShadow = this.add.image(0, 0, ATLAS, 'shadow_s').setAlpha(r.shadowAlpha).setDepth(DEPTH.shadow);
     this.player = this.add.image(0, 0, ATLAS, 'player_down_0').setOrigin(0.5, 1);
+    this.crowd = new StallCrowd(this, DEPTH.shadow);
     this.fx = new Fx(this, { viewOf: (id) => (this.nodeViews.get(id) ?? this.creatureViews.get(id))?.img });
     this.syncPlayer();
     this.syncEntities();
@@ -101,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     this.syncPlayer();
     this.syncEntities();
     this.syncWorld();
+    this.crowd.sync(this.session.state);
     this.fx.update(delta);
   }
 
@@ -156,14 +171,15 @@ export class GameScene extends Phaser.Scene {
       const cx = s.x + s.w / 2;
       const bottom = s.y + s.h;
       const img = this.add.image(cx, bottom, ATLAS, STRUCTURE_FRAME[s.def.kind]).setOrigin(0.5, 1);
-      this.structures.push({ id: s.def.id, kind: s.def.kind, img });
       if (s.def.kind === 'bed') {
+        this.structures.push({ s, id: s.def.id, kind: s.def.kind, img, shadow: null });
         img.setDepth(DEPTH.flat);
         continue;
       }
       img.setDepth(bottom);
-      const shadow = s.w > TILE ? 'shadow_l' : 'shadow_m';
-      this.add.image(cx, bottom - 1, ATLAS, shadow).setOrigin(0.5, 0.5).setAlpha(alpha).setDepth(DEPTH.shadow);
+      const frame = s.w > TILE ? 'shadow_l' : 'shadow_m';
+      const shadow = this.add.image(cx, bottom - 1, ATLAS, frame).setOrigin(0.5, 0.5).setAlpha(alpha).setDepth(DEPTH.shadow);
+      this.structures.push({ s, id: s.def.id, kind: s.def.kind, img, shadow });
     }
   }
 
@@ -306,6 +322,10 @@ export class GameScene extends Phaser.Scene {
       ? `cauldron_${Math.floor(this.time.now / r.cauldronFrameMs) % 2}`
       : STRUCTURE_FRAME.cauldron;
     for (const s of this.structures) {
+      // A signpost is gone once its plot is bought.
+      const stands = structureStands(this.session.state, s.s);
+      s.img.setVisible(stands);
+      s.shadow?.setVisible(stands);
       const base = s.kind === 'cauldron' ? cauldronFrame : s.kind === 'bed' ? this.bedFrame(s.id) : STRUCTURE_FRAME[s.kind];
       // A ready bed can also be the swing target.
       s.img.setFrame(interactTarget === s.id || swingTarget === s.id ? `${base}_hl` : base);

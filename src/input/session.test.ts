@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameEvent } from '../core/events';
+import { botFrame } from '../core/bot';
 import { step } from '../core/step';
 import { neutralFrame } from '../core/commands';
 import { plotTileCenter } from '../core/world';
@@ -76,5 +77,21 @@ describe('panel switch', () => {
     frame(s, keys({ x: true }));
     expect(s.state.tick).toBe(tick + 1);
     expect(s.state.day).toBe(1);
+  });
+});
+
+describe('autoplay', () => {
+  it('with the bot on, every tick of a render frame gets its own botFrame and keys are ignored', () => {
+    const opts = { seed: 4, debug: false, speed: 16, nosave: true, autoplay: true };
+    const live = createSession(opts);
+    const ref = createSession(opts);
+    for (let i = 0; i < 300; i++) {
+      // A held arrow and X must not reach the sim while the bot drives.
+      pump(live, keys({ left: true, x: i % 2 === 0 }), null, MS);
+    }
+    // 300 frames at speed 16 = 4800 ticks, each from botFrame.
+    for (let i = 0; i < 4800; i++) step(ref.state, botFrame(ref.state));
+    expect(live.state.tick).toBe(4800);
+    expect(JSON.stringify(live.state)).toBe(JSON.stringify(ref.state));
   });
 });

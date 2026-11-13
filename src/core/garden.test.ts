@@ -86,6 +86,8 @@ describe('garden', () => {
     expect(ev.filter((e) => e.type === 'pickupSpawned').length).toBe(3);
     expect(types(ev)).not.toContain('uiRequest');
     expect(s.garden[0]).toEqual({ crop: null, nightsLeft: 0 });
+    // On the bed, so every drop (8-14 px out) is inside the magnet whatever the RNG sequence.
+    standAt(s, 6, 2, 'right');
     run(s, 60);
     expect(s.pickups).toEqual([]);
     expect(s.inventory.mint).toBe(3);
@@ -99,6 +101,7 @@ describe('garden', () => {
     sleepAndReturn(s);
     const ev = step(s, SWING);
     expect(ev).toContainEqual(expect.objectContaining({ type: 'swing', targetId: BED_IDS[0] }));
+    standAt(s, 6, 2, 'right');
     run(s, 60);
     expect(s.inventory.glowcap).toBe(4);
     expect(s.garden[0]!.crop).toBeNull();
@@ -144,7 +147,7 @@ describe('garden', () => {
 });
 
 describe('interact routing', () => {
-  it('door -> sleepConfirm; stall by day -> callItADayConfirm, by evening -> nothing', () => {
+  it('door -> sleepConfirm; stall by day -> callItADayConfirm, by evening -> the stall (WP04)', () => {
     const s = createInitialState(1);
     s.creatures = [];
     standAt(s, 2, 3, 'up');
@@ -152,6 +155,6 @@ describe('interact routing', () => {
     standAt(s, 9, 10, 'down');
     expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'callItADayConfirm' });
     setPhase(s, 'evening');
-    expect(types(step(s, INTERACT))).not.toContain('uiRequest');
+    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'stall' });
   });
 });

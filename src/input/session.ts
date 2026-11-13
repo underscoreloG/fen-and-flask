@@ -1,5 +1,6 @@
 // The running game shared by the scenes and the debug surface: the state, the input latches
 // and the fixed-step accumulator. No Phaser here.
+import { botFrame } from '../core/bot';
 import type { Command } from '../core/commands';
 import type { GameEvent } from '../core/events';
 import { step } from '../core/step';
@@ -130,7 +131,24 @@ export function pump(session: Session, keys: KeyState, pad: PadState | null, dtM
     return;
   }
   const n = ticksDue(session, dtMs);
+  if (session.botOn) {
+    session.events.push(...stepBot(session, n));
+    return;
+  }
   session.latch = deliver(built.frame, session.latch, n, (f) => {
     session.events.push(...step(session.state, f));
   });
+}
+
+// While the bot drives, every tick gets its own botFrame (a held frame would skip the ticks its
+// policy keys on); commands queued from outside still reach the first tick. Key presses are dropped.
+export function stepBot(session: Session, n: number): GameEvent[] {
+  const events: GameEvent[] = [];
+  for (let i = 0; i < n; i++) {
+    const f = botFrame(session.state);
+    if (i === 0) f.commands = [...session.latch.commands, ...f.commands];
+    events.push(...step(session.state, f));
+  }
+  if (n > 0) session.latch = { ...clearLatches(session.latch), commands: [] };
+  return events;
 }

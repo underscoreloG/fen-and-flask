@@ -53,6 +53,18 @@ describe('save', () => {
     expect(() => step(s, neutralFrame())).not.toThrow();
   });
 
+  it('a save written before the stall existed (no stall, no flags) loads with a fresh stall and steps', () => {
+    const file = JSON.parse(serialize(played(), '0.1.0')) as { state: Partial<GameState> };
+    delete file.state.stall;
+    delete file.state.flags;
+    const s = deserialize(JSON.stringify(file), '0.1.0')!;
+    expect(s.stall).toEqual(createInitialState(1).stall);
+    expect(s.flags).toEqual({ m1Goal: false });
+    expect(() => {
+      for (let i = 0; i < 60; i++) step(s, neutralFrame());
+    }).not.toThrow();
+  });
+
   it('garbage and wrong shapes return null', () => {
     for (const bad of ['', '{', 'not json', 'null', '42', '"x"', '[]', '{"version":"0.1.0"}', '{"state":{}}', '{"version":1,"state":{}}']) {
       expect(deserialize(bad, '0.1.0'), bad).toBeNull();

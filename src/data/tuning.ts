@@ -110,6 +110,25 @@ export const TUNING = {
   notebook: {
     historyLength: 3,
   },
+  // Headless autoplay policy (specs/wp/WP04): price nudges after each reaction, and how it fights.
+  bot: {
+    priceAfter: { delighted: 1.15, happy: 1.05, grumbling: 0.95, refuses: 0.85 },
+    // A mudlet this close (px, feet to feet) is fought before anything else.
+    fightRadius: 72,
+    // While the swing cools down, back off from a mudlet closer than this (px).
+    retreatRadius: 26,
+    // Arrived when this close to a tile center (px).
+    arriveEps: 0.5,
+    // Stick for a turn on the spot: small enough to stay within arriveEps of the center.
+    faceNudge: 0.05,
+    // Pickups this close (BFS tiles) are fetched before other work; the rest after the nodes.
+    nearPickupTiles: 3,
+    // Seeds kept in hand for the garden: mint and glowcap beds, and one emberroot bed once
+    // that many emberroot are owned.
+    emberSeedMin: 3,
+    // After this share of the day the bot brews with what it has instead of waiting for more.
+    brewAnywayAt: 0.6,
+  },
   health: {
     evening1CoinsMin: 40,
     evening1CoinsMax: 130,
@@ -222,5 +241,40 @@ export const TUNING = {
     pendingAlpha: 0.35,
     clockGap: 2,
     clockHandPx: 3,
+    // Sale: coins fly from the customer to the coin counter, "+N" rises over the customer.
+    saleCoins: 3,
+    saleCoinStaggerMs: 70,
+    saleCoinMs: 520,
+    saleArcPx: 28,
+    plusRisePx: 14,
+    // "+N" and the coins start this far above the customer's feet.
+    saleLiftPx: 28,
+    plusMs: 900,
+  },
+  // Toast (top-center one-liners) and the M1 goal banner.
+  toast: {
+    ms: 3000,
+    bannerMs: 6000,
+    fadeMs: 250,
+    top: 22,
+    bannerY: 60,
+    padX: 5,
+    padY: 3,
+  },
+  // Stall: customers in the world, the open view's left column.
+  stallView: {
+    bubbleLiftPx: 2,
+    // Share of the walk out during which the reaction bubble stays up, fading.
+    bubbleLingers: 0.4,
+    popScale: 1.6,
+    popMs: 180,
+    walkFrameTicks: 10,
+    // Fade-in / out at the plot edge, as a share of the walk.
+    edgeFade: 0.1,
+    columnX: 4,
+    columnTop: 30,
+    // Width kept for prices and counts in the stall rows, in characters.
+    priceChars: 3,
+    countChars: 3,
   },
 } as const;

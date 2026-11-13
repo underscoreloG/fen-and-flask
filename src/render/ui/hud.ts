@@ -8,7 +8,8 @@ import { TUNING } from '../../data/tuning';
 import { clockHour, clockLabel } from '../../core/clock';
 import type { GameEvent } from '../../core/events';
 import { bedIndex, isReady } from '../../core/garden';
-import { WORLD_STRUCTURES } from '../../core/world';
+import { plotTileCenter, WORLD_STRUCTURES } from '../../core/world';
+import { PLOT_LAYOUTS, PLOTS } from '../../data/content';
 import type { Session } from '../../input/session';
 import { addText } from '../font';
 import { ATLAS } from '../sprites/generate';
@@ -18,6 +19,9 @@ const R = TUNING.render;
 const ICON = 8;
 const CHAR_W = R.fontCellW;
 const CHAR_H = R.fontCellH;
+// Where travellers stand to buy, in world px: sale coins fly from there.
+const SPOT = PLOT_LAYOUTS.home.customerSpot ?? { x: 0, y: 0 };
+const SPOT_PX = plotTileCenter(PLOTS[0]!.gx, PLOTS[0]!.gy, SPOT.x, SPOT.y);
 // Keyboard key or gamepad button for interact (controls table in specs/design.md).
 const INTERACT_KEY = { keyboard: 'C', gamepad: 'A' } as const;
 
@@ -39,6 +43,9 @@ export class Hud {
   private readonly session: Session;
   private readonly hearts: Phaser.GameObjects.Image[] = [];
   private readonly coinText: Phaser.GameObjects.BitmapText;
+  private readonly coinIcon: Phaser.GameObjects.Image;
+  // Coins of sales still flying to the counter; the count ticks up when they land.
+  private coinsInFlight = 0;
   private readonly bar: Phaser.GameObjects.Graphics;
   private readonly slots = new Map<ItemId, Slot>();
   // Pickups still hopping toward their slot, per item.
@@ -63,7 +70,7 @@ export class Hud {
     }
     this.shownHearts = session.state.player.hearts;
     const coinY = m + ICON + H.heartGap * 2;
-    scene.add.image(m, coinY, ATLAS, 'coin').setOrigin(0, 0);
+    this.coinIcon = scene.add.image(m + ICON / 2, coinY + ICON / 2, ATLAS, 'coin');
     this.coinText = addText(scene, m + ICON + H.iconTextGap * 2, coinY, '0', 'coin');
     this.bar = scene.add.graphics();
     this.hintKey = scene.add.graphics();
@@ -82,6 +89,7 @@ export class Hud {
     for (const e of events) {
       if (e.type === 'pickupCollected') this.hop(e.item, e.x - worldView.x, e.y - worldView.y - H.hopFromLiftPx);
       else if (e.type === 'playerHurt') this.pop(this.hearts[e.hearts]);
+      else if (e.type === 'sale') this.sale(e.price, SPOT_PX.x - worldView.x, SPOT_PX.y - worldView.y);
     }
   }
 
@@ -92,7 +100,7 @@ export class Hud {
     // Refilled hearts (after a faint) pop back in.
     if (hearts > this.shownHearts) for (let i = this.shownHearts; i < hearts; i++) this.pop(this.hearts[i]);
     this.shownHearts = hearts;
-    this.coinText.setText(String(state.coins));
+    this.coinText.setText(String(Math.max(0, state.coins - this.coinsInFlight)));
     this.layoutBar();
     this.layoutHint();
     this.layoutClock();
@@ -158,7 +166,8 @@ export class Hud {
   }
 
   private layoutHint(): void {
-    const id = this.session.state.player.interactTarget;
+    // Held at the open stall, C does nothing: no hint.
+    const id = this.session.state.stall.phase === 'open' ? null : this.session.state.player.interactTarget;
     const hint = id ? this.hintFor(id) : undefined;
     const visible = hint !== undefined;
     this.hintKey.clear();
@@ -215,6 +224,46 @@ export class Hud {
         this.inFlight[id] = Math.max(0, (this.inFlight[id] ?? 0) - 1);
       },
     });
+  }
+
+  // A sale: "+N" rises over the customer and a few coins arc up to the counter; the counter
+  // counts the price in when the last one lands.
+  private sale(price: number, x: number, y: number): void {
+    const s = this.scene;
+    const top = y - H.saleLiftPx;
+    const plus = addText(s, x, top, `+${price}`, 'coin').setOrigin(0.5, 1);
+    s.tweens.add({ targets: plus, y: top - H.plusRisePx, alpha: 0, duration: H.plusMs, ease: 'Sine.Out', onComplete: () => plus.destroy() });
+    this.coinsInFlight += price;
+    for (let i = 0; i < H.saleCoins; i++) {
+      const img = s.add.image(x, top, ATLAS, 'coin');
+      const t = { v: 0 };
+      const last = i === H.saleCoins - 1;
+      s.tweens.add({
+        targets: t,
+        v: 1,
+        delay: i * H.saleCoinStaggerMs,
+        duration: H.saleCoinMs,
+        ease: 'Sine.In',
+        onUpdate: () => {
+          const to = this.coinIcon;
+          img.setPosition(x + (to.x - x) * t.v, top + (to.y - top) * t.v - H.saleArcPx * 4 * t.v * (1 - t.v));
+        },
+        onComplete: () => {
+          img.destroy();
+          if (!last) return;
+          this.coinsInFlight = Math.max(0, this.coinsInFlight - price);
+          this.pop(this.coinIcon);
+          this.popText(this.coinText);
+        },
+      });
+    }
+  }
+
+  private popText(t: Phaser.GameObjects.BitmapText): void {
+    const f = TUNING.fx;
+    this.scene.tweens.killTweensOf(t);
+    t.setScale(f.popScale);
+    this.scene.tweens.add({ targets: t, scale: 1, duration: f.popMs, ease: 'Back.Out' });
   }
 
   private pop(target: Phaser.GameObjects.Image | undefined): void {

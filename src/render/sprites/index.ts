@@ -5,6 +5,7 @@ import { addOutline, sprite, type SpriteDef } from './format';
 import { CREATURE_SPRITES, NODE_SPRITES } from './gathering';
 import { FX_SPRITES, ICON_SPRITES } from './icons';
 import { PLAYER_SPRITES } from './player';
+import { BUBBLE_SPRITES, CUSTOMER_SPRITES } from './stall';
 import { SHADOW_SPRITES, STRUCTURE_SPRITES } from './structures';
 import { TILE_SPRITES } from './tiles';
 
@@ -28,6 +29,8 @@ export const SPRITES: Readonly<Record<string, SpriteDef>> = {
   ...targetable(CREATURE_SPRITES),
   ...plain(ICON_SPRITES),
   ...plain(FX_SPRITES),
+  ...outlined(CUSTOMER_SPRITES),
+  ...plain(BUBBLE_SPRITES),
 };
 
 export { addOutline, flipX, LEGEND, type SpriteDef } from './format';
