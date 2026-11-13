@@ -440,7 +440,7 @@ describe('customers', () => {
     expect(s.coins).toBe(0);
     expect(s.shop.demand.glowdraught).toBe(1);
     const ring = step(s, cmd({ type: 'RingUp' }));
-    expect(ring.filter((e) => e.type === 'sale')).toEqual([{ type: 'sale', item: 'glowdraught', price: 20 }]);
+    expect(ring.filter((e) => e.type === 'sale')).toEqual([{ type: 'sale', item: 'glowdraught', price: 20, qty: 1 }]);
     expect(s.coins).toBe(20);
     expect(s.shop.demand.glowdraught).toBeCloseTo(0.96);
   });
@@ -506,7 +506,7 @@ describe('customers', () => {
     atShelf(s, 1);
     expectRejected(s, { type: 'RingUp' });
     atCounter(s);
-    expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'sale', item: 'tonic', price: 5 });
+    expect(step(s, { ...neutralFrame(), interact: true })).toContainEqual({ type: 'sale', item: 'tonic', price: 5, qty: 1 });
   });
 
   it('never more than 2 indoors; 6 customers with one plot, 8 with two; every sale paid', () => {
@@ -546,7 +546,7 @@ describe('customers', () => {
     until(s, 'customerQueued');
     atSign(s);
     const ev = step(s, cmd({ type: 'CloseStall' }));
-    expect(ev).toContainEqual({ type: 'sale', item: 'tonic', price: 5 });
+    expect(ev).toContainEqual({ type: 'sale', item: 'tonic', price: 5, qty: 1 });
     expect(ev).toContainEqual({ type: 'stallClosed', soldCount: 1, soldCoins: 5 });
     expect(s.coins).toBe(5);
     expect(s.shop.phase).toBe('done');
@@ -572,7 +572,7 @@ describe('customers', () => {
     }
     routes.push([at(4, 9), at(3, 9)], [at(3, 9), at(7, 10)]);
     for (const [a, b] of routes) {
-      const path = pathBetween(a, b);
+      const path = pathBetween(quiet(), a, b);
       expect(path.at(-1), `${a} -> ${b}`).toBe(b);
       for (const i of path) {
         const x = i % W;

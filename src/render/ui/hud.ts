@@ -97,7 +97,7 @@ export class Hud {
     for (const e of events) {
       if (e.type === 'pickupCollected') this.hop(e.item, e.x - worldView.x, e.y - worldView.y - H.hopFromLiftPx);
       else if (e.type === 'playerHurt') this.pop(this.hearts[e.hearts]);
-      else if (e.type === 'sale') this.sale(e.price, TILL.x - worldView.x, TILL.y - worldView.y);
+      else if (e.type === 'sale') this.sale(e.price * e.qty, TILL.x - worldView.x, TILL.y - worldView.y);
     }
   }
 

@@ -3,14 +3,15 @@
 // never presses interact, and sends a command only once the previous tick's interact target is
 // the structure that command needs. Pathing is a BFS over the tiles of the player's area (the
 // world: nodes and solid structures block; the shop: walls and furniture), through the doors.
-import { GRIND_RECIPES, PLOTS, type ItemId, type PotionId } from '../data/content';
+import { CATALOG, GRIND_RECIPES, PLOTS, type ItemId, type PotionId } from '../data/content';
 import { TUNING } from '../data/tuning';
+import { catalogStatus } from './catalog';
 import { DAY_TICKS } from './clock';
 import { neutralFrame, type Command, type Frame } from './commands';
 import { BED_IDS, isReady } from './garden';
-import { SHELVES } from './shop';
+import { shelfCapacity, SHELVES } from './shop';
 import type { CreatureState, Facing, GameState } from './state';
-import { brewRecipe, maxBrew, maxGrind, STATION_KINDS, STATION_STRUCTURES } from './stations';
+import { brewRecipe, isCauldron, maxBrew, maxGrind, STATION_KINDS, STATION_STRUCTURES } from './stations';
 import {
   DOOR_OUTSIDE,
   DOOR_TILE,
@@ -21,6 +22,7 @@ import {
   SHOP_TY,
   SHOP_W,
   structureOfKind,
+  structureStands,
   tileAt,
   TILE,
   WORLD_STRUCTURES,
@@ -31,15 +33,19 @@ import {
 
 const B = TUNING.bot;
 const STEP = TUNING.player.speed / TUNING.sim.tickRate;
-const CAP = TUNING.shop.shelfCapacity;
 // Highest value first: the brew order and the stocking order.
 const BREW_ORDER: readonly PotionId[] = ['emberelixir', 'glowdraught', 'salve', 'tonic'];
-// Bed i grows this crop (bed 3 switches to emberroot once the east plot is owned).
-const BED_CROPS: readonly ItemId[] = ['glowcap', 'glowcap', 'mint', 'mint'];
-// Each bed is worked from the tile outside the 2x2 block, facing it, so it is the only target.
+// Bed i grows this crop; these beds switch to emberroot once the east plot is owned and enough
+// emberroot is held (bed 3, and beds 5 and 6 from the catalog).
+const BED_CROPS: readonly ItemId[] = ['glowcap', 'glowcap', 'mint', 'mint', 'glowcap', 'mint'];
+const EMBER_BEDS: readonly string[] = ['bed3', 'bed4', 'bed5'];
+// Each bed is worked from a tile outside the bed block, facing it, so it is the only target (the
+// catalog's two beds from the row below them).
 const BED_STAND: readonly { dx: number; dy: number; face: Facing }[] = [
   { dx: 0, dy: -1, face: 'down' },
   { dx: 0, dy: -1, face: 'down' },
+  { dx: 0, dy: 1, face: 'up' },
+  { dx: 0, dy: 1, face: 'up' },
   { dx: 0, dy: 1, face: 'up' },
   { dx: 0, dy: 1, face: 'up' },
 ];
@@ -47,6 +53,8 @@ const BED_STAND: readonly { dx: number; dy: number; face: Facing }[] = [
 const SIGN = structureOfKind('sign');
 const COUNTER = structureOfKind('counter');
 const COT = structureOfKind('cot');
+const STAND = structureOfKind('catalog');
+const CAULDRONS = STATION_KINDS.filter(isCauldron);
 const BEDS = WORLD_STRUCTURES.filter((s) => s.def.kind === 'bed');
 const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
   mortar: 'up',
@@ -56,6 +64,7 @@ const FACE_AT: Partial<Record<WorldStructure['def']['kind'], Facing>> = {
   sign: 'down',
   cot: 'right',
   signpost: 'right',
+  catalog: 'down',
 };
 
 // A goal tile, in world tiles (the shop sits in the same tile space).
@@ -78,12 +87,14 @@ interface Ctx {
   start: number;
 }
 
-// Blocked tiles depend only on which plots are owned (outdoors) or whether the shop is open
-// (indoors, the exit closes): memoized per pattern.
+// Blocked tiles depend only on which plots are owned (outdoors), whether the shop is open
+// (indoors, the exit closes) and which catalog items have arrived (tables, the second cauldron):
+// memoized per pattern.
 const STATIC = new Map<string, Uint8Array>();
 
 function staticGrid(state: GameState, indoors: boolean): Uint8Array {
-  const key = indoors ? `shop${state.shop.phase === 'open'}` : state.plots.map((p) => (p.owned ? '1' : '0')).join('');
+  const owned = [...state.catalog.owned].sort().join();
+  const key = indoors ? `shop${state.shop.phase === 'open'}|${owned}` : `${state.plots.map((p) => (p.owned ? '1' : '0')).join('')}|${owned}`;
   let g = STATIC.get(key);
   if (!g) {
     if (indoors) {
@@ -270,7 +281,7 @@ function engage(ctx: Ctx, c: CreatureState, d: number): Frame | null {
 // --- Outdoor work --------------------------------------------------------------
 
 function bedCrop(state: GameState, i: number): ItemId {
-  if (i === BED_CROPS.length - 1 && state.plots[1]?.owned && state.inventory.emberroot >= B.emberSeedMin) return 'emberroot';
+  if (EMBER_BEDS.includes(BED_IDS[i]!) && state.plots[1]?.owned && state.inventory.emberroot >= B.emberSeedMin) return 'emberroot';
   return BED_CROPS[i]!;
 }
 
@@ -397,10 +408,12 @@ function grindFrame(ctx: Ctx): Frame | null {
   return null;
 }
 
-// Brew a full batch at once, or whatever is possible once no more inputs are coming today.
+// Brew a full batch at once, or whatever is possible once no more inputs are coming today, in
+// the first free cauldron.
 function brewFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
-  if (s.stations.cauldron) return null;
+  const free = CAULDRONS.find((k) => s.stations[k] === null && structureStands(s, STATION_STRUCTURES[k]));
+  if (!free) return null;
   const nothingComing =
     s.nodes.length === 0 &&
     s.creatures.length === 0 &&
@@ -412,12 +425,12 @@ function brewFrame(ctx: Ctx): Frame | null {
     const n = maxBrew(s, brewRecipe(potion)!);
     if (n < 1) continue;
     if (n < TUNING.cauldron.maxQuantity && !nothingComing && !late) return null;
-    return useStructure(ctx, STATION_STRUCTURES.cauldron, { type: 'StartBrew', potion, qty: n });
+    return useStructure(ctx, STATION_STRUCTURES[free], { type: 'StartBrew', potion, qty: n });
   }
   return null;
 }
 
-// While a station still works, wait at its output tile (the cauldron first).
+// While a station still works, wait at its output tile (the cauldrons first).
 function waitFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
   for (const kind of [...STATION_KINDS].reverse()) {
@@ -429,20 +442,35 @@ function waitFrame(ctx: Ctx): Frame | null {
 
 // --- The shop ------------------------------------------------------------------------
 
-// Potions only, highest value first: top up a shelf that holds it, else fill an empty one.
+// Potions only, highest value first: top up a table that holds it; else an empty table goes to a
+// potion that has none yet, or, when every potion held has one, to the potion held most.
 function stockFrame(ctx: Ctx): Frame | null {
   const s = ctx.state;
+  const cap = shelfCapacity(s);
   const shelves = s.shop.shelves;
-  for (const potion of BREW_ORDER) {
-    const have = s.inventory[potion];
-    if (have < 1) continue;
-    let i = shelves.findIndex((sl) => sl.item === potion && sl.count < CAP);
-    if (i < 0) i = shelves.findIndex((sl) => sl.item === null);
-    if (i < 0) continue;
-    const qty = Math.min(have, CAP - shelves[i]!.count);
+  const held = BREW_ORDER.filter((p) => s.inventory[p] > 0);
+  const put = (i: number, potion: PotionId): Frame | null => {
+    const qty = Math.min(s.inventory[potion], cap - shelves[i]!.count);
     return useStructure(ctx, SHELVES[i]!, { type: 'StockShelf', shelf: i, item: potion, qty });
+  };
+  for (const potion of held) {
+    const i = shelves.findIndex((sl) => sl.item === potion && sl.count < cap);
+    if (i >= 0) return put(i, potion);
   }
-  return null;
+  const empty = shelves.findIndex((sl) => sl.item === null);
+  if (empty < 0 || held.length === 0) return null;
+  const most = held.reduce((a, p) => (s.inventory[p] > s.inventory[a] ? p : a));
+  return put(empty, held.find((p) => !shelves.some((sl) => sl.item === p)) ?? most);
+}
+
+// After the east plot: the cheapest item buyable now (ties in catalog order), once it is affordable.
+function catalogFrame(ctx: Ctx): Frame | null {
+  const s = ctx.state;
+  if (!s.plots[1]?.owned) return null;
+  const buyable = CATALOG.filter((d) => catalogStatus(s, d) === 'buyable');
+  const cheapest = buyable.reduce<(typeof buyable)[number] | null>((a, d) => (a === null || d.price < a.price ? d : a), null);
+  if (!cheapest || s.coins < cheapest.price) return null;
+  return useStructure(ctx, STAND, { type: 'BuyUpgrade', id: cheapest.id });
 }
 
 // The WP04 rule, one step per reaction: up after a sale, down after a refusal or a grumble.
@@ -473,17 +501,19 @@ function openFrame(ctx: Ctx): Frame {
   const nudge = pendingNudge(s);
   if (nudge) {
     const at = s.player.interactTarget;
-    if (at !== null && SHELVES.some((sh) => sh.def.id === at)) return send({ type: 'SetPrice', item: nudge.item, price: nudge.price });
-    return goTo(ctx, SHELVES.map((sh) => standAt(sh)))?.frame ?? neutralFrame();
+    const tables = SHELVES.filter((sh) => structureStands(s, sh));
+    if (at !== null && tables.some((sh) => sh.def.id === at)) return send({ type: 'SetPrice', item: nudge.item, price: nudge.price });
+    return goTo(ctx, tables.map((sh) => standAt(sh)))?.frame ?? neutralFrame();
   }
   return goTo(ctx, [standAt(COUNTER)])?.frame ?? neutralFrame();
 }
 
-// Indoors with nothing to start: out if there is outdoor work, else end the day (no waiting on
-// the stations by day, the evening has no timer), then wait for the jobs, stock, open, sleep.
+// Indoors with nothing to start (a catalog purchase counts as one): out if there is outdoor work,
+// else end the day (no waiting on the stations by day, the evening has no timer), then wait for
+// the jobs, stock, open, sleep.
 function indoorFrame(ctx: Ctx): Frame {
   const s = ctx.state;
-  const inside = pickupFrame(ctx, Infinity) ?? grindFrame(ctx) ?? brewFrame(ctx);
+  const inside = pickupFrame(ctx, Infinity) ?? grindFrame(ctx) ?? brewFrame(ctx) ?? catalogFrame(ctx);
   if (inside) return inside;
   if (nearestGoal(plan(s, center(DOOR_OUTSIDE.x, DOOR_OUTSIDE.y)), outdoorGoals(s))) return goThroughDoor(ctx) ?? neutralFrame();
   const wait = waitFrame(ctx) ?? stockFrame(ctx);

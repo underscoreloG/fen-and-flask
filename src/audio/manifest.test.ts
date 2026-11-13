@@ -56,7 +56,7 @@ describe('event to sound', () => {
     [{ type: 'jobStarted', station: 'mortar', item: 'mintpaste', qty: 2 }, ['grind']],
     [{ type: 'jobStarted', station: 'cauldron', item: 'glowdraught', qty: 2 }, ['bubble']],
     [{ type: 'jobUnitDone', station: 'cauldron', item: 'glowdraught' }, ['potion_done']],
-    [{ type: 'sale', item: 'glowdraught', price: 20 }, ['coin']],
+    [{ type: 'sale', item: 'glowdraught', price: 20, qty: 1 }, ['coin']],
     [{ type: 'customerReacted', item: 'glowdraught', price: 99, reaction: 'refuses', sold: false }, ['refuse']],
     [{ type: 'customerLeftUnpaid', item: 'glowdraught' }, ['refuse']],
     [{ type: 'customerQueued', item: 'glowdraught' }, ['bell']],

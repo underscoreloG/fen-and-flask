@@ -5,7 +5,7 @@ import type { CreatureId, NodeId } from '../data/content';
 import { PALETTE, type Token } from '../data/palette';
 import { TUNING } from '../data/tuning';
 import type { GameEvent } from '../core/events';
-import { STATION_STRUCTURES } from '../core/stations';
+import { isCauldron, STATION_STRUCTURES } from '../core/stations';
 import { ATLAS } from './sprites/generate';
 
 const F = TUNING.fx;
@@ -80,8 +80,8 @@ export class Fx {
           break;
         case 'jobUnitDone':
           // Potion done: a glow sparkle from the cauldron's rim (the footprint top).
-          if (e.station === 'cauldron') {
-            const s = STATION_STRUCTURES.cauldron;
+          if (isCauldron(e.station)) {
+            const s = STATION_STRUCTURES[e.station];
             this.burst(s.x + s.w / 2, s.y, SPARKLE, F.sparkleParticles, true);
           }
           break;

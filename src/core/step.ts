@@ -1,3 +1,4 @@
+import { buyUpgrade } from './catalog';
 import { cheat } from './cheat';
 import { sleep, updateClock } from './clock';
 import type { Command, Frame } from './commands';
@@ -45,6 +46,9 @@ function applyCommand(state: GameState, c: Command, events: GameEvent[]): void {
       break;
     case 'BuyPlot':
       buyPlot(state, c.plot, events);
+      break;
+    case 'BuyUpgrade':
+      buyUpgrade(state, c.id);
       break;
     case 'Cheat':
       cheat(state, c.cheat, events);

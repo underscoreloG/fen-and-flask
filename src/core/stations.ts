@@ -1,5 +1,6 @@
-// Mortar and cauldron (specs/content.md, Stations): one background job per station; each unit
-// pops out as a pickup on the tile below the station.
+// Mortar and cauldrons (specs/content.md, Stations; the second cauldron and the stone mortar from
+// specs/wp/WP07): one background job per station; each unit pops out as a pickup on the tile below
+// the station. A station is named by its structure id.
 import {
   BREW_RECIPES,
   CAULDRON_FUEL,
@@ -13,11 +14,11 @@ import { ticks, TUNING } from '../data/tuning';
 import type { GameEvent } from './events';
 import { spawnPickup } from './pickups';
 import type { GameState } from './state';
-import { structureOfKind, targetStructure, type WorldStructure } from './world';
+import { structureById, targetStructure, type WorldStructure } from './world';
 
-export type StationKind = 'mortar' | 'cauldron';
+export type StationKind = 'mortar' | 'cauldron' | 'cauldron2';
 
-export const STATION_KINDS: readonly StationKind[] = ['mortar', 'cauldron'];
+export const STATION_KINDS: readonly StationKind[] = ['mortar', 'cauldron', 'cauldron2'];
 
 export interface Job {
   // The output item: a ground item at the mortar, a potion at the cauldron.
@@ -31,21 +32,38 @@ export interface Job {
 export type Stations = Record<StationKind, Job | null>;
 
 export function createStations(): Stations {
-  return { mortar: null, cauldron: null };
+  return { mortar: null, cauldron: null, cauldron2: null };
 }
 
 export const UNIT_TICKS: Readonly<Record<StationKind, number>> = {
   mortar: ticks(TUNING.mortar.secondsPerUnit),
   cauldron: ticks(TUNING.cauldron.secondsPerPotion),
+  cauldron2: ticks(TUNING.cauldron.secondsPerPotion),
 };
+const STONE_TICKS = ticks(TUNING.mortar.stoneSecondsPerUnit);
+
+// Ticks per unit right now. The stone mortar only arrives at a morning reset, after every job has
+// finished, so a unit never changes speed halfway.
+export function unitTicks(state: GameState, kind: StationKind): number {
+  return kind === 'mortar' && state.catalog.owned.includes('stoneMortar') ? STONE_TICKS : UNIT_TICKS[kind];
+}
 
 const C = TUNING.cauldron;
 
-// Both stand in the shop's back room.
+// All stand in the shop's back room.
 export const STATION_STRUCTURES: Readonly<Record<StationKind, WorldStructure>> = {
-  mortar: structureOfKind('mortar'),
-  cauldron: structureOfKind('cauldron'),
+  mortar: structureById('mortar')!,
+  cauldron: structureById('cauldron')!,
+  cauldron2: structureById('cauldron2')!,
 };
+
+export const isCauldron = (kind: StationKind): boolean => STATION_STRUCTURES[kind].def.kind === 'cauldron';
+
+// The station the player targets, if any.
+function targetStation(state: GameState): StationKind | null {
+  const id = targetStructure(state)?.def.id;
+  return STATION_KINDS.find((k) => k === id) ?? null;
+}
 
 export function grindRecipe(input: ItemId): GrindRecipe | undefined {
   return GRIND_RECIPES.find((r) => r.input === input);
@@ -68,13 +86,7 @@ export function maxBrew(state: GameState, r: BrewRecipe): number {
 }
 
 function canStart(state: GameState, kind: StationKind, qty: number, max: number): boolean {
-  return (
-    Number.isInteger(qty) &&
-    qty >= 1 &&
-    qty <= max &&
-    state.stations[kind] === null &&
-    targetStructure(state)?.def.kind === kind
-  );
+  return Number.isInteger(qty) && qty >= 1 && qty <= max && state.stations[kind] === null;
 }
 
 function startJob(state: GameState, kind: StationKind, item: ItemId, qty: number, events: GameEvent[]): void {
@@ -85,19 +97,20 @@ function startJob(state: GameState, kind: StationKind, item: ItemId, qty: number
 // Rejected (state untouched) unless the mortar is the interact target and free, and qty is 1 to owned.
 export function startGrind(state: GameState, input: ItemId, qty: number, events: GameEvent[]): void {
   const r = grindRecipe(input);
-  if (!r || !canStart(state, 'mortar', qty, maxGrind(state, r))) return;
+  if (!r || targetStation(state) !== 'mortar' || !canStart(state, 'mortar', qty, maxGrind(state, r))) return;
   state.inventory[r.input] -= qty;
   startJob(state, 'mortar', r.output, qty, events);
 }
 
-// Rejected unless the cauldron is the interact target and free, and qty is 1 to min(5, what the
+// Rejected unless a cauldron is the interact target and free, and qty is 1 to min(5, what the
 // ingredients allow) with the job's bogwood in hand. All inputs leave at once.
 export function startBrew(state: GameState, potion: PotionId, qty: number, events: GameEvent[]): void {
   const r = brewRecipe(potion);
-  if (!r || !canStart(state, 'cauldron', qty, maxBrew(state, r))) return;
+  const kind = targetStation(state);
+  if (!r || kind === null || !isCauldron(kind) || !canStart(state, kind, qty, maxBrew(state, r))) return;
   for (const ing of r.ingredients) state.inventory[ing.item] -= ing.n * qty;
   state.inventory[CAULDRON_FUEL] -= C.fuelPerJob;
-  startJob(state, 'cauldron', r.potion, qty, events);
+  startJob(state, kind, r.potion, qty, events);
 }
 
 // One unit out: an indoor pickup on the station's interact tile, arcing from the station itself.
@@ -118,7 +131,7 @@ export function updateStations(state: GameState, events: GameEvent[]): void {
     const job = state.stations[kind];
     if (!job) continue;
     job.progress += 1;
-    if (job.progress >= UNIT_TICKS[kind]) produce(state, kind, job, events);
+    if (job.progress >= unitTicks(state, kind)) produce(state, kind, job, events);
   }
 }
 

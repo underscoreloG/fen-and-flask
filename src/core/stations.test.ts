@@ -57,7 +57,7 @@ function expectRejected(s: GameState, c: Command): void {
 
 describe('stations', () => {
   it('job timers are integer ticks: 90 per ground unit, 360 per potion', () => {
-    expect(UNIT_TICKS).toEqual({ mortar: 90, cauldron: 360 });
+    expect(UNIT_TICKS).toEqual({ mortar: 90, cauldron: 360, cauldron2: 360 });
   });
 
   it('interact routes the mortar and the cauldron to their station panel', () => {

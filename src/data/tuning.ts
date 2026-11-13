@@ -52,6 +52,10 @@ export const TUNING = {
     hitboxW: 10,
     hitboxH: 8,
   },
+  // The copper sickle (specs/wp/WP07): every node type needs this many hits fewer.
+  sickle: {
+    hitsFewer: 1,
+  },
   pickup: {
     scatterMin: 8,
     scatterMax: 14,
@@ -81,6 +85,8 @@ export const TUNING = {
   },
   mortar: {
     secondsPerUnit: 1.5,
+    // With the stone mortar (specs/wp/WP07): 45 ticks.
+    stoneSecondsPerUnit: 0.75,
   },
   cauldron: {
     secondsPerPotion: 6,
@@ -104,6 +110,10 @@ export const TUNING = {
   // The shop interior (specs/wp/WP06).
   shop: {
     shelfCapacity: 5,
+    // With deep tables (specs/wp/WP07): the capacity, and the chance a buyer on a table holding 2
+    // or more takes two.
+    deepShelfCapacity: 8,
+    doubleChance: 0.25,
     maxIndoors: 2,
     // 150 ticks between two customers coming in.
     enterGap: 2.5,
@@ -146,6 +156,13 @@ export const TUNING = {
     evening1CoinsMax: 130,
     plotBoughtMaxDay: 4,
     goalMaxDay: 6,
+    // M2 (specs/wp/WP07): every catalog item owned by this day; then, over the lantern sign's
+    // arrival day and the 4 after it, coins per evening at least this times evenings 3-5, and
+    // at least this many units sold per evening.
+    catalogAllMaxDay: 15,
+    lateEveningsAfter: 4,
+    lateCoinsRatio: 1.5,
+    lateUnitsMin: 12,
   },
   input: {
     deadZone: 0.25,
@@ -298,6 +315,10 @@ export const TUNING = {
     wareLiftPx: 3,
     pipSize: 2,
     pipGap: 1,
+    // More than this many pips (deep tables hold 8) wrap into a second row.
+    pipsPerRow: 5,
+    // The delivery crate goes once the player comes this close (tiles).
+    crateClearTiles: 1,
     // The back room's floor glows warm around a lit cauldron.
     glowAlpha: 0.35,
     glowPulseMs: 420,

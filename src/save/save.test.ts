@@ -4,7 +4,8 @@ import { neutralFrame, type Command, type Frame } from '../core/commands';
 import { createInitialState, type GameState } from '../core/state';
 import { step } from '../core/step';
 import { shopTileCenter } from '../core/world';
-import { deserialize, serialize } from './save';
+import { APP_VERSION } from '../data/version';
+import { deserialize, fillDefaults, serialize } from './save';
 
 const script = (i: number): Frame => ({
   ...neutralFrame(),
@@ -83,6 +84,35 @@ describe('save', () => {
     expect(deserialize(serialize(s, '0.2.0'), '0.1.3')).toBeNull();
     expect(deserialize(serialize(s, '1.2.0'), '0.2.0')).toBeNull();
     expect(deserialize(serialize(s, '0.2.4'), '0.2.0')).toEqual(s);
+  });
+
+  it('catalog ids, owned and pending, survive the round trip; a 0.2.1 save is ignored by 0.3.0', () => {
+    const s = played();
+    s.catalog = { owned: ['shelf5', 'sickle'], pending: ['shelf6'] };
+    s.shop.shelves.push({ item: 'tonic', count: 2 });
+    const b = deserialize(serialize(s, APP_VERSION), APP_VERSION)!;
+    expect(b).toEqual(s);
+    expect(b.catalog).toEqual({ owned: ['shelf5', 'sickle'], pending: ['shelf6'] });
+    expect(APP_VERSION).toBe('0.3.0');
+    expect(deserialize(serialize(createInitialState(1), '0.2.1'), APP_VERSION)).toBeNull();
+  });
+
+  it('fillDefaults restores a missing key from a fresh state and keeps loaded arrays as they are', () => {
+    const s = createInitialState(3);
+    s.shop.shelves.push({ item: 'salve', count: 1 });
+    const loaded = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
+    delete loaded.catalog;
+    delete (loaded.stations as Record<string, unknown>).cauldron2;
+    fillDefaults(loaded, createInitialState(3) as unknown as Record<string, unknown>);
+    const back = loaded as unknown as GameState;
+    expect(back.catalog).toEqual({ owned: [], pending: [] });
+    expect(back.stations.cauldron2).toBeNull();
+    expect(back.shop.shelves).toHaveLength(5);
+    expect(back.shop.shelves[4]).toEqual({ item: 'salve', count: 1 });
+    // Through a load too: a save of this minor without the key comes back with it.
+    const file = JSON.parse(serialize(s, APP_VERSION)) as { state: Record<string, unknown> };
+    delete file.state.catalog;
+    expect(deserialize(JSON.stringify(file), APP_VERSION)!.catalog).toEqual({ owned: [], pending: [] });
   });
 
   it('garbage and wrong shapes return null', () => {

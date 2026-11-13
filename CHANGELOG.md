@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.0 - 2026-11-13
+
+Coins have somewhere to go: a catalog in the shop.
+
+- A catalog stand by the shop door sells nine upgrades. Pay at once; the item arrives the next morning (a toast and a crate by the door say so).
+- Shop floor: a fifth and a sixth table (2 more customers each), a painted signboard and then a lantern sign on the hut (2 and 3 more customers), and deep tables that hold 8, where one buyer in four takes two. Up to 17 customers an evening.
+- Workshop: a stone mortar that grinds twice as fast and a second cauldron in the back room.
+- Gathering: a copper sickle (one hit less on plants and stumps) and two more garden beds.
+- Saves from 0.2.x are not loaded (New game only). From now on, saves from an earlier patch of the same version fill in what they lack.
+
 ## v0.2.1 - 2026-11-13
 
 - The shop sign has one action: OPEN SHOP. Opening by day also ends the day; "call it a day" is gone.

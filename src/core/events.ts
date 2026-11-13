@@ -1,6 +1,6 @@
 // Core -> render/audio. A tick where nothing happened returns an empty array; there is
 // deliberately no per-tick event. Positions are world px (feet centers).
-import type { CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
+import type { CatalogId, CreatureId, ItemId, NodeId, StructureKind } from '../data/content';
 import type { Reaction } from './shop';
 import type { Area, Facing } from './state';
 import type { StationKind } from './stations';
@@ -17,7 +17,8 @@ export type UiRequest =
   // A one-line note at the top of the screen; it never pauses the sim.
   | { ui: 'toast'; text: string }
   // plot indexes state.plots.
-  | { ui: 'buyPlotConfirm'; plot: number };
+  | { ui: 'buyPlotConfirm'; plot: number }
+  | { ui: 'catalog' };
 
 export type GameEvent =
   // Every swing that actually plays; targetId is null for a swing at the air, a bed's
@@ -42,8 +43,8 @@ export type GameEvent =
   | { type: 'eveningStarted'; day: number }
   // After the morning reset; day is the new day.
   | { type: 'morning'; day: number }
-  // Station jobs; item is the output (a ground item or a potion). One jobUnitDone per unit,
-  // jobFinished on the tick of the last one.
+  // Station jobs, named by the station's id; item is the output (a ground item or a potion). One
+  // jobUnitDone per unit, jobFinished on the tick of the last one.
   | { type: 'jobStarted'; station: StationKind; item: ItemId; qty: number }
   | { type: 'jobUnitDone'; station: StationKind; item: ItemId }
   | { type: 'jobFinished'; station: StationKind }
@@ -54,10 +55,13 @@ export type GameEvent =
   | { type: 'customerReacted'; item: ItemId; price: number; reaction: Reaction; sold: boolean }
   | { type: 'customerQueued'; item: ItemId }
   | { type: 'customerLeftUnpaid'; item: ItemId }
-  | { type: 'sale'; item: ItemId; price: number }
+  // qty units (2 for a double buy on deep tables) at price each.
+  | { type: 'sale'; item: ItemId; price: number; qty: number }
   | { type: 'stallClosed'; soldCount: number; soldCoins: number }
   // Right after eveningStarted, only on days with a trend.
   | { type: 'trendAnnounced'; item: ItemId }
   // Once per game: the first Ember Elixir paid for.
   | { type: 'goalReached' }
-  | { type: 'plotBought'; plot: number };
+  | { type: 'plotBought'; plot: number }
+  // At the morning reset, once per catalog item delivered (before morning).
+  | { type: 'upgradeArrived'; id: CatalogId };
