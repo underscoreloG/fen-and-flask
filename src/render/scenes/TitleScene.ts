@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
+import type { GameAudio } from '../../audio/audio';
 import { createInitialState, type GameState } from '../../core/state';
 import { TUNING } from '../../data/tuning';
 import { APP_VERSION } from '../../data/version';
 import type { DeviceReader } from '../../input/devices';
 import { holdInput, readUi, startGame, type Session } from '../../input/session';
-import { load } from '../../save/save';
+import { clear, load } from '../../save/save';
 import { addText } from '../font';
 import { ListPanel } from '../ui/confirm';
 
@@ -12,13 +13,15 @@ import { ListPanel } from '../ui/confirm';
 export class TitleScene extends Phaser.Scene {
   private readonly session: Session;
   private readonly reader: DeviceReader;
+  private readonly audio: GameAudio;
   private menu!: ListPanel;
   private saved: GameState | null = null;
 
-  constructor(session: Session, reader: DeviceReader) {
+  constructor(session: Session, reader: DeviceReader, audio: GameAudio) {
     super('title');
     this.session = session;
     this.reader = reader;
+    this.audio = audio;
   }
 
   create(): void {
@@ -35,8 +38,18 @@ export class TitleScene extends Phaser.Scene {
     const { keys, pad } = this.reader.read();
     holdInput(this.session, keys, pad);
     readUi(this.session, keys, pad, delta);
-    if (this.menu.update(this.session.intents) !== 'confirm') return;
+    const intents = this.session.intents;
+    this.audio.wake(intents);
+    if (intents.mute) this.audio.toggleMute();
+    const before = this.menu.selected;
+    if (this.menu.update(intents) !== 'confirm') {
+      if (this.menu.selected !== before) this.audio.ui('ui_move');
+      return;
+    }
+    this.audio.ui('ui_confirm');
     const cont = this.saved !== null && this.menu.selected === 0;
+    // New game replaces any save at once, not only at the next morning.
+    if (!cont && !this.session.options.nosave) clear();
     startGame(this.session, cont && this.saved ? this.saved : createInitialState(this.session.options.seed));
     this.scene.start('game');
   }

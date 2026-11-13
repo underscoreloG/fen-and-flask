@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GameAudio } from './audio/audio';
 import { hex } from './data/palette';
 import { TUNING } from './data/tuning';
 import { installDebug, readParams } from './debug/debug';
@@ -24,6 +25,8 @@ const session = createSession({
 
 document.body.style.background = hex('ink');
 
+const audio = new GameAudio(params.nosave);
+
 // One keyboard and pad reader for the page: title and world share it, so a key held across the
 // scene switch keeps its held state.
 const reader = createDeviceReader(window);
@@ -42,10 +45,13 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   banner: false,
-  // Sound arrives in WP05; until then no AudioContext (and no autoplay notice).
-  audio: { noAudio: true },
   scale: { mode: Phaser.Scale.NONE, zoom: fitZoom() },
-  scene: [new BootScene(params.skipTitle), new TitleScene(session, reader), new GameScene(session, reader), new UIScene(session)],
+  scene: [
+    new BootScene(params.skipTitle, audio),
+    new TitleScene(session, reader, audio),
+    new GameScene(session, reader),
+    new UIScene(session, audio),
+  ],
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(fitZoom()));
