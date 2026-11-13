@@ -201,7 +201,8 @@ interface Leaver {
   n: number;
   look: number;
   reaction: Reaction | null;
-  // Path position it turned back from, and the tick it did.
+  // Path position it turned back from, and the render time (ms) it did: the walk out runs on
+  // render time, so it carries on behind the summary panel while the sim is paused.
   u0: number;
   from: number;
   fig: Figure;
@@ -214,6 +215,7 @@ const SPOT = plotTileCenter(HOME.gx, HOME.gy, LAYOUT.customerSpot?.x ?? 0, LAYOU
 const LEG1 = Math.abs(SPOT.x - ENTRY.x);
 const LEG2 = Math.abs(SPOT.y - ENTRY.y);
 const FEET = TUNING.player.hitboxH / 2;
+const MS_PER_TICK = 1000 / TUNING.sim.tickRate;
 
 // u in [0, 1]: east along the road from the entry, then up to the spot.
 function pathAt(u: number): { x: number; y: number } {
@@ -239,7 +241,7 @@ export class StallCrowd {
     const c = state.stall.customer;
     if (this.current && (!c || c.n !== this.current.n || state.stall.phase !== 'open')) {
       const cur = this.current;
-      const from = c ? state.tick - c.t : state.tick;
+      const from = this.scene.time.now;
       this.leavers.push({ n: cur.n, look: cur.look, reaction: cur.reaction, u0: Math.min(1, cur.t / WALK_TICKS), from, fig: cur.fig });
       this.current = null;
     }
@@ -258,13 +260,15 @@ export class StallCrowd {
       cur.fig.bubble.setVisible(cur.reaction !== null);
     }
     this.leavers = this.leavers.filter((l) => {
-      const e = (state.tick - l.from) / WALK_TICKS;
+      const now = this.scene.time.now;
+      const e = (now - l.from) / (WALK_TICKS * MS_PER_TICK);
       const u = l.u0 - e;
       if (u <= 0) {
         for (const o of [l.fig.img, l.fig.shadow, l.fig.bubble]) o.destroy();
         return false;
       }
-      this.place(l.fig, l.look, u, true, true, state.tick);
+      // Render time in ticks drives the walk frames too.
+      this.place(l.fig, l.look, u, true, true, now / MS_PER_TICK);
       const linger = V.bubbleLingers;
       l.fig.bubble.setVisible(l.reaction !== null && e < linger).setAlpha(Math.max(0, 1 - e / linger));
       return true;

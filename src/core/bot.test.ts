@@ -56,6 +56,28 @@ describe('bot health (seeds 1-3, live mudlets, core only)', () => {
   }
 });
 
+// Past the goal: a week of play with live mudlets, so a bot that gets pinned (seed 2 once stood
+// flush on a node, seed 7 once chased an east mudlet into one) fails here.
+describe('bot robustness (a week, live mudlets)', () => {
+  for (const seed of [1, 2, 3, 7]) {
+    it(`seed ${seed}: reaches day 7 with no faint and no day ended by the clock`, () => {
+      const s = createInitialState(seed);
+      let faints = 0;
+      let timerDays = 0;
+      for (let i = 0; i < TICK_CAP && s.day < 7; i++) {
+        for (const e of step(s, botFrame(s))) {
+          if (e.type === 'playerFainted') faints += 1;
+          else if (e.type === 'eveningStarted' && s.clock.t >= DAY_TICKS) timerDays += 1;
+        }
+      }
+      console.log(`[week] seed ${seed}: day ${s.day}, faints ${faints}, days ended by the clock ${timerDays}, coins ${s.coins}`);
+      expect(s.day).toBe(7);
+      expect(faints).toBe(0);
+      expect(timerDays).toBe(0);
+    }, 60000);
+  }
+});
+
 // A day-3 game with both plots owned and filled.
 function dayThree(seed: number): GameState {
   const s = createInitialState(seed);

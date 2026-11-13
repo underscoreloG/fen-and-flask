@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --port 5345 --strictPort",
     "build": "vite build",
-    "test": "vitest run",
-    "verify": "tsc --noEmit && node scripts/check-boundaries.mjs && vitest run && vite build && node scripts/check-size.mjs"
+    "test": "vitest run --silent=false",
+    "verify": "tsc --noEmit && node scripts/check-boundaries.mjs && vitest run --silent=false && vite build && node scripts/check-size.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0"
