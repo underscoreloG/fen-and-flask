@@ -2,7 +2,7 @@
 
 A cozy top-down pixel game in the browser: gather marsh herbs, grind and brew potions, set your own prices at the evening stall, sleep, and buy the next plot of marsh.
 
-Controls: arrows move, X swing (or back in panels), C interact / confirm, V notebook, Esc pause, M mute. Gamepad: stick or d-pad, X swing, A confirm, B back, Y notebook, Start pause.
+Controls: arrows move, X swing (or back in panels), C or Enter interact / confirm, V notebook, Esc pause, M mute. Gamepad: stick or d-pad, X swing, A confirm, B back, Y notebook, Start pause.
 
 ```bash
 npm ci

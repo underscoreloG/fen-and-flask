@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { neutralFrame, type Frame } from './commands';
 import type { GameEvent } from './events';
@@ -72,7 +73,8 @@ describe('state', () => {
   });
 
   it('carries the package version (Vite define reaches core)', () => {
-    expect(createInitialState(1).version).toBe('0.1.0');
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
+    expect(createInitialState(1).version).toBe(pkg.version);
   });
 
   it('addItem adds to the inventory', () => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.1 - 2026-11-13
+
+- Enter now works like C (confirm and interact), and the title menu can be clicked with the mouse.
+- The title screen shows which key starts the game.
+
 ## v0.1.0 - 2026-11-13
 
 First playable slice (M1).

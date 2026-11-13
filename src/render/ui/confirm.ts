@@ -141,6 +141,13 @@ export class ListPanel {
     for (const p of this.parts) p.destroy();
   }
 
+  // Row under a point in view pixels, or null (mouse clicks on the title menu).
+  rowAt(x: number, y: number): number | null {
+    if (x < this.x0 || x >= this.x0 + this.w) return null;
+    const i = Math.floor((y - this.rowsTop) / K.rowH);
+    return i >= 0 && i < this.rows.length ? i : null;
+  }
+
   private drawCursor(): void {
     this.cursor.clear();
     if (this.rows.length === 0) return;

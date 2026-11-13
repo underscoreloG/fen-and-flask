@@ -224,6 +224,7 @@ export const TUNING = {
     titleTextY: 80,
     titleScale: 2,
     titleMenuY: 160,
+    titleHintY: 190,
     // Footer line under a list (the station quantity).
     footerGap: 4,
   },

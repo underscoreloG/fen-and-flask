@@ -55,7 +55,7 @@ No color ships outside these tokens (`src/data/palette.ts`).
 |---|---|---|
 | Move | Arrow keys | left stick (dead zone 0.25) or d-pad |
 | Swing (gather, attack) | X | X (button 2) |
-| Interact / confirm | C | A (button 0) |
+| Interact / confirm | C or Enter | A (button 0) |
 | Back / cancel | X or Esc in panels | B (button 1) |
 | Notebook | V | Y (button 3) |
 | Pause | Esc (outside panels) | Start (button 9) |
@@ -68,7 +68,7 @@ Hints show the keyboard key or the gamepad button depending on the last device u
 
 ## Screens
 
-- **Title**: logo text, Continue (if a save exists) / New game, version bottom-right.
+- **Title**: logo text, Continue (if a save exists) / New game, a one-line key hint, version bottom-right. The title menu rows can also be clicked with the mouse.
 - **World**: the game plus HUD.
 - **Station panel** (mortar, cauldron): list of recipes with what you own, quantity, Start. A recipe you cannot afford is dimmed.
 - **Garden picker**: the plantable ingredients you own.

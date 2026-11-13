@@ -10,6 +10,8 @@ const KEY_MAP: Readonly<Record<string, keyof KeyState>> = {
   arrowdown: 'down',
   x: 'x',
   c: 'c',
+  // Enter is what a first-time player presses on a menu: same as C.
+  enter: 'c',
   v: 'v',
   m: 'm',
   escape: 'esc',
