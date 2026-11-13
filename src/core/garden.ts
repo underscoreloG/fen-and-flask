@@ -68,12 +68,25 @@ export function harvest(state: GameState, index: number, events: GameEvent[]): v
   if (def) spawnDrops(state, item, def.yield, s.interactX, s.interactY, events);
 }
 
-// Interact on a bed: empty -> the picker, ready -> harvest, growing -> nothing.
+// Interact on a bed: empty -> the picker, ready -> harvest, growing -> the dig up confirm.
 export function interactBed(state: GameState, index: number, events: GameEvent[]): void {
   const bed = state.garden[index];
   if (!bed) return;
   if (bed.crop === null) events.push({ type: 'uiRequest', ui: 'gardenPicker', bed: index });
   else if (isReady(bed)) harvest(state, index, events);
+  else events.push({ type: 'uiRequest', ui: 'digUpConfirm', bed: index });
+}
+
+// Dig up (specs/wp/WP08): a growing bed at the interact target is emptied and its seed comes back,
+// so the crop can be changed (the garden toad would otherwise replant it forever).
+export function digUpBed(state: GameState, index: number, events: GameEvent[]): void {
+  const bed = state.garden[index];
+  if (!bed || bed.crop === null || isReady(bed) || state.player.interactTarget !== BED_IDS[index]) return;
+  const item = bed.crop;
+  state.inventory[item] += 1;
+  bed.crop = null;
+  bed.nightsLeft = 0;
+  events.push({ type: 'bedDugUp', bed: index, item });
 }
 
 export function growNight(state: GameState): void {

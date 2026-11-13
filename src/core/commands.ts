@@ -8,6 +8,8 @@ export type Command =
   | { type: 'Sleep' }
   // bed indexes state.garden; that bed must be the interact target.
   | { type: 'Plant'; bed: number; item: ItemId }
+  // That bed must be the interact target and growing: it is emptied, 1 unit of the crop comes back.
+  | { type: 'DigUpBed'; bed: number }
   // The targeted mortar or cauldron (either one) must be free; qty 1 to what the inputs allow.
   | { type: 'StartGrind'; input: ItemId; qty: number }
   | { type: 'StartBrew'; potion: PotionId; qty: number }

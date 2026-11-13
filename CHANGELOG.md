@@ -7,6 +7,7 @@ Helpers: three marsh toads from the catalog each take a chore off your hands.
 - Garden toad (280): each morning it harvests the ready beds and plants them again with the same crop. It sits by the beds.
 - Counter toad (320): while the shop is open it rings up a customer who has waited 8 s at the counter, wherever you are; the trained counter toad (450) does it after 3 s. You can still ring up sooner by hand. It sits on the counter, hops and lights the till.
 - Basket toad (420): each morning it brings 5 ingredients from the marsh (9 with the bigger basket, 520), drawn like the plants of your plots. It sits in the back room.
+- Dig up: interact with a growing bed to dig it up (the seed comes back) and plant something else; the garden toad then tends the new crop.
 - The catalog now holds 14 items. Saves from 0.3.0 load as they are.
 
 ## v0.3.0 - 2026-11-13

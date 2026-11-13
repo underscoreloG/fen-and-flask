@@ -84,8 +84,9 @@ describe('garden', () => {
     plantBed0(s, 'mint');
     expect(s.inventory.mint).toBe(0);
     expect(s.garden[0]).toEqual({ crop: 'mint', nightsLeft: 1 });
-    // Growing: interact does nothing.
-    expect(types(step(s, INTERACT))).not.toContain('uiRequest');
+    // Growing: interact asks to dig it up (specs/wp/WP08), nothing else.
+    expect(step(s, INTERACT).filter((e) => e.type === 'uiRequest')).toEqual([{ type: 'uiRequest', ui: 'digUpConfirm', bed: 0 }]);
+    expect(s.garden[0]).toEqual({ crop: 'mint', nightsLeft: 1 });
     sleepAndReturn(s);
     expect(s.garden[0]).toEqual({ crop: 'mint', nightsLeft: 0 });
     expect(s.player.swingTarget).toBe(BED_IDS[0]);
@@ -150,6 +151,34 @@ describe('garden', () => {
     expect(s.inventory.mint).toBe(1);
     expectRejected(s, { type: 'Plant', bed: 0, item: 'mint' });
     expect(s.garden[0]).toEqual({ crop: 'mint', nightsLeft: 1 });
+  });
+});
+
+describe('dig up', () => {
+  it('DigUpBed on a growing bed at the target: the bed is empty, 1 unit comes back, bedDugUp once', () => {
+    const s = scene();
+    s.inventory.emberroot = 1;
+    plantBed0(s, 'emberroot');
+    expect(s.inventory.emberroot).toBe(0);
+    const ev = step(s, cmd({ type: 'DigUpBed', bed: 0 }));
+    expect(ev.filter((e) => e.type === 'bedDugUp')).toEqual([{ type: 'bedDugUp', bed: 0, item: 'emberroot' }]);
+    expect(s.garden[0]).toEqual({ crop: null, nightsLeft: 0 });
+    expect(s.inventory.emberroot).toBe(1);
+    // Empty again: the picker, as on any empty bed.
+    expect(step(s, INTERACT)).toContainEqual({ type: 'uiRequest', ui: 'gardenPicker', bed: 0 });
+  });
+
+  it('is rejected with the state unchanged on an empty bed, a ready bed, away from the bed, and for another bed', () => {
+    const s = scene();
+    expectRejected(s, { type: 'DigUpBed', bed: 0 });
+    s.garden[0] = { crop: 'mint', nightsLeft: 0 };
+    expectRejected(s, { type: 'DigUpBed', bed: 0 });
+    s.garden[0] = { crop: 'mint', nightsLeft: 1 };
+    s.garden[1] = { crop: 'glowcap', nightsLeft: 1 };
+    expectRejected(s, { type: 'DigUpBed', bed: 1 });
+    expectRejected(s, { type: 'DigUpBed', bed: 9 });
+    standAt(s, 2, 5, 'down');
+    expectRejected(s, { type: 'DigUpBed', bed: 0 });
   });
 });
 
